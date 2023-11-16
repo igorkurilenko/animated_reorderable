@@ -1,4 +1,16 @@
+import 'package:animated_reorderable/src/util/misc.dart';
 import 'package:flutter/widgets.dart';
+
+import 'model/permutations.dart';
+
+typedef IdGetter = int Function(int index);
+typedef ReorderableGetter = bool Function(int index);
+typedef DraggableGetter = bool Function(int index);
+typedef SwipeAwayDirectionGetter = AxisDirection? Function(int index);
+typedef ReorderCallback = void Function(Permutations permutations);
+typedef SwipeAwayCallback = AnimatedRemovedItemBuilder Function(int index);
+
+const Duration _k300ms = Duration(milliseconds: 300);
 
 abstract class AnimatedReorderable extends StatelessWidget {
   const AnimatedReorderable({super.key, required this.controller});
@@ -188,7 +200,50 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
 }
 
 class AnimatedReorderableController {
+  AnimatedReorderableController({
+    required this.idGetter,
+    ReorderableGetter? reorderableGetter,
+    DraggableGetter? draggableGetter,
+    this.swipeAwayDirectionGetter,
+    required this.didReorder,
+    this.didSwipeAway,
+    required this.vsync,
+    this.duration = _k300ms,
+    this.curve = Curves.easeInOut,
+  })  : reorderableGetter = reorderableGetter ?? returnTrue,
+        draggableGetter = draggableGetter ?? returnTrue;
+
   late StateSetter _setOutgoingItemsLayerState;
   late StateSetter _setCollectionViewLayerState;
   late StateSetter _setOverlayedItemsLayerState;
+
+  final IdGetter idGetter;
+  final ReorderableGetter reorderableGetter;
+  final DraggableGetter draggableGetter;
+  final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
+
+  final ReorderCallback didReorder;
+  SwipeAwayCallback? didSwipeAway;
+
+  final TickerProvider vsync;
+  final Duration duration;
+  final Curve curve;
+
+  void insertItem(
+    int index, {
+    required AnimatedItemBuilder builder,
+    Duration duration = _k300ms,
+  }) {}
+
+  void removeItem(
+    int index, {
+    required AnimatedRemovedItemBuilder builder,
+    Duration duration = _k300ms,
+  }) {}
+
+  void moveItem(
+    int index, {
+    required int destinationIndex,
+    Duration duration = _k300ms,
+  }) {}
 }

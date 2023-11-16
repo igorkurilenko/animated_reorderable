@@ -30,9 +30,18 @@ class AnimatedReorderableGridSample extends StatefulWidget {
 }
 
 class _AnimatedReorderableGridSampleState
-    extends State<AnimatedReorderableGridSample> {
+    extends State<AnimatedReorderableGridSample> with TickerProviderStateMixin {
   final items = List.generate(200, (index) => index);
-  final controller = AnimatedReorderableController();
+  late final controller = AnimatedReorderableController(
+    idGetter: (index) => items[index],
+    didReorder: (permutations) => permutations.apply(items),
+    swipeAwayDirectionGetter: (_) => AxisDirection.left,
+    didSwipeAway: (index) {
+      final item = items.removeAt(index);
+      return (context, animation) => buildItem(item);
+    },
+    vsync: this,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +62,25 @@ class _AnimatedReorderableGridSampleState
           clipBehavior: Clip.none,
         ),
       ),
+      floatingActionButton: Wrap(
+        direction: Axis.horizontal,
+        children: [
+          FloatingActionButton(
+            onPressed: insertRandomItem,
+            child: const Icon(Icons.add),
+          ),
+          const SizedBox(width: 8),
+          FloatingActionButton(
+            onPressed: removeRandomItem,
+            child: const Icon(Icons.remove),
+          ),
+          const SizedBox(width: 8),
+          FloatingActionButton(
+            onPressed: moveRandomItem,
+            child: const Icon(Icons.swap_calls),
+          ),
+        ],
+      ),
     );
   }
 
@@ -64,4 +92,49 @@ class _AnimatedReorderableGridSampleState
           child: Text('$data'),
         ),
       );
+
+  void insertRandomItem() {
+    // TODO: randomize index
+    const randomIndex = 0;
+    final item = items.length;
+
+    items.insert(randomIndex, item);
+
+    controller.insertItem(
+      randomIndex,
+      builder: (context, index, animation) => ScaleTransition(
+        scale: animation,
+        child: FadeTransition(
+          opacity: animation,
+          child: buildItem(items[index]),
+        ),
+      ),
+    );
+  }
+
+  void removeRandomItem() {
+    // TODO: randomize index
+    const randomIndex = 0;
+
+    final item = items.removeAt(randomIndex);
+
+    controller.removeItem(
+      randomIndex,
+      builder: (context, animation) => ScaleTransition(
+        scale: animation,
+        child: FadeTransition(
+          opacity: animation,
+          child: buildItem(item),
+        ),
+      ),
+    );
+  }
+
+  void moveRandomItem() {
+    // TODO: randomize indexes
+    const randomIndex = 0;
+    const randomDestinationIndex = 4;
+
+    controller.moveItem(0, destinationIndex: randomDestinationIndex);
+  }
 }
