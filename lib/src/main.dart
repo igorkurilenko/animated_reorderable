@@ -1,3 +1,4 @@
+import 'package:animated_reorderable/src/model/controller_model.dart';
 import 'package:animated_reorderable/src/util/misc.dart';
 import 'package:flutter/widgets.dart';
 
@@ -140,9 +141,12 @@ class _OutgoingItemsLayerState extends State<_OutgoingItemsLayer> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return const Placeholder();
-  }
+  Widget build(BuildContext context) => Stack(
+        clipBehavior: widget.clipBehavior,
+        children: [
+          for (var item in controller._model.outgoingItems) Container()
+        ],
+      );
 }
 
 class _CollectionViewLayer extends StatefulWidget {
@@ -194,9 +198,12 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return const Placeholder();
-  }
+  Widget build(BuildContext context) => Stack(
+        clipBehavior: widget.clipBehavior,
+        children: [
+          for (var item in controller._model.overlayedItems) Container()
+        ],
+      );
 }
 
 class AnimatedReorderableController {
@@ -228,6 +235,8 @@ class AnimatedReorderableController {
   final TickerProvider vsync;
   final Duration duration;
   final Curve curve;
+
+  final _model = ControllerModel();
 
   void insertItem(
     int index, {
