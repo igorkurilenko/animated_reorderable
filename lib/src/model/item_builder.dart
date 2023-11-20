@@ -1,39 +1,37 @@
-import 'package:flutter/widgets.dart' as flutter;
-
-import 'item.dart';
+part of model;
 
 abstract class ItemBuilder {
   factory ItemBuilder.adaptIndexedWidgetBuilder(
-          flutter.NullableIndexedWidgetBuilder builder) =>
+          widgets.NullableIndexedWidgetBuilder builder) =>
       NullableIndexedWidgetBuilderAdapter(builder);
 
   factory ItemBuilder.adaptAnimatedItemBuilder(
-    flutter.AnimatedItemBuilder builder, {
-    required flutter.AnimationController controller,
+    widgets.AnimatedItemBuilder builder, {
+    required widgets.AnimationController controller,
   }) =>
       AnimatedItemBuilderAdapter(builder, controller: controller);
 
   factory ItemBuilder.adaptAnimatedRemovedItemBuilder(
-    flutter.AnimatedRemovedItemBuilder builder, {
-    required flutter.AnimationController controller,
+    widgets.AnimatedRemovedItemBuilder builder, {
+    required widgets.AnimationController controller,
   }) =>
       AnimatedRemovedItemBuilderAdapter(builder, controller: controller);
 
   factory ItemBuilder.adaptOtherItemBuilder(Item item) =>
       OtherItemBuilderAdapter(item: item);
 
-  flutter.Widget? build(flutter.BuildContext context, int index);
+  widgets.Widget? build(widgets.BuildContext context, int index);
 
   void dispose();
 }
 
 class NullableIndexedWidgetBuilderAdapter implements ItemBuilder {
-  final flutter.NullableIndexedWidgetBuilder builder;
+  final widgets.NullableIndexedWidgetBuilder builder;
 
   NullableIndexedWidgetBuilderAdapter(this.builder);
 
   @override
-  flutter.Widget? build(flutter.BuildContext context, int index) =>
+  widgets.Widget? build(widgets.BuildContext context, int index) =>
       builder(context, index);
 
   @override
@@ -46,7 +44,7 @@ class OtherItemBuilderAdapter implements ItemBuilder {
   final Item item;
 
   @override
-  flutter.Widget? build(flutter.BuildContext context, int index) =>
+  widgets.Widget? build(widgets.BuildContext context, int index) =>
       item.builder.build(context, index);
 
   @override
@@ -56,7 +54,7 @@ class OtherItemBuilderAdapter implements ItemBuilder {
 abstract class AnimatedItemBuilder implements ItemBuilder {
   AnimatedItemBuilder({required this.controller});
 
-  final flutter.AnimationController controller;
+  final widgets.AnimationController controller;
 
   double? stopAnimation() {
     final result = controller.value;
@@ -74,10 +72,10 @@ abstract class AnimatedItemBuilder implements ItemBuilder {
 class AnimatedItemBuilderAdapter extends AnimatedItemBuilder {
   AnimatedItemBuilderAdapter(this.builder, {required super.controller});
 
-  final flutter.AnimatedItemBuilder builder;
+  final widgets.AnimatedItemBuilder builder;
 
   @override
-  flutter.Widget? build(flutter.BuildContext context, int index) =>
+  widgets.Widget? build(widgets.BuildContext context, int index) =>
       builder(context, index, controller.view);
 
   @override
@@ -87,10 +85,10 @@ class AnimatedItemBuilderAdapter extends AnimatedItemBuilder {
 class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
   AnimatedRemovedItemBuilderAdapter(this.builder, {required super.controller});
 
-  final flutter.AnimatedRemovedItemBuilder builder;
+  final widgets.AnimatedRemovedItemBuilder builder;
 
   @override
-  flutter.Widget? build(flutter.BuildContext context, int index) =>
+  widgets.Widget? build(widgets.BuildContext context, int index) =>
       builder(context, controller.view);
 
   @override

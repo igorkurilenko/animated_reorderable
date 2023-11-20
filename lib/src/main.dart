@@ -1,8 +1,15 @@
-import 'package:animated_reorderable/src/model/controller_model.dart';
-import 'package:animated_reorderable/src/util/misc.dart';
+import 'dart:developer';
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-import 'model/permutations.dart';
+import 'model/model.dart' as model;
+import 'widget/idle_item_widget.dart';
+import 'widget/outgoing_item_widget.dart';
+import 'widget/overlayed_item_widget.dart';
+import 'util/misc.dart';
+import 'util/overrided_sliver_child_builder_delegate.dart';
+import 'util/sliver_grid_delegate_decorator.dart';
 
 typedef IdGetter = int Function(int index);
 typedef ReorderableGetter = bool Function(int index);
@@ -21,14 +28,20 @@ abstract class AnimatedReorderable extends StatelessWidget {
   factory AnimatedReorderable.grid({
     required AnimatedReorderableController controller,
     required GridView gridView,
-  }) =>
-      _GridView(controller: controller, gridView: gridView);
+  }) {
+    controller.scrollController = gridView.controller ?? ScrollController();
+    controller.itemCount = getChildCount(gridView.childrenDelegate);
+    return _GridView(controller: controller, gridView: gridView);
+  }
 
   factory AnimatedReorderable.list({
     required AnimatedReorderableController controller,
     required ListView listView,
-  }) =>
-      _ListView(controller: controller, listView: listView);
+  }) {
+    controller.scrollController = listView.controller ?? ScrollController();
+    controller.itemCount = getChildCount(listView.childrenDelegate);
+    return _ListView(controller: controller, listView: listView);
+  }
 
   Clip get clipBehavior;
 
@@ -69,13 +82,17 @@ class _GridView extends AnimatedReorderable {
         key: gridView.key,
         scrollDirection: gridView.scrollDirection,
         reverse: gridView.reverse,
-        controller: gridView.controller,
+        controller: controller.scrollController,
         primary: gridView.primary,
         physics: gridView.physics,
         shrinkWrap: gridView.shrinkWrap,
         padding: gridView.padding,
-        gridDelegate: gridView.gridDelegate,
-        childrenDelegate: gridView.childrenDelegate,
+        gridDelegate: SliverGridLayoutNotifier(
+          gridDelegate: gridView.gridDelegate,
+          onLayout: controller.handleSliverGridLayoutChange,
+        ),
+        childrenDelegate:
+            controller.overrideChildrenDelegate(gridView.childrenDelegate),
         cacheExtent: gridView.cacheExtent,
         semanticChildCount: gridView.semanticChildCount,
         dragStartBehavior: gridView.dragStartBehavior,
@@ -101,14 +118,15 @@ class _ListView extends AnimatedReorderable {
         key: listView.key,
         scrollDirection: listView.scrollDirection,
         reverse: listView.reverse,
-        controller: listView.controller,
+        controller: controller.scrollController,
         primary: listView.primary,
         physics: listView.physics,
         shrinkWrap: listView.shrinkWrap,
         padding: listView.padding,
         itemExtent: listView.itemExtent,
         prototypeItem: listView.prototypeItem,
-        childrenDelegate: listView.childrenDelegate,
+        childrenDelegate:
+            controller.overrideChildrenDelegate(listView.childrenDelegate),
         cacheExtent: listView.cacheExtent,
         semanticChildCount: listView.semanticChildCount,
         dragStartBehavior: listView.dragStartBehavior,
@@ -144,7 +162,11 @@ class _OutgoingItemsLayerState extends State<_OutgoingItemsLayer> {
   Widget build(BuildContext context) => Stack(
         clipBehavior: widget.clipBehavior,
         children: [
-          for (var item in controller._model.outgoingItems) Container()
+          for (var item in controller.outgoingItems)
+            OutgoingItemWidget(
+              key: ValueKey(item.id),
+              item: item,
+            )
         ],
       );
 }
@@ -201,7 +223,11 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
   Widget build(BuildContext context) => Stack(
         clipBehavior: widget.clipBehavior,
         children: [
-          for (var item in controller._model.overlayedItems) Container()
+          for (var item in controller.overlayedItems)
+            OverlayedItemWidget(
+              key: ValueKey(item.id),
+              item: item,
+            )
         ],
       );
 }
@@ -236,7 +262,10 @@ class AnimatedReorderableController {
   final Duration duration;
   final Curve curve;
 
-  final _model = ControllerModel();
+  final _state = model.ControllerState();
+  ScrollController? _scrollController;
+  late OverridedSliverChildBuilderDelegate _childrenDelegate;
+  SliverGridLayout? _gridLayout;
 
   void insertItem(
     int index, {
@@ -255,4 +284,113 @@ class AnimatedReorderableController {
     required int destinationIndex,
     Duration duration = _k300ms,
   }) {}
+}
+
+extension _State on AnimatedReorderableController {
+  int? get itemCount => _state.itemCount;
+  set itemCount(int? value) => _state.itemCount = value;
+  Iterable<model.OutgoingItem> get outgoingItems => _state.outgoingItems;
+  Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
+}
+
+extension _Scrolling on AnimatedReorderableController {
+  ScrollController? get scrollController => _scrollController;
+  set scrollController(ScrollController? value) {
+    if (_scrollController == value) return;
+    _scrollController?.removeListener(handleScroll);
+    (_scrollController = value)?.addListener(handleScroll);
+  }
+
+  Offset get scrollOffset => scrollController!.scrollOffset!;
+}
+
+extension _OverridedSliverChildBuilderDelegate
+    on AnimatedReorderableController {
+  OverridedSliverChildBuilderDelegate get childrenDelegate => _childrenDelegate;
+
+  set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
+      _childrenDelegate = value;
+
+  SliverChildDelegate overrideChildrenDelegate(SliverChildDelegate delegate) =>
+      childrenDelegate = OverridedSliverChildBuilderDelegate.override(
+        delegate: delegate,
+        overridedChildBuilder: buildIdleItemWidget,
+        overridedChildCountGetter: () => itemCount,
+      );
+
+  Widget buildIdleItemWidget(BuildContext context, int index) {
+    final idleItem = ensureIdleItemAt(index: index);
+    idleItem.setDraggable(draggableGetter(index));
+    idleItem.setReorderable(reorderableGetter(index));
+    idleItem.setSwipeDirection(swipeAwayDirectionGetter?.call(index));
+
+    return IdleItemWidget(
+      key: ValueKey(idleItem.id),
+      controller: this,
+      index: index,
+      item: idleItem,
+      onInit: _registerRenderedItem,
+      didUpdate: (renderedItem) {
+        _unregisterRenderedItem(renderedItem);
+        _registerRenderedItem(renderedItem);
+      },
+      onDispose: _unregisterRenderedItem,
+      onDeactivate: _unregisterRenderedItem,
+      didBuild: (renderedItem) {
+        final geometry = renderedItem.computeGeometry(scrollOffset);
+        idleItem.setGeometry(geometry ?? idleItem.geometry);
+      },
+    );
+  }
+
+  model.IdleItem ensureIdleItemAt({required int index}) =>
+      _state.idleItemAt(index: index) ??
+      _state.putIdleItem(
+        createIdleItem(index: index),
+      );
+
+  model.IdleItem createIdleItem({
+    required int index,
+    Offset position = Offset.zero,
+    Size size = Size.zero,
+  }) =>
+      model.IdleItem(
+        id: idGetter(index),
+        location: position,
+        size: size,
+        draggable: draggableGetter(index),
+        reorderable: reorderableGetter(index),
+        swipeAwayDirection: swipeAwayDirectionGetter?.call(index),
+        builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
+          _childrenDelegate.originalBuilder,
+        ),
+      );
+
+  void _registerRenderedItem(RenderedItem renderedItem) {
+    _state.putRenderedItem(renderedItem);
+    _state.setOrder(index: renderedItem.index, id: renderedItem.id);
+  }
+
+  void _unregisterRenderedItem(RenderedItem item) {
+    final registeredRenderedItem = _state.renderedItemBy(id: item.id);
+    if (registeredRenderedItem == item) {
+      _state.removeRenderedItemBy(id: item.id);
+    }
+  }
+}
+
+extension _ScrollHandler on AnimatedReorderableController {
+  void handleScroll() {
+    // TODO: implement
+  }
+}
+
+extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
+  void handleSliverGridLayoutChange(SliverGridLayout layout) {
+    _gridLayout = layout;
+  }
+}
+
+class Permutations {
+  void apply<T>(List<T> list) {}
 }

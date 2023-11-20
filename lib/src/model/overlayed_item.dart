@@ -1,4 +1,4 @@
-import 'item.dart';
+part of model;
 
 class OverlayedItem extends Item {
   OverlayedItem({
@@ -21,4 +21,6 @@ class OverlayedItem extends Item {
     _draggable = value;
     if (notify) notifyListeners();
   }
+
+  widgets.Widget? build(widgets.BuildContext context) => builder.build(context, index);
 }

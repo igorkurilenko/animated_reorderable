@@ -1,16 +1,14 @@
-import 'package:flutter/widgets.dart';
+part of model;
 
-import 'item.dart';
-
-class CollectionViewItem extends Item {
-  CollectionViewItem({
+class IdleItem extends Item {
+  IdleItem({
     required super.id,
     required super.builder,
     super.location,
     super.size,
     bool draggable = true,
     bool reorderable = true,
-    AxisDirection? swipeAwayDirection,
+    widgets.AxisDirection? swipeAwayDirection,
     bool overlayed = false,
   })  : _draggable = draggable,
         _reorderable = reorderable,
@@ -19,7 +17,7 @@ class CollectionViewItem extends Item {
 
   bool _draggable;
   bool _reorderable;
-  AxisDirection? _swipeAwayDirection;
+  widgets.AxisDirection? _swipeAwayDirection;
   bool _overlayed;
 
   bool get draggable => _draggable;
@@ -37,8 +35,8 @@ class CollectionViewItem extends Item {
   }
 
   bool get swipeable => _swipeAwayDirection != null;
-  AxisDirection? get swipeDirection => _swipeAwayDirection;
-  void setSwipeDirection(AxisDirection? value, {bool notify = true}) {
+  widgets.AxisDirection? get swipeDirection => _swipeAwayDirection;
+  void setSwipeDirection(widgets.AxisDirection? value, {bool notify = true}) {
     if (_swipeAwayDirection == value) return;
     _swipeAwayDirection = value;
     if (notify) notifyListeners();

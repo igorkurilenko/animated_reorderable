@@ -1,13 +1,10 @@
-import 'package:flutter/widgets.dart';
-
-import 'item.dart';
-import 'item_builder.dart';
+part of model;
 
 class OutgoingItem extends Item {
   OutgoingItem({
     required super.id,
-    required AnimationController controller,
-    required AnimatedRemovedItemBuilder removedItemBuilder,
+    required widgets.AnimationController controller,
+    required widgets.AnimatedRemovedItemBuilder removedItemBuilder,
     required super.location,
     required super.size,
   }) : super(
@@ -17,5 +14,5 @@ class OutgoingItem extends Item {
           ),
         );
 
-  Widget? build(BuildContext context) => builder.build(context, -1);
+  widgets.Widget? build(widgets.BuildContext context) => builder.build(context, -1);
 }
