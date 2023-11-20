@@ -118,8 +118,6 @@ class _IdleItemWidgetState extends State<IdleItemWidget> {
       reorderable: false,
       builder: ItemBuilder.adaptOtherItemBuilder(item),
       recognizerFactory: widget.swipeAwayGestureRecognizerFactory,
-      // TODO: decorator
-      // draggedStateDecoratorContext: _draggedItemDecoratorContext,
     ).startSwipe(
       event,
       context: context,
@@ -142,8 +140,6 @@ class _IdleItemWidgetState extends State<IdleItemWidget> {
       reorderable: item.reorderable,
       builder: ItemBuilder.adaptOtherItemBuilder(item),
       recognizerFactory: widget.reorderGestureRecognizerFactory,
-      // TODO: decorator
-      // draggedStateDecoratorContext: _draggedItemDecoratorContext,
     ).startDrag(
       event,
       context: context,

@@ -237,7 +237,6 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
 }
 
 class AnimatedReorderableController {
-
   AnimatedReorderableController({
     required this.idGetter,
     ReorderableGetter? reorderableGetter,
@@ -298,20 +297,11 @@ class AnimatedReorderableController {
     Duration duration = du300ms,
   }) {}
 
-  void _overlayIfNecessary(
-    model.OverlayedItem item, {
-    model.AnimatedItemDecorator? decorator,
-  }) {
+  void _overlayIfNecessary(model.OverlayedItem item) {
     if (_state.isOverlayed(itemId: item.id)) return;
 
     _setOverlayedItemsLayerState(() {
       _state.putOverlayedItem(item);
-
-      if (decorator != null) {
-        final controller = AnimationController(vsync: vsync, duration: du300ms);
-        item.decorateBuilder(decorator, controller: controller);
-        controller.forward();
-      }
     });
 
     _state.idleItemBy(id: item.id)?.setOverlayed(true);
@@ -320,9 +310,30 @@ class AnimatedReorderableController {
 
   void _overlayOff(model.OverlayedItem item) {
     if (_state.isNotOverlayed(itemId: item.id)) return;
+    // TODO: implement
+  }
 
-    if (item.builder is model.AnimatedDecoratedItemBuilder) {
-      (item.builder as model.AnimatedDecoratedItemBuilder).reverseAnimation();
+  void _forwardDecoration(
+    model.Item item, {
+    model.AnimatedItemDecorator? decorator,
+  }) {
+    switch (item.builder) {
+      case final model.AnimatedDecoratedItemBuilder b:
+        b.forwardAnimation();
+      default:
+        if (decorator == null) return;
+        final controller = AnimationController(vsync: vsync, duration: du300ms);
+        item.decorateBuilder(decorator, controller: controller);
+        controller.forward();
+    }
+  }
+
+  void _reverseDecoration(model.Item item) {
+    switch (item.builder) {
+      case final model.AnimatedDecoratedItemBuilder b:
+        b.reverseAnimation();
+      default:
+        return;
     }
   }
 }
@@ -457,7 +468,8 @@ extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
 extension _ItemDragHandlers on AnimatedReorderableController {
   void handleItemDragStart(model.OverlayedItem item) {
     _draggedItem = item;
-    _overlayIfNecessary(item, decorator: draggedItemDecorator);
+    _overlayIfNecessary(item);
+    _forwardDecoration(item, decorator: draggedItemDecorator);
   }
 
   void handleItemDragUpdate(model.OverlayedItem item) {
@@ -467,13 +479,15 @@ extension _ItemDragHandlers on AnimatedReorderableController {
   void handleItemDragEnd(model.OverlayedItem item) {
     _draggedItem = null;
     _overlayOff(item);
+    _reverseDecoration(item);
   }
 }
 
 extension _ItemSwipeHandlers on AnimatedReorderableController {
   void handleItemSwipeStart(model.OverlayedItem item) {
     _swipedItem = item;
-    _overlayIfNecessary(item, decorator: swipedItemDecorator);
+    _overlayIfNecessary(item);
+    _forwardDecoration(item, decorator: swipedItemDecorator);
   }
 
   void handleItemSwipeUpdate(model.OverlayedItem item) {
@@ -483,6 +497,7 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
   void handleItemSwipeEnd(model.OverlayedItem item) {
     _swipedItem = null;
     _overlayOff(item);
+    _reverseDecoration(item);
   }
 }
 
