@@ -17,10 +17,9 @@ class ControllerState {
 
   IdleItem? idleItemBy({required int id}) => _idleItemById[id];
 
-  IdleItem putIdleItem(IdleItem item) => _idleItemById[item.id] = item;
+  IdleItem putIdleItem(IdleItem x) => _idleItemById[x.id] = x;
 
-  RenderedItem putRenderedItem(RenderedItem item) =>
-      _renderedItemById[item.id] = item;
+  RenderedItem putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
 
   RenderedItem? renderedItemBy({required int id}) => _renderedItemById[id];
 
@@ -29,4 +28,33 @@ class ControllerState {
 
   void setOrder({required int index, required int id}) =>
       _itemIdByIndex[index] = id;
+
+  bool isOverlayed({required int itemId}) =>
+      _overlayedItemById.containsKey(itemId);
+
+  bool isNotOverlayed({required int itemId}) => !isOverlayed(itemId: itemId);
+
+  OverlayedItem putOverlayedItem(OverlayedItem x) =>
+      _overlayedItemById[x.id] = x;
+
+  OverlayedItem? removeOverlayedItem({required int id}) =>
+      _overlayedItemById.remove(id);
+
+  void shiftOverlayedItems(
+    widgets.Offset delta, {
+    bool Function(OverlayedItem item)? where,
+  }) {
+    for (var x in overlayedItems.where(where ?? returnTrue)) {
+      x.shift(delta);
+    }
+  }
+
+  void shiftOutgoingItems(
+    widgets.Offset delta, {
+    bool Function(OutgoingItem item)? where,
+  }) {
+    for (var x in outgoingItems.where(where ?? returnTrue)) {
+      x.shift(delta);
+    }
+  }
 }

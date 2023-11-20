@@ -1,4 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+
+const Duration du300ms = Duration(milliseconds: 300);
 
 bool Function(dynamic) returnTrue = (_) => true;
 bool Function(dynamic) returnFalse = (_) => false;
@@ -48,3 +51,36 @@ extension ScrollControllerExtension on ScrollController {
   AxisDirection get axisDirection => position.axisDirection;
   Axis get axis => position.axis;
 }
+
+Widget draggedOrSwipedItemDecorator(
+  Widget child,
+  int index,
+  Animation<double> animation,
+) =>
+    ScaleTransition(
+      scale: animation.drive(Tween(begin: 1, end: 1.1)),
+      child: FadeTransition(
+        opacity: animation.drive(Tween(begin: 1, end: 0.9)),
+        child: child,
+      ),
+    );
+
+MultiDragGestureRecognizer createReoderGestureRecognizer(
+        BuildContext context) =>
+    DelayedMultiDragGestureRecognizer()
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+
+MultiDragGestureRecognizer createHorizontalSwipeAwayGestureRecognizer(
+        BuildContext context) =>
+    HorizontalMultiDragGestureRecognizer()
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+
+MultiDragGestureRecognizer createVerticalSwipeAwayGestureRecognizer(
+        BuildContext context) =>
+    HorizontalMultiDragGestureRecognizer()
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+
+MultiDragGestureRecognizer createImmediateGestureRecognizer(
+        BuildContext context) =>
+    ImmediateMultiDragGestureRecognizer()
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);

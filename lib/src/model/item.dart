@@ -36,6 +36,20 @@ abstract class Item extends widgets.ChangeNotifier {
     if (notify) notifyListeners();
   }
 
+  void decorateBuilder(
+    AnimatedItemDecorator decorator, {
+    required AnimationController controller,
+    bool notify = true,
+  }) =>
+      setBuilder(
+        ItemBuilder.decorate(
+          builder,
+          decorator: decorator,
+          controller: controller,
+        ),
+        notify: notify,
+      );
+
   widgets.Rect get geometry => location & size;
   void setGeometry(widgets.Rect value, {bool notify = true}) {
     if (geometry == value) return;

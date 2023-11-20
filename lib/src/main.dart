@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -17,8 +15,6 @@ typedef DraggableGetter = bool Function(int index);
 typedef SwipeAwayDirectionGetter = AxisDirection? Function(int index);
 typedef ReorderCallback = void Function(Permutations permutations);
 typedef SwipeAwayCallback = AnimatedRemovedItemBuilder Function(int index);
-
-const Duration _k300ms = Duration(milliseconds: 300);
 
 abstract class AnimatedReorderable extends StatelessWidget {
   const AnimatedReorderable({super.key, required this.controller});
@@ -166,6 +162,7 @@ class _OutgoingItemsLayerState extends State<_OutgoingItemsLayer> {
             OutgoingItemWidget(
               key: ValueKey(item.id),
               item: item,
+              offset: -controller.scrollController!.scrollableLocation!,
             )
         ],
       );
@@ -227,12 +224,20 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
             OverlayedItemWidget(
               key: ValueKey(item.id),
               item: item,
+              offset: -controller.scrollController!.scrollableLocation!,
+              onDragStart: controller.handleItemDragStart,
+              onDragUpdate: controller.handleItemDragUpdate,
+              onDragEnd: controller.handleItemDragEnd,
+              onSwipeStart: controller.handleItemSwipeStart,
+              onSwipeUpdate: controller.handleItemSwipeUpdate,
+              onSwipeEnd: controller.handleItemSwipeEnd,
             )
         ],
       );
 }
 
 class AnimatedReorderableController {
+
   AnimatedReorderableController({
     required this.idGetter,
     ReorderableGetter? reorderableGetter,
@@ -241,8 +246,10 @@ class AnimatedReorderableController {
     required this.didReorder,
     this.didSwipeAway,
     required this.vsync,
-    this.duration = _k300ms,
+    this.duration = du300ms,
     this.curve = Curves.easeInOut,
+    this.draggedItemDecorator = draggedOrSwipedItemDecorator,
+    this.swipedItemDecorator = draggedOrSwipedItemDecorator,
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
 
@@ -262,28 +269,62 @@ class AnimatedReorderableController {
   final Duration duration;
   final Curve curve;
 
+  final model.AnimatedItemDecorator? draggedItemDecorator;
+  final model.AnimatedItemDecorator? swipedItemDecorator;
+
   final _state = model.ControllerState();
   ScrollController? _scrollController;
+  Offset _scrollOffsetMark = Offset.zero;
   late OverridedSliverChildBuilderDelegate _childrenDelegate;
   SliverGridLayout? _gridLayout;
+  model.OverlayedItem? _draggedItem;
+  model.OverlayedItem? _swipedItem;
 
   void insertItem(
     int index, {
     required AnimatedItemBuilder builder,
-    Duration duration = _k300ms,
+    Duration duration = du300ms,
   }) {}
 
   void removeItem(
     int index, {
     required AnimatedRemovedItemBuilder builder,
-    Duration duration = _k300ms,
+    Duration duration = du300ms,
   }) {}
 
   void moveItem(
     int index, {
     required int destinationIndex,
-    Duration duration = _k300ms,
+    Duration duration = du300ms,
   }) {}
+
+  void _overlayIfNecessary(
+    model.OverlayedItem item, {
+    model.AnimatedItemDecorator? decorator,
+  }) {
+    if (_state.isOverlayed(itemId: item.id)) return;
+
+    _setOverlayedItemsLayerState(() {
+      _state.putOverlayedItem(item);
+
+      if (decorator != null) {
+        final controller = AnimationController(vsync: vsync, duration: du300ms);
+        item.decorateBuilder(decorator, controller: controller);
+        controller.forward();
+      }
+    });
+
+    _state.idleItemBy(id: item.id)?.setOverlayed(true);
+    _state.renderedItemBy(id: item.id)?.rebuild();
+  }
+
+  void _overlayOff(model.OverlayedItem item) {
+    if (_state.isNotOverlayed(itemId: item.id)) return;
+
+    if (item.builder is model.AnimatedDecoratedItemBuilder) {
+      (item.builder as model.AnimatedDecoratedItemBuilder).reverseAnimation();
+    }
+  }
 }
 
 extension _State on AnimatedReorderableController {
@@ -302,12 +343,20 @@ extension _Scrolling on AnimatedReorderableController {
   }
 
   Offset get scrollOffset => scrollController!.scrollOffset!;
+
+  Offset markScrollOffset() {
+    if (_scrollController == null) return Offset.zero;
+    if (!_scrollController!.hasClients) return Offset.zero;
+
+    final delta = scrollOffset - _scrollOffsetMark;
+    _scrollOffsetMark = scrollOffset;
+    return delta;
+  }
 }
 
 extension _OverridedSliverChildBuilderDelegate
     on AnimatedReorderableController {
   OverridedSliverChildBuilderDelegate get childrenDelegate => _childrenDelegate;
-
   set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
       _childrenDelegate = value;
 
@@ -329,6 +378,11 @@ extension _OverridedSliverChildBuilderDelegate
       controller: this,
       index: index,
       item: idleItem,
+      reorderGestureRecognizerFactory: createReoderGestureRecognizer,
+      swipeAwayGestureRecognizerFactory:
+          scrollController!.axis == Axis.horizontal
+              ? createHorizontalSwipeAwayGestureRecognizer
+              : createVerticalSwipeAwayGestureRecognizer,
       onInit: _registerRenderedItem,
       didUpdate: (renderedItem) {
         _unregisterRenderedItem(renderedItem);
@@ -340,6 +394,12 @@ extension _OverridedSliverChildBuilderDelegate
         final geometry = renderedItem.computeGeometry(scrollOffset);
         idleItem.setGeometry(geometry ?? idleItem.geometry);
       },
+      onDragStart: handleItemDragStart,
+      onDragUpdate: handleItemDragUpdate,
+      onDragEnd: handleItemDragEnd,
+      onSwipeStart: handleItemSwipeStart,
+      onSwipeUpdate: handleItemSwipeUpdate,
+      onSwipeEnd: handleItemSwipeEnd,
     );
   }
 
@@ -362,7 +422,7 @@ extension _OverridedSliverChildBuilderDelegate
         reorderable: reorderableGetter(index),
         swipeAwayDirection: swipeAwayDirectionGetter?.call(index),
         builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
-          _childrenDelegate.originalBuilder,
+          childrenDelegate.originalBuilder,
         ),
       );
 
@@ -381,13 +441,48 @@ extension _OverridedSliverChildBuilderDelegate
 
 extension _ScrollHandler on AnimatedReorderableController {
   void handleScroll() {
-    // TODO: implement
+    final delta = markScrollOffset();
+    _state.shiftOverlayedItems(-delta,
+        where: (x) => x != _draggedItem && x != _swipedItem);
+    _state.shiftOutgoingItems(-delta);
   }
 }
 
 extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
   void handleSliverGridLayoutChange(SliverGridLayout layout) {
     _gridLayout = layout;
+  }
+}
+
+extension _ItemDragHandlers on AnimatedReorderableController {
+  void handleItemDragStart(model.OverlayedItem item) {
+    _draggedItem = item;
+    _overlayIfNecessary(item, decorator: draggedItemDecorator);
+  }
+
+  void handleItemDragUpdate(model.OverlayedItem item) {
+    // TODO: implement
+  }
+
+  void handleItemDragEnd(model.OverlayedItem item) {
+    _draggedItem = null;
+    _overlayOff(item);
+  }
+}
+
+extension _ItemSwipeHandlers on AnimatedReorderableController {
+  void handleItemSwipeStart(model.OverlayedItem item) {
+    _swipedItem = item;
+    _overlayIfNecessary(item, decorator: swipedItemDecorator);
+  }
+
+  void handleItemSwipeUpdate(model.OverlayedItem item) {
+    // TODO: implement
+  }
+
+  void handleItemSwipeEnd(model.OverlayedItem item) {
+    _swipedItem = null;
+    _overlayOff(item);
   }
 }
 
