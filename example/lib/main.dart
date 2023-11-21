@@ -1,7 +1,10 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show timeDilation;
 
 void main() {
+  // TODO: remove timeDilation before release
+  timeDilation = 9.0;
   runApp(const AnimatedReorderableDemoApp());
 }
 

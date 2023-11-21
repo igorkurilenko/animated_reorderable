@@ -6,7 +6,10 @@ class ControllerState {
   final _outgoingItemById = <int, OutgoingItem>{};
   final _itemIdByIndex = SplayTreeMap<int, int>();
   final _renderedItemById = <int, RenderedItem>{};
+
   int? itemCount;
+
+  Iterable<IdleItem> get idleItems => _idleItemById.values;
 
   Iterable<OutgoingItem> get outgoingItems => _outgoingItemById.values;
 
@@ -57,6 +60,18 @@ class ControllerState {
   }) {
     for (var x in outgoingItems.where(where ?? returnTrue)) {
       x.shift(delta);
+    }
+  }
+
+  void dispose() {
+    for (var x in idleItems) {
+      x.dispose();
+    }
+    for (var x in overlayedItems) {
+      x.dispose();
+    }
+    for (var x in outgoingItems) {
+      x.dispose();
     }
   }
 }

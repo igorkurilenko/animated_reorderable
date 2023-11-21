@@ -310,8 +310,35 @@ class AnimatedReorderableController {
     _state.renderedItemBy(id: item.id)?.rebuild();
   }
 
+  void _overlayOffItem(model.OverlayedItem item) {
+    _setOverlayedItemsLayerState(() {
+      _state.removeOverlayedItem(id: item.id);
+    });
+
+    _state.idleItemBy(id: item.id)?.setOverlayed(false);
+    _state.renderedItemBy(id: item.id)?.rebuild();
+  }
+
+  Future _animateOverlayedItemDrop(
+    model.OverlayedItem item, {
+    required Offset location,
+    required String decoratorId,
+  }) {
+    final positionFuture = item.forwardLocationAnimation(
+      end: location,
+      vsync: vsync,
+      duration: duration,
+      curve: Curves.easeInOut,
+    );
+    final decorationFuture =
+        item.decoratedBuilder(decoratorId: decoratorId)?.reverseDecoration() ??
+            TickerFuture.complete();
+
+    return Future.wait([positionFuture, decorationFuture]);
+  }
+
   void dispose() {
-    // TODO: implement
+    _state.dispose();
   }
 }
 
@@ -345,21 +372,23 @@ extension _Scrolling on AnimatedReorderableController {
       velocityScalar: autoScrollerVelocityScalar,
       onScrollViewScrolled: () {
         if (_draggedItem == null) return;
-        scrollIfNecessary(_draggedItem!);
+        autoScrollIfNecessary(_draggedItem!);
       },
     );
   }
 
-  void scrollIfNecessary(model.OverlayedItem draggedItem) =>
+  void autoScrollIfNecessary(model.OverlayedItem draggedItem) =>
       _autoScroller?.startAutoScrollIfNecessary(
         draggedItem.geometry.deflate(alpha),
       );
 
-  void stopAutoscrolling() {
+  void stopAutoScroll({bool forceStopAnimation = false}) {
     _autoScroller?.stopAutoScroll();
-    // hack to force stop the auto scroller scrolling animation
-    final pixels = scrollController!.position.pixels;
-    scrollController!.position.jumpTo(pixels);
+
+    if (forceStopAnimation) {
+      final pixels = scrollController!.position.pixels;
+      scrollController!.position.jumpTo(pixels);
+    }
   }
 
   Offset markScrollOffset() {
@@ -481,21 +510,26 @@ extension _ItemDragHandlers on AnimatedReorderableController {
           draggedItemDecorator,
           decoratorId: draggedItemDecoratorId,
           vsync: vsync,
-          duration: du300ms,
+          duration: duration,
         )
         ?.forwardDecoration();
   }
 
   void handleItemDragUpdate(model.OverlayedItem item) {
-    scrollIfNecessary(item);
+    autoScrollIfNecessary(item);
   }
 
   void handleItemDragEnd(model.OverlayedItem item) {
     _draggedItem = null;
-    stopAutoscrolling();
-    item
-        .decoratedBuilder(decoratorId: draggedItemDecoratorId)
-        ?.reverseDecoration();
+    stopAutoScroll(forceStopAnimation: true);
+
+    final anchorLocation =
+        _state.idleItemBy(id: item.id)!.location - scrollOffset;
+    _animateOverlayedItemDrop(
+      item,
+      location: anchorLocation,
+      decoratorId: draggedItemDecoratorId,
+    ).whenComplete(() => _overlayOffItem(item));
   }
 }
 
@@ -508,7 +542,7 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
           swipedItemDecorator,
           decoratorId: swipedItemDecoratorId,
           vsync: vsync,
-          duration: du300ms,
+          duration: duration,
         )
         ?.forwardDecoration();
   }
@@ -519,9 +553,14 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
 
   void handleItemSwipeEnd(model.OverlayedItem item) {
     _swipedItem = null;
-    item
-        .decoratedBuilder(decoratorId: swipedItemDecoratorId)
-        ?.reverseDecoration();
+
+    final anchorLocation =
+        _state.idleItemBy(id: item.id)!.location - scrollOffset;
+    _animateOverlayedItemDrop(
+      item,
+      location: anchorLocation,
+      decoratorId: swipedItemDecoratorId,
+    ).whenComplete(() => _overlayOffItem(item));
   }
 }
 

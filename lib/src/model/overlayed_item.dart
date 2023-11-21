@@ -25,6 +25,7 @@ class OverlayedItem extends Item {
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
   widgets.Offset? _pointerPosition;
+  OffsetAnimation? _locationAnimation;
 
   bool get draggable => _draggable;
   void setDraggable(bool value, {bool notify = true}) {
@@ -38,6 +39,15 @@ class OverlayedItem extends Item {
 
   widgets.Widget? build(widgets.BuildContext context) =>
       builder.build(context, index);
+
+  @override
+  void shift(Offset delta, {bool notify = true}) {
+    _locationAnimation?.shift(delta);
+    super.shift(delta, notify: notify);
+  }
+
+  @override
+  void shiftSilent(Offset delta) => shift(delta, notify: false);
 
   void startDrag(
     widgets.PointerDownEvent event, {
@@ -94,9 +104,37 @@ class OverlayedItem extends Item {
       ..addPointer(event);
   }
 
+  TickerFuture forwardLocationAnimation({
+    Offset? begin,
+    required Offset end,
+    double from = 0.0,
+    required TickerProvider vsync,
+    required Duration duration,
+    required Curve curve,
+  }) {
+    _locationAnimation?.controller.stop();
+
+    begin ??= location;
+
+    _locationAnimation ??= OffsetAnimation(
+      controller: AnimationController(
+        vsync: vsync,
+        duration: duration,
+      )..addListener(() => setLocation(_locationAnimation!.value)),
+    );
+    _locationAnimation!.begin = begin;
+    _locationAnimation!.end = end;
+    _locationAnimation!.curve = curve;
+
+    return _locationAnimation!.controller.forward(from: from);
+  }
+
   @override
   void dispose() {
     _recognizer?.dispose();
+    _recognizer = null;
+    _locationAnimation?.dispose();
+    _locationAnimation = null;
     super.dispose();
   }
 
