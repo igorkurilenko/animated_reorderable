@@ -30,25 +30,12 @@ abstract class Item extends widgets.ChangeNotifier {
   }
 
   ItemBuilder get builder => _builder;
-  void setBuilder(ItemBuilder value, {bool notify = true}) {
-    if (_builder == value) return;
+  T setBuilder<T extends ItemBuilder>(T value, {bool notify = true}) {
+    if (_builder == value) return value;
     _builder = value;
     if (notify) notifyListeners();
+    return value;
   }
-
-  void decorateBuilder(
-    AnimatedItemDecorator decorator, {
-    required AnimationController controller,
-    bool notify = true,
-  }) =>
-      setBuilder(
-        ItemBuilder.decorate(
-          builder,
-          decorator: decorator,
-          controller: controller,
-        ),
-        notify: notify,
-      );
 
   widgets.Rect get geometry => location & size;
   void setGeometry(widgets.Rect value, {bool notify = true}) {
@@ -71,4 +58,39 @@ abstract class Item extends widgets.ChangeNotifier {
     builder.dispose();
     super.dispose();
   }
+}
+
+extension ItemExtension on Item {
+  AnimatedDecoratedItemBuilder? decorateBuilder(
+    AnimatedItemDecorator? decorator, {
+    required String decoratorId,
+    required TickerProvider vsync,
+    required Duration duration,
+    bool notify = true,
+  }) =>
+      decorator != null
+          ? decoratedBuilder(decoratorId: decoratorId) ??
+              setBuilder(
+                AnimatedDecoratedItemBuilder(
+                  builder,
+                  decoratorId: decoratorId,
+                  decorator: decorator,
+                  controller: AnimationController(
+                    vsync: vsync,
+                    duration: duration,
+                  ),
+                ),
+                notify: notify,
+              )
+          : null;
+
+  AnimatedDecoratedItemBuilder? decoratedBuilder({
+    required String decoratorId,
+  }) =>
+      switch (builder) {
+        final AnimatedDecoratedItemBuilder b
+            when b.decoratorId == decoratorId =>
+          b,
+        _ => null,
+      };
 }

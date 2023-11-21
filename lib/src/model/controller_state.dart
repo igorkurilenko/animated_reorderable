@@ -34,8 +34,10 @@ class ControllerState {
 
   bool isNotOverlayed({required int itemId}) => !isOverlayed(itemId: itemId);
 
-  OverlayedItem putOverlayedItem(OverlayedItem x) =>
-      _overlayedItemById[x.id] = x;
+  OverlayedItem putOverlayedItem(OverlayedItem x) {
+    _overlayedItemById.remove(x.id);
+    return _overlayedItemById[x.id] = x;
+  }
 
   OverlayedItem? removeOverlayedItem({required int id}) =>
       _overlayedItemById.remove(id);

@@ -59,7 +59,6 @@ class _AnimatedReorderableGridSampleState
           ),
           itemCount: items.length,
           itemBuilder: ((context, index) => buildItem(items[index])),
-          clipBehavior: Clip.none,
         ),
       ),
       floatingActionButton: Wrap(

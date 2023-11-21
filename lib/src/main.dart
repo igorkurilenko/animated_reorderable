@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import 'const.dart';
 import 'model/model.dart' as model;
 import 'widget/idle_item_widget.dart';
 import 'widget/outgoing_item_widget.dart';
@@ -249,6 +250,7 @@ class AnimatedReorderableController {
     this.curve = Curves.easeInOut,
     this.draggedItemDecorator = draggedOrSwipedItemDecorator,
     this.swipedItemDecorator = draggedOrSwipedItemDecorator,
+    this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
 
@@ -260,6 +262,7 @@ class AnimatedReorderableController {
   final ReorderableGetter reorderableGetter;
   final DraggableGetter draggableGetter;
   final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
+  final double autoScrollerVelocityScalar;
 
   final ReorderCallback didReorder;
   SwipeAwayCallback? didSwipeAway;
@@ -273,6 +276,7 @@ class AnimatedReorderableController {
 
   final _state = model.ControllerState();
   ScrollController? _scrollController;
+  EdgeDraggingAutoScroller? _autoScroller;
   Offset _scrollOffsetMark = Offset.zero;
   late OverridedSliverChildBuilderDelegate _childrenDelegate;
   SliverGridLayout? _gridLayout;
@@ -297,9 +301,7 @@ class AnimatedReorderableController {
     Duration duration = du300ms,
   }) {}
 
-  void _overlayIfNecessary(model.OverlayedItem item) {
-    if (_state.isOverlayed(itemId: item.id)) return;
-
+  void _overlayItem(model.OverlayedItem item) {
     _setOverlayedItemsLayerState(() {
       _state.putOverlayedItem(item);
     });
@@ -308,33 +310,8 @@ class AnimatedReorderableController {
     _state.renderedItemBy(id: item.id)?.rebuild();
   }
 
-  void _overlayOff(model.OverlayedItem item) {
-    if (_state.isNotOverlayed(itemId: item.id)) return;
+  void dispose() {
     // TODO: implement
-  }
-
-  void _forwardDecoration(
-    model.Item item, {
-    model.AnimatedItemDecorator? decorator,
-  }) {
-    switch (item.builder) {
-      case final model.AnimatedDecoratedItemBuilder b:
-        b.forwardAnimation();
-      default:
-        if (decorator == null) return;
-        final controller = AnimationController(vsync: vsync, duration: du300ms);
-        item.decorateBuilder(decorator, controller: controller);
-        controller.forward();
-    }
-  }
-
-  void _reverseDecoration(model.Item item) {
-    switch (item.builder) {
-      case final model.AnimatedDecoratedItemBuilder b:
-        b.reverseAnimation();
-      default:
-        return;
-    }
   }
 }
 
@@ -349,11 +326,41 @@ extension _Scrolling on AnimatedReorderableController {
   ScrollController? get scrollController => _scrollController;
   set scrollController(ScrollController? value) {
     if (_scrollController == value) return;
+    addPostFrame(() {
+      initAutoscroller();
+      markScrollOffset();
+    });
     _scrollController?.removeListener(handleScroll);
     (_scrollController = value)?.addListener(handleScroll);
   }
 
   Offset get scrollOffset => scrollController!.scrollOffset!;
+
+  void initAutoscroller() {
+    if (_scrollController == null) return;
+    if (!_scrollController!.hasClients) return;
+
+    _autoScroller = EdgeDraggingAutoScroller(
+      _scrollController!.position.context as ScrollableState,
+      velocityScalar: autoScrollerVelocityScalar,
+      onScrollViewScrolled: () {
+        if (_draggedItem == null) return;
+        scrollIfNecessary(_draggedItem!);
+      },
+    );
+  }
+
+  void scrollIfNecessary(model.OverlayedItem draggedItem) =>
+      _autoScroller?.startAutoScrollIfNecessary(
+        draggedItem.geometry.deflate(alpha),
+      );
+
+  void stopAutoscrolling() {
+    _autoScroller?.stopAutoScroll();
+    // hack to force stop the auto scroller scrolling animation
+    final pixels = scrollController!.position.pixels;
+    scrollController!.position.jumpTo(pixels);
+  }
 
   Offset markScrollOffset() {
     if (_scrollController == null) return Offset.zero;
@@ -468,26 +475,42 @@ extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
 extension _ItemDragHandlers on AnimatedReorderableController {
   void handleItemDragStart(model.OverlayedItem item) {
     _draggedItem = item;
-    _overlayIfNecessary(item);
-    _forwardDecoration(item, decorator: draggedItemDecorator);
+    _overlayItem(item);
+    item
+        .decorateBuilder(
+          draggedItemDecorator,
+          decoratorId: draggedItemDecoratorId,
+          vsync: vsync,
+          duration: du300ms,
+        )
+        ?.forwardDecoration();
   }
 
   void handleItemDragUpdate(model.OverlayedItem item) {
-    // TODO: implement
+    scrollIfNecessary(item);
   }
 
   void handleItemDragEnd(model.OverlayedItem item) {
     _draggedItem = null;
-    _overlayOff(item);
-    _reverseDecoration(item);
+    stopAutoscrolling();
+    item
+        .decoratedBuilder(decoratorId: draggedItemDecoratorId)
+        ?.reverseDecoration();
   }
 }
 
 extension _ItemSwipeHandlers on AnimatedReorderableController {
   void handleItemSwipeStart(model.OverlayedItem item) {
     _swipedItem = item;
-    _overlayIfNecessary(item);
-    _forwardDecoration(item, decorator: swipedItemDecorator);
+    _overlayItem(item);
+    item
+        .decorateBuilder(
+          swipedItemDecorator,
+          decoratorId: swipedItemDecoratorId,
+          vsync: vsync,
+          duration: du300ms,
+        )
+        ?.forwardDecoration();
   }
 
   void handleItemSwipeUpdate(model.OverlayedItem item) {
@@ -496,8 +519,9 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
 
   void handleItemSwipeEnd(model.OverlayedItem item) {
     _swipedItem = null;
-    _overlayOff(item);
-    _reverseDecoration(item);
+    item
+        .decoratedBuilder(decoratorId: swipedItemDecoratorId)
+        ?.reverseDecoration();
   }
 }
 

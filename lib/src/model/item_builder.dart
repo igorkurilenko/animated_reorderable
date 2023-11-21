@@ -20,17 +20,6 @@ abstract class ItemBuilder {
   factory ItemBuilder.adaptOtherItemBuilder(Item item) =>
       OtherItemBuilderAdapter(item: item);
 
-  factory ItemBuilder.decorate(
-    ItemBuilder itemBuilder, {
-    required AnimatedItemDecorator decorator,
-    required widgets.AnimationController controller,
-  }) =>
-      AnimatedDecoratedItemBuilder(
-        itemBuilder,
-        decorator: decorator,
-        controller: controller,
-      );
-
   widgets.Widget? build(widgets.BuildContext context, int index);
 
   void dispose();
@@ -109,25 +98,46 @@ typedef AnimatedItemDecorator = widgets.Widget Function(
   widgets.Animation<double> animation,
 );
 
-class AnimatedDecoratedItemBuilder extends AnimatedItemBuilder {
-  AnimatedDecoratedItemBuilder(
-    this.itemBuilder, {
-    required this.decorator,
-    required super.controller,
-  });
+abstract class ItemBuilderDecorator implements ItemBuilder {
+  ItemBuilderDecorator(this.itemBuilder);
 
-  final AnimatedItemDecorator decorator;
   final ItemBuilder itemBuilder;
 
   @override
+  widgets.Widget? build(widgets.BuildContext context, int index) =>
+      itemBuilder.build(context, index);
+
+  @override
+  void dispose() => itemBuilder.dispose();
+}
+
+class AnimatedDecoratedItemBuilder extends ItemBuilderDecorator {
+  AnimatedDecoratedItemBuilder(
+    super.itemBuilder, {
+    required this.decoratorId,
+    required this.decorator,
+    required this.controller,
+  });
+
+  final String decoratorId;
+  final widgets.AnimationController controller;
+  final AnimatedItemDecorator decorator;
+
+  @override
   widgets.Widget? build(widgets.BuildContext context, int index) {
-    final item = itemBuilder.build(context, index);
+    final item = super.build(context, index);
     return item != null ? decorator.call(item, index, controller.view) : null;
   }
 
+  TickerFuture forwardDecoration({double? from}) =>
+      controller.forward(from: from);
+
+  TickerFuture reverseDecoration({double? from}) =>
+      controller.reverse(from: from);
+
   @override
   void dispose() {
-    itemBuilder.dispose();
+    controller.dispose();
     super.dispose();
   }
 }
