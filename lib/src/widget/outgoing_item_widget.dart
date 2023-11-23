@@ -6,11 +6,9 @@ class OutgoingItemWidget extends StatefulWidget {
   const OutgoingItemWidget({
     super.key,
     required this.item,
-    this.offset = Offset.zero,
   });
 
   final OutgoingItem item;
-  final Offset offset;
 
   @override
   State<OutgoingItemWidget> createState() => _OutgoingItemWidgetState();
@@ -18,7 +16,6 @@ class OutgoingItemWidget extends StatefulWidget {
 
 class _OutgoingItemWidgetState extends State<OutgoingItemWidget> {
   OutgoingItem get item => widget.item;
-  Offset get offset => widget.offset;
 
   @override
   void initState() {
@@ -39,8 +36,8 @@ class _OutgoingItemWidgetState extends State<OutgoingItemWidget> {
 
   @override
   Widget build(BuildContext context) => Positioned(
-        left: item.geometry.left + offset.dx,
-        top: item.geometry.top + offset.dy,
+        left: item.geometry.left,
+        top: item.geometry.top,
         child: SizedBox(
           width: item.geometry.width,
           height: item.geometry.height,

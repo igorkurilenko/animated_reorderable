@@ -6,7 +6,6 @@ class OverlayedItemWidget extends StatefulWidget {
   const OverlayedItemWidget({
     super.key,
     required this.item,
-    this.offset = Offset.zero,
     this.onDragStart,
     this.onDragUpdate,
     this.onDragEnd,
@@ -16,7 +15,6 @@ class OverlayedItemWidget extends StatefulWidget {
   });
 
   final OverlayedItem item;
-  final Offset offset;
   final OverlayedItemCallback? onDragStart;
   final OverlayedItemCallback? onDragUpdate;
   final OverlayedItemCallback? onDragEnd;
@@ -30,7 +28,6 @@ class OverlayedItemWidget extends StatefulWidget {
 
 class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
   OverlayedItem get item => widget.item;
-  Offset get offset => widget.offset;
 
   @override
   void initState() {
@@ -51,8 +48,8 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
 
   @override
   Widget build(BuildContext context) => Positioned(
-        left: item.geometry.left + offset.dx,
-        top: item.geometry.top + offset.dy,
+        left: item.geometry.left,
+        top: item.geometry.top,
         child: Listener(
           onPointerDown: item.draggable ? _handlePointerDown : null,
           child: SizedBox(
@@ -64,7 +61,7 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
       );
 
   void _handlePointerDown(PointerDownEvent event) => item.swiped
-      ? item.startSwipe(
+      ? item.recognizeSwipe(
           event,
           context: context,
           swipeDirection: item.swipeDirection!,
@@ -72,7 +69,7 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
           onSwipeUpdate: widget.onSwipeUpdate,
           onSwipeEnd: widget.onSwipeEnd,
         )
-      : item.startDrag(
+      : item.recognizeDrag(
           event,
           context: context,
           onDragStart: widget.onDragStart,

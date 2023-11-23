@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 bool Function(dynamic) returnTrue = (_) => true;
@@ -11,8 +12,22 @@ void addPostFrame(VoidCallback cb) =>
 extension StateExtension on State {
   bool contains(Offset point) =>
       findRenderBox()?.getGeometry().contains(point) ?? false;
-  RenderBox? findRenderBox() =>
-      mounted ? context.findRenderObject() as RenderBox? : null;
+  RenderBox? findRenderBox() => mounted ? context.findRenderBox() : null;
+  Rect? computeGeometry([Offset offset = Offset.zero]) =>
+      findRenderBox()?.getGeometry(offset);
+  EdgeInsets mediaQueryScrollablePaddingOf(Axis scrollDirection) =>
+      scrollDirection == Axis.vertical
+          ? MediaQuery.paddingOf(context).copyWith(left: 0.0, right: 0.0)
+          : MediaQuery.paddingOf(context).copyWith(top: 0.0, bottom: 0.0);
+  void rebuild(VoidCallback cb) {
+    if (!mounted) return;
+    // ignore: invalid_use_of_protected_member
+    setState(cb);
+  }
+}
+
+extension BuildContextExtension on BuildContext {
+  RenderBox? findRenderBox() => findRenderObject() as RenderBox?;
   Rect? computeGeometry([Offset offset = Offset.zero]) =>
       findRenderBox()?.getGeometry(offset);
 }
@@ -48,6 +63,23 @@ extension ScrollControllerExtension on ScrollController {
   bool get vertical => position.vertical;
   AxisDirection get axisDirection => position.axisDirection;
   Axis get axis => position.axis;
+  void scaleScrollPosition(double scaleFactor) =>
+      jumpTo(position.pixels * scaleFactor);
+}
+
+extension RectExtension on Rect {
+  Offset get location => topLeft;
+}
+
+extension SliverGridGeometryExtension on SliverGridGeometry {
+  Size toSize(Axis axis) => axis == Axis.vertical
+      ? Size(crossAxisExtent, mainAxisExtent)
+      : Size(mainAxisExtent, crossAxisExtent);
+}
+
+extension SliverGridLayoutExtension on SliverGridLayout {
+  Size getChildSize(int index, Axis axis) =>
+      getGeometryForChildIndex(index).toSize(axis);
 }
 
 Widget draggedOrSwipedItemDecorator(

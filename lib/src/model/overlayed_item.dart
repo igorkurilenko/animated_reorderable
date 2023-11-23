@@ -47,9 +47,12 @@ class OverlayedItem extends Item {
   }
 
   @override
-  void shiftSilent(Offset delta) => shift(delta, notify: false);
+  void scale(double scaleFactor, {bool notify = true}) {
+    _locationAnimation?.scale(scaleFactor);
+    super.scale(scaleFactor, notify: notify);
+  }
 
-  void startDrag(
+  void recognizeDrag(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
     OverlayedItemCallback? onDragStart,
@@ -76,7 +79,7 @@ class OverlayedItem extends Item {
       ..addPointer(event);
   }
 
-  void startSwipe(
+  void recognizeSwipe(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
     required widgets.AxisDirection swipeDirection,
@@ -104,30 +107,29 @@ class OverlayedItem extends Item {
       ..addPointer(event);
   }
 
+
   TickerFuture forwardLocationAnimation({
     Offset? begin,
     required Offset end,
-    double from = 0.0,
+    double? from,
     required TickerProvider vsync,
     required Duration duration,
     required Curve curve,
   }) {
-    _locationAnimation?.controller.stop();
-
-    begin ??= location;
-
     _locationAnimation ??= OffsetAnimation(
       controller: AnimationController(
         vsync: vsync,
         duration: duration,
       )..addListener(() => setLocation(_locationAnimation!.value)),
     );
-    _locationAnimation!.begin = begin;
+    _locationAnimation!.begin = begin ?? location;
     _locationAnimation!.end = end;
     _locationAnimation!.curve = curve;
 
     return _locationAnimation!.controller.forward(from: from);
   }
+
+  void stopLocationAnimation() => _locationAnimation?.controller.stop();
 
   @override
   void dispose() {

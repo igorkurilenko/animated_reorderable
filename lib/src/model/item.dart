@@ -48,10 +48,14 @@ abstract class Item extends widgets.ChangeNotifier {
   double get width => size.width;
   double get height => size.height;
 
-  void shiftSilent(widgets.Offset delta) => shift(delta, notify: false);
-
   void shift(widgets.Offset delta, {bool notify = true}) =>
       setLocation(location + delta, notify: notify);
+
+  void scale(double scaleFactor, {bool notify = true}) {
+    if(scaleFactor == 1) return;
+    setLocation(location * scaleFactor, notify: false);
+    setSize(size * scaleFactor, notify: notify);
+  }
 
   @override
   void dispose() {
@@ -69,7 +73,7 @@ extension ItemExtension on Item {
     bool notify = true,
   }) =>
       decorator != null
-          ? decoratedBuilder(decoratorId: decoratorId) ??
+          ? decoratedBuilder(decoratorId) ??
               setBuilder(
                 AnimatedDecoratedItemBuilder(
                   builder,
@@ -84,9 +88,7 @@ extension ItemExtension on Item {
               )
           : null;
 
-  AnimatedDecoratedItemBuilder? decoratedBuilder({
-    required String decoratorId,
-  }) =>
+  AnimatedDecoratedItemBuilder? decoratedBuilder(String? decoratorId) =>
       switch (builder) {
         final AnimatedDecoratedItemBuilder b
             when b.decoratorId == decoratorId =>

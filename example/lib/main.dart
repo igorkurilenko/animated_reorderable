@@ -1,10 +1,7 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart' show timeDilation;
 
 void main() {
-  // TODO: remove timeDilation before release
-  timeDilation = 9.0;
   runApp(const AnimatedReorderableDemoApp());
 }
 
@@ -53,15 +50,19 @@ class _AnimatedReorderableGridSampleState
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('GridView Example'),
       ),
-      body: AnimatedReorderable.grid(
-        controller: controller,
-        gridView: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            childAspectRatio: 1 / 1.618,
+      // extendBodyBehindAppBar: true,
+      body: Padding(
+        padding: const EdgeInsets.all(0),
+        child: AnimatedReorderable.grid(
+          controller: controller,
+          gridView: GridView.builder(            
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              childAspectRatio: 1 / 1.618,
+            ),
+            itemCount: items.length,
+            itemBuilder: ((context, index) => buildItem(items[index])),
           ),
-          itemCount: items.length,
-          itemBuilder: ((context, index) => buildItem(items[index])),
         ),
       ),
       floatingActionButton: Wrap(

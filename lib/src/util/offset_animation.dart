@@ -20,5 +20,10 @@ class OffsetAnimation {
     end += delta;
   }
 
+  void scale(double scaleFactor) {
+    begin *= scaleFactor;
+    end *= scaleFactor;
+  }
+
   void dispose() => controller.dispose();
 }
