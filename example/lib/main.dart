@@ -50,19 +50,16 @@ class _AnimatedReorderableGridSampleState
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('GridView Example'),
       ),
-      // extendBodyBehindAppBar: true,
-      body: Padding(
-        padding: const EdgeInsets.all(0),
-        child: AnimatedReorderable.grid(
-          controller: controller,
-          gridView: GridView.builder(            
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              childAspectRatio: 1 / 1.618,
-            ),
-            itemCount: items.length,
-            itemBuilder: ((context, index) => buildItem(items[index])),
+      extendBodyBehindAppBar: true,
+      body: AnimatedReorderable.grid(
+        controller: controller,
+        gridView: GridView.builder(            
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            childAspectRatio: 1 / 1.618,
           ),
+          itemCount: items.length,
+          itemBuilder: ((context, index) => buildItem(items[index])),
         ),
       ),
       floatingActionButton: Wrap(

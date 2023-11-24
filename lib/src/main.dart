@@ -289,10 +289,12 @@ class AnimatedReorderableController {
     required this.didReorder,
     this.didSwipeAway,
     required this.vsync,
-    this.duration = du300ms,
-    this.curve = Curves.easeInOut,
-    this.draggedItemDecorator = draggedOrSwipedItemDecorator,
-    this.swipedItemDecorator = draggedOrSwipedItemDecorator,
+    this.motionAnimationDuration = du300ms,
+    this.motionAnimationCurve = Curves.easeInOut,
+    this.draggedItemDecorator = defaultDraggedItemDecorator,
+    this.draggedItemDecorationAnimationDuration = du300ms,
+    this.swipedItemDecorator = defaultDraggedItemDecorator,
+    this.swipedItemDecorationAnimationDuration = du300ms,
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
@@ -311,11 +313,14 @@ class AnimatedReorderableController {
   SwipeAwayCallback? didSwipeAway;
 
   final TickerProvider vsync;
-  final Duration duration;
-  final Curve curve;
+
+  final Duration motionAnimationDuration;
+  final Curve motionAnimationCurve;
 
   final model.AnimatedItemDecorator? draggedItemDecorator;
+  final Duration draggedItemDecorationAnimationDuration;
   final model.AnimatedItemDecorator? swipedItemDecorator;
+  final Duration swipedItemDecorationAnimationDuration;
 
   final _state = model.ControllerState();
   ScrollController? _scrollController;
@@ -386,9 +391,9 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       item
           .decorateBuilder(
             draggedItemDecorator,
-            decoratorId: draggedItemDecoratorId,
             vsync: vsync,
-            duration: duration,
+            decoratorId: draggedItemDecoratorId,
+            duration: draggedItemDecorationAnimationDuration,
           )
           ?.forwardDecoration() ??
       Future.value();
@@ -401,9 +406,9 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       item
           .decorateBuilder(
             swipedItemDecorator,
-            decoratorId: swipedItemDecoratorId,
             vsync: vsync,
-            duration: duration,
+            decoratorId: swipedItemDecoratorId,
+            duration: swipedItemDecorationAnimationDuration,
           )
           ?.forwardDecoration() ??
       Future.value();
@@ -420,8 +425,8 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       end: overlayedItemsLayerState!.globalToLocal(anchorLocation)!,
       from: 0.0,
       vsync: vsync,
-      duration: duration,
-      curve: Curves.easeInOut,
+      duration: motionAnimationDuration,
+      curve: motionAnimationCurve,
     );
   }
 }
@@ -454,7 +459,7 @@ extension _ConstraintsChangeHandler on AnimatedReorderableController {
           ? constraints.maxWidth / _constraintsMark!.maxWidth
           : constraints.maxHeight / _constraintsMark!.maxHeight;
 
-      for(var x in _state.allItems) {
+      for (var x in _state.allItems) {
         x.scale(scaleFactor);
       }
 

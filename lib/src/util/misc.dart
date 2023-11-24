@@ -82,13 +82,16 @@ extension SliverGridLayoutExtension on SliverGridLayout {
       getGeometryForChildIndex(index).toSize(axis);
 }
 
-Widget draggedOrSwipedItemDecorator(
+Widget defaultDraggedItemDecorator(
   Widget child,
   int index,
   Animation<double> animation,
 ) =>
     ScaleTransition(
-      scale: animation.drive(Tween(begin: 1, end: 1.1)),
+      scale: CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOut,
+      ).drive(Tween(begin: 1, end: 1.1)),
       child: FadeTransition(
         opacity: animation.drive(Tween(begin: 1, end: 0.9)),
         child: child,
