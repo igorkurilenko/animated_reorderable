@@ -56,7 +56,7 @@ extension ScrollControllerExtension on ScrollController {
   ScrollableState? get scrollableState =>
       hasClients ? position.context as ScrollableState : null;
   RenderBox? findScrollableRenderBox() => scrollableState?.findRenderBox();
-  Offset? get scrollableLocation =>
+  Offset? get scrollablePosition =>
       findScrollableRenderBox()?.localToGlobal(Offset.zero);
   Offset? get scrollOffset => position.toRelativeOffset();
   bool get reverse => position.reverse;
@@ -68,7 +68,7 @@ extension ScrollControllerExtension on ScrollController {
 }
 
 extension RectExtension on Rect {
-  Offset get location => topLeft;
+  Offset get position => topLeft;
 }
 
 extension SliverGridGeometryExtension on SliverGridGeometry {

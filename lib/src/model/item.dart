@@ -1,24 +1,27 @@
 part of model;
 
-abstract class Item extends widgets.ChangeNotifier {
+class Item extends widgets.ChangeNotifier {
   final int id;
-  widgets.Offset _location;
+  widgets.Offset _position;
   widgets.Size _size;
   ItemBuilder _builder;
 
   Item({
     required this.id,
     required ItemBuilder builder,
-    widgets.Offset? location,
-    widgets.Size? size,
-  })  : _location = location ?? widgets.Offset.zero,
-        _size = size ?? widgets.Size.zero,
+    widgets.Offset position = widgets.Offset.zero,
+    widgets.Size size = widgets.Size.zero,
+    this.measured = false,
+  })  : _position = position,
+        _size = size,
         _builder = builder;
 
-  widgets.Offset get location => _location;
-  void setLocation(widgets.Offset value, {bool notify = true}) {
-    if (_location == value) return;
-    _location = value;
+  bool measured;
+
+  widgets.Offset get position => _position;
+  void setPosition(widgets.Offset value, {bool notify = true}) {
+    if (_position == value) return;
+    _position = value;
     if (notify) notifyListeners();
   }
 
@@ -37,23 +40,23 @@ abstract class Item extends widgets.ChangeNotifier {
     return value;
   }
 
-  widgets.Rect get geometry => location & size;
+  widgets.Rect get geometry => position & size;
   void setGeometry(widgets.Rect value, {bool notify = true}) {
     if (geometry == value) return;
-    _location = value.topLeft;
+    _position = value.topLeft;
     _size = value.size;
     if (notify) notifyListeners();
   }
-
+  
   double get width => size.width;
   double get height => size.height;
 
   void shift(widgets.Offset delta, {bool notify = true}) =>
-      setLocation(location + delta, notify: notify);
+      setPosition(position + delta, notify: notify);
 
   void scale(double scaleFactor, {bool notify = true}) {
-    if(scaleFactor == 1) return;
-    setLocation(location * scaleFactor, notify: false);
+    if (scaleFactor == 1) return;
+    setPosition(position * scaleFactor, notify: false);
     setSize(size * scaleFactor, notify: notify);
   }
 

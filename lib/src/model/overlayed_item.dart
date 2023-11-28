@@ -9,23 +9,23 @@ class OverlayedItem extends Item {
   OverlayedItem({
     required super.id,
     required super.builder,
-    required super.location,
+    required super.position,
     required super.size,
     required this.index,
     required bool draggable,
-    required this.reorderable,
+    int zIndex = minZIndex,
     this.recognizerFactory,
-  }) : _draggable = draggable;
+  })  : _draggable = draggable,
+        _zIndex = zIndex;
 
-  bool _draggable;
-  final bool reorderable;
   int index;
-
+  bool _draggable;
+  int _zIndex = 0;
   RecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
   widgets.Offset? _pointerPosition;
-  OffsetAnimation? _locationAnimation;
+  OffsetAnimation? _motionAnimation;
 
   bool get draggable => _draggable;
   void setDraggable(bool value, {bool notify = true}) {
@@ -36,20 +36,28 @@ class OverlayedItem extends Item {
 
   bool get swiped => _swipe != null;
   widgets.AxisDirection? get swipeDirection => _swipe?.swipeDirection;
+  Offset? get pointerPosition => _pointerPosition;
 
   widgets.Widget? build(widgets.BuildContext context) =>
       builder.build(context, index);
 
   @override
   void shift(Offset delta, {bool notify = true}) {
-    _locationAnimation?.shift(delta);
+    _motionAnimation?.shift(delta);
     super.shift(delta, notify: notify);
   }
 
   @override
   void scale(double scaleFactor, {bool notify = true}) {
-    _locationAnimation?.scale(scaleFactor);
+    _motionAnimation?.scale(scaleFactor);
     super.scale(scaleFactor, notify: notify);
+  }
+
+  int get zIndex => _zIndex;
+  void setZIndex(int value, {bool notify = true}) {
+    if (_zIndex == value) return;
+    _zIndex = value;
+    if (notify) notifyListeners();
   }
 
   void recognizeDrag(
@@ -107,8 +115,12 @@ class OverlayedItem extends Item {
       ..addPointer(event);
   }
 
+  void setMotionAnimation(OffsetAnimation animation) {
+    _motionAnimation?.controller.stop();
+    _motionAnimation = animation;
+  }
 
-  TickerFuture forwardLocationAnimation({
+  Future forwardMotionAnimation({
     Offset? begin,
     required Offset end,
     double? from,
@@ -116,27 +128,28 @@ class OverlayedItem extends Item {
     required Duration duration,
     required Curve curve,
   }) {
-    _locationAnimation ??= OffsetAnimation(
+    _motionAnimation ??= OffsetAnimation(
       controller: AnimationController(
         vsync: vsync,
         duration: duration,
-      )..addListener(() => setLocation(_locationAnimation!.value)),
+      )..addListener(() => setPosition(_motionAnimation!.value)),
     );
-    _locationAnimation!.begin = begin ?? location;
-    _locationAnimation!.end = end;
-    _locationAnimation!.curve = curve;
+    _motionAnimation!.begin = begin ?? position;
+    _motionAnimation!.end = end;
+    _motionAnimation!.curve = curve;
 
-    return _locationAnimation!.controller.forward(from: from);
+    return _motionAnimation!.controller.forward(from: from);
   }
 
-  void stopLocationAnimation() => _locationAnimation?.controller.stop();
+  void stopMotionAnimation() => _motionAnimation?.controller.stop();
 
   @override
   void dispose() {
     _recognizer?.dispose();
     _recognizer = null;
-    _locationAnimation?.dispose();
-    _locationAnimation = null;
+    _swipe = null;
+    _motionAnimation?.dispose();
+    _motionAnimation = null;
     super.dispose();
   }
 

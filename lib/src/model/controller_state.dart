@@ -1,32 +1,37 @@
 part of model;
 
 class ControllerState {
-  final _idleItemById = <int, IdleItem>{};
+  ControllerState(this._motionAnimationController);
+
+  final _itemById = <int, Item>{};
   final _overlayedItemById = <int, OverlayedItem>{};
   final _outgoingItemById = <int, OutgoingItem>{};
   final _itemIdByIndex = SplayTreeMap<int, int>();
   final _renderedItemById = <int, RenderedItem>{};
+  final _positionUpdateByItemId = <int, (Offset, Offset)>{};
+  final AnimationController _motionAnimationController;
+  OverlayedItem? draggedItem;
+  OverlayedItem? swipedItem;
+  int? itemUnderThePointerId;
 
   int? itemCount;
 
-  Iterable<IdleItem> get idleItems => _idleItemById.values;
-
+  Iterable<Item> get items => _itemById.values;
   Iterable<OutgoingItem> get outgoingItems => _outgoingItemById.values;
-
   Iterable<OverlayedItem> get overlayedItems => _overlayedItemById.values;
+  int get overlayedItemsNumber => _overlayedItemById.length;
+  Iterable<RenderedItem> get renderedItems => _renderedItemById.values;
+  Animation get motionAnimation => _motionAnimationController.view;
+  bool isDragged({required int itemId}) => itemId == draggedItem?.id;
+  bool isNotDragged({required int itemId}) => !isDragged(itemId: itemId);
+  bool isSwiped({required int itemId}) => itemId == swipedItem?.id;
+  bool isNotSwiped({required int itemId}) => !isSwiped(itemId: itemId);
 
-  Iterable<Item> get allItems => idleItems
-      .cast()
-      .followedBy(overlayedItems.cast())
-      .followedBy(outgoingItems.cast())
-      .cast();
+  Item? itemAt({required int index}) => itemBy(id: _itemIdByIndex[index] ?? -1);
 
-  IdleItem? idleItemAt({required int index}) =>
-      idleItemBy(id: _itemIdByIndex[index] ?? -1);
+  Item? itemBy({required int id}) => _itemById[id];
 
-  IdleItem? idleItemBy({required int id}) => _idleItemById[id];
-
-  IdleItem putIdleItem(IdleItem x) => _idleItemById[x.id] = x;
+  Item putItem(Item x) => _itemById[x.id] = x;
 
   RenderedItem putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
 
@@ -35,11 +40,17 @@ class ControllerState {
   RenderedItem? removeRenderedItemBy({required int id}) =>
       _renderedItemById.remove(id);
 
+  bool isRendered({required int itemId}) =>
+      _renderedItemById.containsKey(itemId);
+
   void setOrder({required int index, required int id}) =>
       _itemIdByIndex[index] = id;
 
   bool isOverlayed({required int itemId}) =>
       _overlayedItemById.containsKey(itemId);
+
+  bool isOverlayedAt({required int index}) =>
+      _overlayedItemById.containsKey(_itemIdByIndex[index] ?? -1);
 
   bool isNotOverlayed({required int itemId}) => !isOverlayed(itemId: itemId);
 
@@ -55,50 +66,95 @@ class ControllerState {
 
   OutgoingItem? outgoingItemBy({required int id}) => _outgoingItemById[id];
 
-  void shiftOverlayedItems(
-    widgets.Offset delta, {
-    bool Function(OverlayedItem item)? where,
+  RenderedItem? renderedItemAt({required Offset position}) =>
+      renderedItems.where((x) => x.contains(position)).firstOrNull;
+
+  Permutations moveItem({
+    required int index,
+    required int destIndex,
+    required ReorderableGetter reorderableGetter,
+    required Item Function(int index) itemFactory,
   }) {
-    for (var x in overlayedItems.where(where ?? returnTrue)) {
-      x.shift(delta);
+    final permutations = Permutations();
+    if (index == destIndex) return permutations;
+
+    increment(int i) => i + 1;
+    decrement(int i) => i - 1;
+    final nextIndex = index > destIndex ? increment : decrement;
+    var curItem = itemAt(index: index) ?? putItem(itemFactory(index));
+    int unorderedItemId = curItem.id;
+    int unorderedItemIndex = index;
+
+    for (var curIndex = destIndex;; curIndex = nextIndex(curIndex)) {
+      curItem = itemAt(index: curIndex) ?? putItem(itemFactory(curIndex));
+
+      if (reorderableGetter(curIndex)) {
+        _itemIdByIndex[curIndex] = unorderedItemId;
+
+        permutations.addPermutation(
+          elementId: unorderedItemId,
+          from: unorderedItemIndex,
+          to: curIndex,
+        );
+
+        unorderedItemId = curItem.id;
+        unorderedItemIndex = curIndex;
+      }
+
+      if (curIndex == index) break;
     }
+
+    for (var overlayedItem in overlayedItems) {
+      overlayedItem.index =
+          permutations.indexOf(overlayedItem.id) ?? overlayedItem.index;
+    }
+
+    return permutations;
   }
 
-  void shiftOutgoingItems(
-    widgets.Offset delta, {
-    bool Function(OutgoingItem item)? where,
-  }) {
-    for (var x in outgoingItems.where(where ?? returnTrue)) {
-      x.shift(delta);
-    }
-  }
-
-  Map<int, (Offset, Offset)> recomputeIdleItemLocations({
+  void recomputeItemPositions({
     required Rect canvasGeometry,
     required AxisDirection axisDirection,
-    bool notifyIdleItemListeners = true,
-  }) =>
-      switch (axisDirection) {
-        AxisDirection.down => _recomputeIdleItemLocationsDown(
-            canvasGeometry: canvasGeometry,
-            notifyIdleItemListeners: notifyIdleItemListeners,
-          ),
-        AxisDirection.up => _recomputeIdleItemLocationsUp(
-            canvasGeometry: canvasGeometry,
-            notifyIdleItemListeners: notifyIdleItemListeners,
-          ),
-        AxisDirection.right => _recomputeIdleItemLocationsRight(
-            canvasGeometry: canvasGeometry,
-            notifyIdleItemListeners: notifyIdleItemListeners,
-          ),
-        AxisDirection.left => _recomputeIdleItemLocationsLeft(
-            canvasGeometry: canvasGeometry,
-            notifyIdleItemListeners: notifyIdleItemListeners,
-          ),
-      };
+    bool notifyItemListeners = true,
+  }) {
+    _positionUpdateByItemId.clear();
+
+    return switch (axisDirection) {
+      AxisDirection.down => _recomputePositionsIfAxisDirectionDown(
+          canvasGeometry: canvasGeometry,
+          notifyItemListeners: notifyItemListeners,
+        ),
+      AxisDirection.up => _recomputePositionsIfAxisDirectionUp(
+          canvasGeometry: canvasGeometry,
+          notifyItemListeners: notifyItemListeners,
+        ),
+      AxisDirection.right => _recomputePositionsIfAxisDirectionRight(
+          canvasGeometry: canvasGeometry,
+          notifyItemListeners: notifyItemListeners,
+        ),
+      AxisDirection.left => _recomputePositionsIfAxisDirectionLeft(
+          canvasGeometry: canvasGeometry,
+          notifyItemListeners: notifyItemListeners,
+        ),
+    };
+  }
+
+  Future forwardMotionAnimation({double? from}) => _motionAnimationController
+      .forward(from: from)
+      .whenComplete(() => _positionUpdateByItemId.clear());
+
+  void stopMotionAnimation() => _motionAnimationController.stop();
+
+  bool hasPositionUpdate({required int itemId}) =>
+      _positionUpdateByItemId.containsKey(itemId);
+
+  (Offset, Offset)? positionUpdateBy({required int id}) =>
+      _positionUpdateByItemId[id];
 
   void dispose() {
-    for (var x in idleItems) {
+    _motionAnimationController.dispose();
+
+    for (var x in items) {
       x.dispose();
     }
     for (var x in overlayedItems) {
@@ -111,135 +167,119 @@ class ControllerState {
 }
 
 extension _ControllerState on ControllerState {
-  Map<int, (Offset, Offset)> _recomputeIdleItemLocationsDown({
+  void _recomputePositionsIfAxisDirectionDown({
     required Rect canvasGeometry,
-    bool notifyIdleItemListeners = true,
+    bool notifyItemListeners = true,
   }) {
-    final locationUpdateByItemId = <int, (Offset, Offset)>{};
-    var cursor = canvasGeometry.location;
-    var maxRowHeight = 0.0;
-
-    for (var item in _itemIdByIndex.values.map((id) => idleItemBy(id: id)!)) {
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).right > canvasGeometry.right) {
-        cursor += Offset(
-          -(cursor.dx - canvasGeometry.left),
-          maxRowHeight,
-        );
-        maxRowHeight = item.height;
-      }
-
-      final anchorLocation = cursor;
-
-      if ((item.location - anchorLocation).distance > alpha) {
-        locationUpdateByItemId[item.id] = (item.location, anchorLocation);
-        item.setLocation(anchorLocation, notify: notifyIdleItemListeners);
-      }
-
-      maxRowHeight = math.max(maxRowHeight, item.height);
-      cursor += Offset(item.width, 0);
-    }
-
-    return locationUpdateByItemId;
-  }
-
-  Map<int, (Offset, Offset)> _recomputeIdleItemLocationsUp({
-    required Rect canvasGeometry,
-    bool notifyIdleItemListeners = true,
-  }) {
-    final locationUpdateByItemId = <int, (Offset, Offset)>{};
-    var cursor = canvasGeometry.bottomLeft;
-    var maxRowHeight = 0.0;
-
-    for (var item in _itemIdByIndex.values.map((id) => idleItemBy(id: id)!)) {
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).right > canvasGeometry.right) {
-        cursor += Offset(
-          -(cursor.dx - canvasGeometry.left),
-          -maxRowHeight,
-        );
-        maxRowHeight = item.height;
-      }
-
-      final anchorLocation = cursor - Offset(0, item.height);
-
-      if ((item.location - anchorLocation).distance > alpha) {
-        locationUpdateByItemId[item.id] = (item.location, anchorLocation);
-        item.setLocation(anchorLocation, notify: notifyIdleItemListeners);
-      }
-
-      maxRowHeight = math.max(maxRowHeight, item.height);
-      cursor += Offset(item.width, 0);
-    }
-
-    return locationUpdateByItemId;
-  }
-
-  Map<int, (Offset, Offset)> _recomputeIdleItemLocationsRight({
-    required Rect canvasGeometry,
-    bool notifyIdleItemListeners = true,
-  }) {
-    final locationUpdateByItemId = <int, (Offset, Offset)>{};
     var cursor = canvasGeometry.topLeft;
-    var maxColWidth = 0.0;
+    final minLeft = canvasGeometry.left;
+    final maxRight = canvasGeometry.right;
+    var maxRowHeight = 0.0;
 
-    for (var item in _itemIdByIndex.values.map((id) => idleItemBy(id: id)!)) {
+    for (var item in _itemIdByIndex.values.map((id) => itemBy(id: id)!)) {
       final testGeometry = cursor & item.size;
 
-      if (testGeometry.deflate(alpha).bottom > canvasGeometry.bottom) {
-        cursor += Offset(
-          maxColWidth,
-          -(cursor.dy - canvasGeometry.top),
-        );
-        maxColWidth = item.width;
+      if (testGeometry.deflate(alpha).right > maxRight) {
+        cursor += Offset(-(cursor.dx - minLeft), maxRowHeight);
+        maxRowHeight = item.height;
       }
 
-      final anchorLocation = cursor;
+      final anchorPosition = cursor;
 
-      if ((item.location - anchorLocation).distance > alpha) {
-        locationUpdateByItemId[item.id] = (item.location, anchorLocation);
-        item.setLocation(anchorLocation, notify: notifyIdleItemListeners);
+      if ((item.position - anchorPosition).distance > alpha) {
+        _positionUpdateByItemId[item.id] = (item.position, anchorPosition);
+        item.setPosition(anchorPosition, notify: notifyItemListeners);
       }
 
-      maxColWidth = math.max(maxColWidth, item.width);
-      cursor += Offset(0, item.height);
+      maxRowHeight = math.max(maxRowHeight, item.height);
+      cursor += Offset(item.width, 0);
     }
-
-    return locationUpdateByItemId;
   }
 
-  Map<int, (Offset, Offset)> _recomputeIdleItemLocationsLeft({
+  void _recomputePositionsIfAxisDirectionUp({
     required Rect canvasGeometry,
-    bool notifyIdleItemListeners = true,
+    bool notifyItemListeners = true,
   }) {
-    final locationUpdateByItemId = <int, (Offset, Offset)>{};
-    var cursor = canvasGeometry.topRight;
-    var maxColWidth = 0.0;
+    var cursor = canvasGeometry.bottomLeft;
+    final minLeft = canvasGeometry.left;
+    final maxRight = canvasGeometry.right;
+    var maxRowHeight = 0.0;
 
-    for (var item in _itemIdByIndex.values.map((id) => idleItemBy(id: id)!)) {
+    for (var item in _itemIdByIndex.values.map((id) => itemBy(id: id)!)) {
       final testGeometry = cursor & item.size;
 
-      if (testGeometry.deflate(alpha).bottom > canvasGeometry.bottom) {
-        cursor += Offset(
-          -maxColWidth,
-          -(cursor.dy - canvasGeometry.top),
-        );
+      if (testGeometry.deflate(alpha).right > maxRight) {
+        cursor += Offset(-(cursor.dx - minLeft), -maxRowHeight);
+        maxRowHeight = item.height;
+      }
+
+      final anchorPosition = cursor - Offset(0, item.height);
+
+      if ((item.position - anchorPosition).distance > alpha) {
+        _positionUpdateByItemId[item.id] = (item.position, anchorPosition);
+        item.setPosition(anchorPosition, notify: notifyItemListeners);
+      }
+
+      maxRowHeight = math.max(maxRowHeight, item.height);
+      cursor += Offset(item.width, 0);
+    }
+  }
+
+  void _recomputePositionsIfAxisDirectionRight({
+    required Rect canvasGeometry,
+    bool notifyItemListeners = true,
+  }) {
+    var cursor = canvasGeometry.topLeft;
+    final minTop = canvasGeometry.top;
+    final maxBottom = canvasGeometry.bottom;
+    var maxColWidth = 0.0;
+
+    for (var item in _itemIdByIndex.values.map((id) => itemBy(id: id)!)) {
+      final testGeometry = cursor & item.size;
+
+      if (testGeometry.deflate(alpha).bottom > maxBottom) {
+        cursor += Offset(maxColWidth, -(cursor.dy - minTop));
         maxColWidth = item.width;
       }
 
-      final anchorLocation = cursor + Offset(-item.width, 0);
+      final anchorPosition = cursor;
 
-      if ((item.location - anchorLocation).distance > alpha) {
-        locationUpdateByItemId[item.id] = (item.location, anchorLocation);
-        item.setLocation(anchorLocation, notify: notifyIdleItemListeners);
+      if ((item.position - anchorPosition).distance > alpha) {
+        _positionUpdateByItemId[item.id] = (item.position, anchorPosition);
+        item.setPosition(anchorPosition, notify: notifyItemListeners);
       }
 
       maxColWidth = math.max(maxColWidth, item.width);
       cursor += Offset(0, item.height);
     }
+  }
 
-    return locationUpdateByItemId;
+  void _recomputePositionsIfAxisDirectionLeft({
+    required Rect canvasGeometry,
+    bool notifyItemListeners = true,
+  }) {
+    var cursor = canvasGeometry.topRight;
+    final minTop = canvasGeometry.top;
+    final maxBottom = canvasGeometry.bottom;
+    var maxColWidth = 0.0;
+
+    for (var item in _itemIdByIndex.values.map((id) => itemBy(id: id)!)) {
+      final testGeometry = cursor & item.size;
+
+      if (testGeometry.deflate(alpha).bottom > maxBottom) {
+        cursor += Offset(-maxColWidth, -(cursor.dy - minTop));
+        maxColWidth = item.width;
+      }
+
+      final anchorPosition = cursor + Offset(-item.width, 0);
+
+      if ((item.position - anchorPosition).distance > alpha) {
+        _positionUpdateByItemId[item.id] = (item.position, anchorPosition);
+        item.setPosition(anchorPosition, notify: notifyItemListeners);
+      }
+
+      maxColWidth = math.max(maxColWidth, item.width);
+      cursor += Offset(0, item.height);
+    }
   }
 }

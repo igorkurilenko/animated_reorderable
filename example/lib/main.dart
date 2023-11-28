@@ -133,8 +133,8 @@ class _AnimatedReorderableGridSampleState
   void moveRandomItem() {
     // TODO: randomize indexes
     const randomIndex = 0;
-    const randomDestinationIndex = 4;
+    const randomDestinationIndex = 19;
 
-    controller.moveItem(0, destinationIndex: randomDestinationIndex);
+    controller.moveItem(randomIndex, destIndex: randomDestinationIndex);
   }
 }

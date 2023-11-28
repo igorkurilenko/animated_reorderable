@@ -5,7 +5,7 @@ class OutgoingItem extends Item {
     required super.id,
     required widgets.AnimationController controller,
     required widgets.AnimatedRemovedItemBuilder removedItemBuilder,
-    required super.location,
+    required super.position,
     required super.size,
   }) : super(
           builder: ItemBuilder.adaptAnimatedRemovedItemBuilder(
