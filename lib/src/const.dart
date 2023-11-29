@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 const draggedItemDecoratorId = 'dragged-item-decorator';
 const swipedItemDecoratorId = 'swiped-item-decorator';
 const int maxInt = kIsWeb
-    ? 9007199254740992 // max safe integer on JS (from 0 to this number x != x+1)
+    ? 9007199254740992 
     : ((1 << 63) - 1);
 const minZIndex = 0;
 const maxZIndex = maxInt;

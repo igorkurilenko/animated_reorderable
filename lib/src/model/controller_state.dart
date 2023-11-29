@@ -13,8 +13,10 @@ class ControllerState {
   OverlayedItem? draggedItem;
   OverlayedItem? swipedItem;
   int? itemUnderThePointerId;
-
   int? itemCount;
+  BoxConstraints? constraintsMark;
+  Offset scrollOffsetMark = Offset.zero;
+  bool shiftItemsOnScroll = true;
 
   Iterable<Item> get items => _itemById.values;
   Iterable<OutgoingItem> get outgoingItems => _outgoingItemById.values;
@@ -150,6 +152,23 @@ class ControllerState {
 
   (Offset, Offset)? positionUpdateBy({required int id}) =>
       _positionUpdateByItemId[id];
+
+  void reset() {
+    _motionAnimationController.reset();
+    _itemById.clear();
+    _overlayedItemById.clear();
+    _outgoingItemById.clear();
+    _itemIdByIndex.clear();
+    _renderedItemById.clear();
+    _positionUpdateByItemId.clear();
+    draggedItem = null;
+    swipedItem = null;
+    itemUnderThePointerId = null;
+    itemCount = null;
+    constraintsMark = null;
+    scrollOffsetMark = Offset.zero;
+    shiftItemsOnScroll = true;
+  }
 
   void dispose() {
     _motionAnimationController.dispose();

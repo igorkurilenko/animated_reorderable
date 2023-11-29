@@ -311,9 +311,9 @@ class AnimatedReorderableController {
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
 
-  late GlobalKey<_OutgoingItemsLayerState> _outgoingItemsLayerKey;
-  late GlobalKey<_CollectionViewLayerState> _itemsLayerKey;
-  late GlobalKey<_OverlayedItemsLayerState> _overlayedItemsLayerKey;
+  final _outgoingItemsLayerKey = GlobalKey<_OutgoingItemsLayerState>();
+  final _itemsLayerKey = GlobalKey<_CollectionViewLayerState>();
+  final _overlayedItemsLayerKey = GlobalKey<_OverlayedItemsLayerState>();
 
   final IdGetter idGetter;
   final ReorderableGetter reorderableGetter;
@@ -322,7 +322,7 @@ class AnimatedReorderableController {
   final double autoScrollerVelocityScalar;
 
   final ReorderCallback didReorder;
-  SwipeAwayCallback? didSwipeAway;
+  final SwipeAwayCallback? didSwipeAway;
 
   final TickerProvider vsync;
 
@@ -341,9 +341,6 @@ class AnimatedReorderableController {
   );
   ScrollController? _scrollController;
   EdgeDraggingAutoScroller? _autoScroller;
-  Offset _scrollOffsetMark = Offset.zero;
-  bool _shiftItemsOnScroll = true;
-  BoxConstraints? _constraintsMark;
   late OverridedSliverChildBuilderDelegate _childrenDelegate;
   SliverGridLayout? _gridLayout;
 
@@ -379,7 +376,7 @@ class AnimatedReorderableController {
     if (index == destIndex) return;
 
     final start = DateTime.now().millisecond;
-    ensureItemsMeasured(
+    ensureItemsAreMeasured(
       fromIndex: 0,
       toIndex: math.max(index, destIndex),
     );
@@ -428,11 +425,10 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
     required SliverChildDelegate childrenDelegate,
     ScrollController? scrollController,
   }) {
-    this.scrollController = scrollController ?? ScrollController();
-    itemCount = getChildCount(childrenDelegate);
-    outgoingItemsLayerKey = GlobalKey();
-    collectionViewLayerKey = GlobalKey();
-    overlayedItemsLayerKey = GlobalKey();
+    _state
+      ..reset()
+      ..itemCount = getChildCount(childrenDelegate);
+    setupScrollController(scrollController ?? ScrollController());
     return this;
   }
 
@@ -496,7 +492,7 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
     autoScrollIfNecessary();
   }
 
-  void ensureItemsMeasured({
+  void ensureItemsAreMeasured({
     required int fromIndex,
     required int toIndex,
   }) {
@@ -528,8 +524,8 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
         builder: (context) =>
             _childrenDelegate.originalBuilder(context, index)!,
         constraints: scrollController!.axis == Axis.vertical
-            ? _constraintsMark?.copyWith(maxHeight: double.infinity)
-            : _constraintsMark?.copyWith(maxWidth: double.infinity),
+            ? _state.constraintsMark?.copyWith(maxHeight: double.infinity)
+            : _state.constraintsMark?.copyWith(maxWidth: double.infinity),
       );
 }
 
@@ -537,7 +533,7 @@ extension _ScrollHandler on AnimatedReorderableController {
   void handleScroll() {
     final delta = markScrollOffset(scrollOffset);
 
-    if (_shiftItemsOnScroll) {
+    if (_state.shiftItemsOnScroll) {
       for (var x in _state.outgoingItems) {
         x.shift(-delta);
       }
@@ -557,12 +553,12 @@ extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
 
 extension _ConstraintsChangeHandler on AnimatedReorderableController {
   void handleConstraintsChange(BoxConstraints constraints) {
-    if (_constraintsMark != null &&
+    if (_state.constraintsMark != null &&
         scrollController != null &&
         scrollController!.hasClients) {
       final scaleFactor = scrollController!.axis == Axis.vertical
-          ? constraints.maxWidth / _constraintsMark!.maxWidth
-          : constraints.maxHeight / _constraintsMark!.maxHeight;
+          ? constraints.maxWidth / _state.constraintsMark!.maxWidth
+          : constraints.maxHeight / _state.constraintsMark!.maxHeight;
 
       for (var x in _state.outgoingItems) {
         x.scale(scaleFactor);
@@ -574,12 +570,12 @@ extension _ConstraintsChangeHandler on AnimatedReorderableController {
         x.scale(scaleFactor);
       }
 
-      _shiftItemsOnScroll = false;
+      _state.shiftItemsOnScroll = false;
       scrollController!.scaleScrollPosition(scaleFactor);
-      _shiftItemsOnScroll = true;
+      _state.shiftItemsOnScroll = true;
     }
 
-    _constraintsMark = constraints;
+    _state.constraintsMark = constraints;
   }
 }
 
@@ -651,7 +647,6 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
 
 extension _Misc on AnimatedReorderableController {
   int? get itemCount => _state.itemCount;
-  set itemCount(int? value) => _state.itemCount = value;
   Iterable<model.OutgoingItem> get outgoingItems => _state.outgoingItems;
   Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
   void recomputeItemPositions() => _state.recomputeItemPositions(
@@ -661,32 +656,27 @@ extension _Misc on AnimatedReorderableController {
 
   GlobalKey<_OutgoingItemsLayerState> get outgoingItemsLayerKey =>
       _outgoingItemsLayerKey;
-  set outgoingItemsLayerKey(GlobalKey<_OutgoingItemsLayerState> value) =>
-      _outgoingItemsLayerKey = value;
   _OutgoingItemsLayerState? get outgoingItemsLayer =>
       outgoingItemsLayerKey.currentState;
 
   GlobalKey<_CollectionViewLayerState> get collectionViewLayerKey =>
       _itemsLayerKey;
-  set collectionViewLayerKey(GlobalKey<_CollectionViewLayerState> value) =>
-      _itemsLayerKey = value;
   _CollectionViewLayerState? get collectionViewLayer =>
       collectionViewLayerKey.currentState;
 
   GlobalKey<_OverlayedItemsLayerState> get overlayedItemsLayerKey =>
       _overlayedItemsLayerKey;
-  set overlayedItemsLayerKey(GlobalKey<_OverlayedItemsLayerState> value) =>
-      _overlayedItemsLayerKey = value;
   _OverlayedItemsLayerState? get overlayedItemsLayer =>
       overlayedItemsLayerKey.currentState;
 }
 
 extension _Scrolling on AnimatedReorderableController {
   ScrollController? get scrollController => _scrollController;
-  set scrollController(ScrollController? value) {
+
+  void setupScrollController(ScrollController? value) {
     if (_scrollController == value) return;
     addPostFrame(() {
-      initAutoscroller();
+      setupAutoscroller();
       markScrollOffset(scrollOffset);
     });
     _scrollController?.removeListener(handleScroll);
@@ -695,7 +685,7 @@ extension _Scrolling on AnimatedReorderableController {
 
   Offset get scrollOffset => scrollController!.scrollOffset!;
 
-  void initAutoscroller() {
+  void setupAutoscroller() {
     if (_scrollController == null) return;
     if (!_scrollController!.hasClients) return;
 
@@ -727,8 +717,8 @@ extension _Scrolling on AnimatedReorderableController {
     if (_scrollController == null) return Offset.zero;
     if (!_scrollController!.hasClients) return Offset.zero;
 
-    final delta = scrollOffset - _scrollOffsetMark;
-    _scrollOffsetMark = scrollOffset;
+    final delta = scrollOffset - _state.scrollOffsetMark;
+    _state.scrollOffsetMark = scrollOffset;
     return delta;
   }
 }
