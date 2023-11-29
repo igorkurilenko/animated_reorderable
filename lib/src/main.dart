@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
 import 'model/permutations.dart';
+import 'util/measure_util.dart';
 import 'widget/item_widget.dart';
 import 'widget/outgoing_item_widget.dart';
 import 'widget/overlayed_item_widget.dart';
@@ -376,10 +378,13 @@ class AnimatedReorderableController {
     }
     if (index == destIndex) return;
 
-    measureItems(
+    final start = DateTime.now().millisecond;
+    ensureItemsMeasured(
       fromIndex: 0,
       toIndex: math.max(index, destIndex),
     );
+    final end = DateTime.now().millisecond;
+    log('measureItems time: ${end - start}ms');
 
     final permutations = _state.moveItem(
       index: index,
@@ -388,11 +393,9 @@ class AnimatedReorderableController {
       itemFactory: createItem,
     );
 
+    recomputeItemPositions();
+
     _state
-      ..recomputeItemPositions(
-        canvasGeometry: overlayedItemsLayer!.computeCanvasGeometry()!,
-        axisDirection: scrollController!.axisDirection,
-      )
       ..forwardMotionAnimation(from: 0)
       ..renderedItems
           .where((x) => _state.isNotDragged(itemId: x.id))
@@ -493,20 +496,41 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
     autoScrollIfNecessary();
   }
 
-  void measureItems({
+  void ensureItemsMeasured({
     required int fromIndex,
     required int toIndex,
   }) {
-    for (var index = math.min(fromIndex, toIndex);
-        index <= math.max(fromIndex, toIndex);
-        index++) {
+    final from = math.min(fromIndex, toIndex);
+    final to = math.max(fromIndex, toIndex);
+    VoidCallback? after;
+
+    for (var index = from; index <= to; index++) {
       final item = ensureItemAt(index: index);
 
       if (!item.measured) {
-        // TODO: measure
+        final size = measureItemSizeAt(index: index);
+
+        item
+          ..setSize(size, notify: false)
+          ..measured = true;
+
+        after = recomputeItemPositions;
       }
     }
+
+    after?.call();
   }
+
+  Size measureItemSizeAt({required int index}) =>
+      _gridLayout?.getChildSize(index, scrollController!.axis) ??
+      MeasureUtil.measureWidget(
+        context: _scrollController!.scrollableState!.context,
+        builder: (context) =>
+            _childrenDelegate.originalBuilder(context, index)!,
+        constraints: scrollController!.axis == Axis.vertical
+            ? _constraintsMark?.copyWith(maxHeight: double.infinity)
+            : _constraintsMark?.copyWith(maxWidth: double.infinity),
+      );
 }
 
 extension _ScrollHandler on AnimatedReorderableController {
@@ -630,6 +654,10 @@ extension _Misc on AnimatedReorderableController {
   set itemCount(int? value) => _state.itemCount = value;
   Iterable<model.OutgoingItem> get outgoingItems => _state.outgoingItems;
   Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
+  void recomputeItemPositions() => _state.recomputeItemPositions(
+        canvasGeometry: overlayedItemsLayer!.computeCanvasGeometry()!,
+        axisDirection: scrollController!.axisDirection,
+      );
 
   GlobalKey<_OutgoingItemsLayerState> get outgoingItemsLayerKey =>
       _outgoingItemsLayerKey;
@@ -738,7 +766,7 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       didBuild: (renderedItem) {
         final geometry = renderedItem.computeGeometry(scrollOffset);
         item.setGeometry(geometry ?? item.geometry);
-        item.measured = true;
+        item.measured |= geometry != null;
       },
       recognizeDrag: (context, event) {
         final geometry = context.computeGeometry()!;
@@ -792,7 +820,14 @@ extension _ChildrenDelegate on AnimatedReorderableController {
   }
 
   model.Item ensureItemAt({required int index}) =>
-      _state.itemAt(index: index) ?? _state.putItem(createItem(index));
+      _state.itemAt(index: index) ?? spawnItemAt(index: index);
+
+  model.Item spawnItemAt({required int index}) {
+    final item = createItem(index);
+    _state.putItem(item);
+    _state.setOrder(index: index, id: item.id);
+    return item;
+  }
 
   model.Item createItem(int index) => model.Item(
         id: idGetter(index),
@@ -803,7 +838,6 @@ extension _ChildrenDelegate on AnimatedReorderableController {
 
   void registerRenderedItem(RenderedItem renderedItem) {
     _state.putRenderedItem(renderedItem);
-    _state.setOrder(index: renderedItem.index, id: renderedItem.id);
   }
 
   void unregisterRenderedItem(RenderedItem item) {
