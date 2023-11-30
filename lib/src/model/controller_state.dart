@@ -35,14 +35,12 @@ class ControllerState {
   RenderedItem? removeRenderedItemBy({required int id}) =>
       _renderedItemById.remove(id);
 
-  bool isRendered({required int id}) =>
-      _renderedItemById.containsKey(id);
+  bool isRendered({required int id}) => _renderedItemById.containsKey(id);
 
   void setIndex({required int itemId, required int index}) =>
       _itemIdByIndex[index] = itemId;
 
-  bool isOverlayed({required int id}) =>
-      _overlayedItemById.containsKey(id);
+  bool isOverlayed({required int id}) => _overlayedItemById.containsKey(id);
 
   bool isOverlayedAt({required int index}) =>
       _overlayedItemById.containsKey(_itemIdByIndex[index] ?? -1);
@@ -61,6 +59,31 @@ class ControllerState {
 
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
+
+  Item insertItem({
+    required int index,
+    required Item Function(int index) itemFactory,
+  }) {
+    for (var i in _itemIdByIndex.keys.toList().reversed) {
+      if (i < index) break;
+      _itemIdByIndex[i + 1] = _itemIdByIndex[i]!;
+    }
+
+    for (var overlayedItem in overlayedItems) {
+      if (overlayedItem.index >= index) {
+        overlayedItem.index++;
+      }
+    }
+
+    final item = itemFactory.call(index);
+
+    _itemById[item.id] = item;
+    _itemIdByIndex[index] = item.id;
+
+    itemCount = itemCount! + 1;
+
+    return item;
+  }
 
   Permutations moveItem({
     required int index,

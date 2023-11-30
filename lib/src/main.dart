@@ -298,7 +298,7 @@ class AnimatedReorderableController {
     ReorderableGetter? reorderableGetter,
     DraggableGetter? draggableGetter,
     this.swipeAwayDirectionGetter,
-    required this.didReorder,
+    this.didReorder,
     this.didSwipeAway,
     required this.vsync,
     this.motionAnimationDuration = du300ms,
@@ -321,7 +321,7 @@ class AnimatedReorderableController {
   final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
   final double autoScrollerVelocityScalar;
 
-  final ReorderCallback didReorder;
+  final ReorderCallback? didReorder;
   final SwipeAwayCallback? didSwipeAway;
 
   final TickerProvider vsync;
@@ -343,7 +343,58 @@ class AnimatedReorderableController {
     int index, {
     required AnimatedItemBuilder builder,
     Duration duration = du300ms,
-  }) {}
+  }) {
+    if (itemCount == null) {
+      throw ('AnimatedReorderableController has not been connected with a collection view');
+    }
+    if (index < 0 || index > itemCount!) {
+      throw RangeError.value(index);
+    }
+
+    final item = _state.insertItem(
+      index: index,
+      itemFactory: (index) {
+        final x = createItem(index);
+        x.setPosition(
+          _state.itemAt(index: index)!.position,
+          notify: false,
+        );
+        x.setSize(
+          measureItemSizeAt(index: index),
+          notify: false,
+        );
+        x.measured = true;
+        return x;
+      },
+    );
+
+    recomputeItemPositions()
+        .where((u) => !_state.isDragged(id: u.item.id))
+        .where((u) => !_state.isSwiped(id: u.item.id))
+        .map((u) =>
+            _state.overlayedItemBy(id: u.item.id) ??
+            model.OverlayedItem(
+              draggable: false,
+              index: u.index,
+              id: u.item.id,
+              builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
+              zIndex: minZIndex,
+              size: u.item.size,
+              position: overlayedItemsLayer!.globalToLocal(
+                u.oldPosition - scrollOffset,
+              )!,
+            ))
+        .map(overlay)
+        .forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
+
+    forwardAnimatedBuilder(
+      item,
+      builder: builder,
+      duration: duration,
+    );
+
+    collectionViewLayer?.rebuild(() {});
+  }
 
   void removeItem(
     int index, {
@@ -384,6 +435,7 @@ class AnimatedReorderableController {
 
     recomputeItemPositions()
         .where((u) => !_state.isDragged(id: u.item.id))
+        .where((u) => !_state.isSwiped(id: u.item.id))
         .map((u) =>
             _state.overlayedItemBy(id: u.item.id) ??
             model.OverlayedItem(
@@ -400,7 +452,7 @@ class AnimatedReorderableController {
         .map(overlay)
         .forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
 
-    collectionViewLayer?.rebuild(() => didReorder(permutations));
+    collectionViewLayer?.rebuild(() => didReorder!.call(permutations));
   }
 
   void dispose() {
@@ -473,6 +525,30 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       duration: motionAnimationDuration,
       curve: motionAnimationCurve,
     );
+  }
+  
+  void forwardAnimatedBuilder(
+    model.Item item, {
+    required AnimatedItemBuilder builder,
+    required Duration duration,
+  }) {
+    final originalBuilder = item.builder;
+    final controller = AnimationController(
+      vsync: vsync,
+      duration: duration,
+    );
+
+    item.setBuilder(
+      model.ItemBuilder.adaptAnimatedItemBuilder(
+        builder,
+        controller: controller,
+      ),
+    );
+
+    controller.forward(from: 0).whenComplete(() {
+      item.setBuilder(originalBuilder);
+      controller.dispose();
+    });
   }
 
   void reorderAndAutoScrollIfNecessary() {
