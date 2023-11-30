@@ -47,7 +47,7 @@ class Item extends widgets.ChangeNotifier {
     _size = value.size;
     if (notify) notifyListeners();
   }
-  
+
   double get width => size.width;
   double get height => size.height;
 
@@ -65,6 +65,9 @@ class Item extends widgets.ChangeNotifier {
     builder.dispose();
     super.dispose();
   }
+
+  @override
+  String toString() => 'Item(id: $id)';
 }
 
 extension ItemExtension on Item {

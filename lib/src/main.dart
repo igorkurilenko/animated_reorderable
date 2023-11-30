@@ -275,7 +275,7 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
           clipBehavior: widget.clipBehavior,
           children: [
             for (var item
-                in controller.overlayedItems.toList()
+                in controller.renderedOverlayedItems.toList()
                   ..sort((a, b) => a.zIndex.compareTo(b.zIndex)))
               OverlayedItemWidget(
                 key: ValueKey(item.id),
@@ -333,12 +333,7 @@ class AnimatedReorderableController {
   final Duration draggedItemDecorationAnimationDuration;
   final model.AnimatedItemDecorator? swipedItemDecorator;
   final Duration swipedItemDecorationAnimationDuration;
-  late final _state = model.ControllerState(
-    AnimationController(
-      vsync: vsync,
-      duration: motionAnimationDuration,
-    ),
-  );
+  final _state = model.ControllerState();
   ScrollController? _scrollController;
   EdgeDraggingAutoScroller? _autoScroller;
   late OverridedSliverChildBuilderDelegate _childrenDelegate;
@@ -362,26 +357,23 @@ class AnimatedReorderableController {
     Duration duration = du300ms,
   }) {
     if (itemCount == null) {
-      throw ('AnimatedReorderableController has not been attached to collection view');
+      throw ('AnimatedReorderableController has not been connected with a collection view');
     }
     if (index < 0 || index >= itemCount!) {
       throw RangeError.value(index);
     }
     if (!reorderableGetter(index)) {
-      throw ('Item is not reorderable at $index');
+      throw ('The item is not reorderable at $index');
     }
     if (!reorderableGetter(destIndex)) {
-      throw ('Item is not reorderable at $destIndex');
+      throw ('The item is not reorderable at $destIndex');
     }
     if (index == destIndex) return;
 
-    final start = DateTime.now().millisecond;
     ensureItemsAreMeasured(
       fromIndex: 0,
       toIndex: math.max(index, destIndex),
     );
-    final end = DateTime.now().millisecond;
-    log('measureItems time: ${end - start}ms');
 
     final permutations = _state.moveItem(
       index: index,
@@ -390,27 +382,23 @@ class AnimatedReorderableController {
       itemFactory: createItem,
     );
 
-    recomputeItemPositions();
-
-    _state
-      ..forwardMotionAnimation(from: 0)
-      ..renderedItems
-          .where((x) => _state.isNotDragged(itemId: x.id))
-          .where((x) => _state.hasPositionUpdate(itemId: x.id))
-          .map((x) =>
-              _state.overlayedItemBy(id: x.id) ??
-              model.OverlayedItem(
-                index: permutations.indexOf(x.id) ?? x.index,
-                id: x.id,
-                position: overlayedItemsLayer!.globalToLocal(x.globalPosition)!,
-                size: x.size,
-                draggable: false,
-                builder: model.ItemBuilder.adaptIndexedWidgetBuilder(x.builder),
-                zIndex:
-                    x.index == index ? maxZIndex : _state.overlayedItemsNumber,
-              ))
-          .map(overlay)
-          .forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
+    recomputeItemPositions()
+        .where((u) => !_state.isDragged(id: u.item.id))
+        .map((u) =>
+            _state.overlayedItemBy(id: u.item.id) ??
+            model.OverlayedItem(
+              draggable: false,
+              index: u.index,
+              id: u.item.id,
+              builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
+              zIndex: minZIndex,
+              size: u.item.size,
+              position: overlayedItemsLayer!.globalToLocal(
+                u.oldPosition - scrollOffset,
+              )!,
+            ))
+        .map(overlay)
+        .forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
 
     collectionViewLayer?.rebuild(() => didReorder(permutations));
   }
@@ -433,14 +421,14 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
   }
 
   model.OverlayedItem overlay(model.OverlayedItem item) {
-    if (_state.isOverlayed(itemId: item.id)) return item;
+    if (_state.isOverlayed(id: item.id)) return item;
     overlayedItemsLayer?.rebuild(() => _state.putOverlayedItem(item));
     _state.renderedItemBy(id: item.id)?.rebuild();
     return item;
   }
 
   void unoverlay(model.OverlayedItem item) {
-    if (!_state.isOverlayed(itemId: item.id)) return;
+    if (!_state.isOverlayed(id: item.id)) return;
     overlayedItemsLayer?.rebuild(() => _state.removeOverlayedItem(id: item.id));
     _state.renderedItemBy(id: item.id)?.rebuild();
   }
@@ -505,7 +493,6 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
 
       if (!item.measured) {
         final size = measureItemSizeAt(index: index);
-
         item
           ..setSize(size, notify: false)
           ..measured = true;
@@ -538,8 +525,8 @@ extension _ScrollHandler on AnimatedReorderableController {
         x.shift(-delta);
       }
       for (var x in _state.overlayedItems
-          .where((x) => _state.isNotDragged(itemId: x.id))
-          .where((x) => _state.isNotSwiped(itemId: x.id))) {
+          .where((x) => !_state.isDragged(id: x.id))
+          .where((x) => !_state.isSwiped(id: x.id))) {
         x.shift(-delta);
       }
     }
@@ -649,7 +636,10 @@ extension _Misc on AnimatedReorderableController {
   int? get itemCount => _state.itemCount;
   Iterable<model.OutgoingItem> get outgoingItems => _state.outgoingItems;
   Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
-  void recomputeItemPositions() => _state.recomputeItemPositions(
+  Iterable<model.OverlayedItem> get renderedOverlayedItems =>
+      overlayedItems.where((x) => _state.isRendered(id: x.id));
+  List<model.ItemPositionUpdate> recomputeItemPositions() =>
+      _state.recomputeItemPositions(
         canvasGeometry: overlayedItemsLayer!.computeCanvasGeometry()!,
         axisDirection: scrollController!.axisDirection,
       );
@@ -744,7 +734,7 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       reorderableGetter: reorderableGetter,
       draggableGetter: draggableGetter,
       swipeAwayDirectionGetter: swipeAwayDirectionGetter,
-      overlayedGetter: (id) => _state.isOverlayed(itemId: id),
+      overlayedGetter: (id) => _state.isOverlayed(id: id),
       builder: item.builder.build,
       onInit: registerRenderedItem,
       didUpdate: (renderedItem) {
@@ -815,7 +805,7 @@ extension _ChildrenDelegate on AnimatedReorderableController {
   model.Item spawnItemAt({required int index}) {
     final item = createItem(index);
     _state.putItem(item);
-    _state.setOrder(index: index, id: item.id);
+    _state.setIndex(itemId: item.id, index: index);
     return item;
   }
 
@@ -828,12 +818,14 @@ extension _ChildrenDelegate on AnimatedReorderableController {
 
   void registerRenderedItem(RenderedItem renderedItem) {
     _state.putRenderedItem(renderedItem);
+    addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
   }
 
   void unregisterRenderedItem(RenderedItem item) {
     final registeredRenderedItem = _state.renderedItemBy(id: item.id);
     if (registeredRenderedItem == item) {
       _state.removeRenderedItemBy(id: item.id);
+      addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
     }
   }
 }
