@@ -95,7 +95,7 @@ class _AnimatedReorderableGridSampleState
 
   void insertRandomItem() {
     // TODO: randomize index
-    const randomIndex = 7;
+    const randomIndex = 0;
     final item = items.length;
 
     items.insert(randomIndex, item);

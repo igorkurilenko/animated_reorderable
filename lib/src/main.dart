@@ -355,10 +355,6 @@ class AnimatedReorderableController {
       index: index,
       itemFactory: (index) {
         final x = createItem(index);
-        x.setPosition(
-          _state.itemAt(index: index)!.position,
-          notify: false,
-        );
         x.setSize(
           measureItemSizeAt(index: index),
           notify: false,
@@ -371,6 +367,7 @@ class AnimatedReorderableController {
     recomputeItemPositions()
         .where((u) => !_state.isDragged(id: u.item.id))
         .where((u) => !_state.isSwiped(id: u.item.id))
+        .where((u) => u.index != index)
         .map((u) =>
             _state.overlayedItemBy(id: u.item.id) ??
             model.OverlayedItem(
@@ -381,7 +378,8 @@ class AnimatedReorderableController {
               zIndex: minZIndex,
               size: u.item.size,
               position: overlayedItemsLayer!.globalToLocal(
-                u.oldPosition - scrollOffset,
+                (u.index == index ? u.newPosition : u.oldPosition) -
+                    scrollOffset,
               )!,
             ))
         .map(overlay)
@@ -474,6 +472,7 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
 
   model.OverlayedItem overlay(model.OverlayedItem item) {
     if (_state.isOverlayed(id: item.id)) return item;
+    log('overlay $item');
     overlayedItemsLayer?.rebuild(() => _state.putOverlayedItem(item));
     _state.renderedItemBy(id: item.id)?.rebuild();
     return item;
@@ -526,7 +525,7 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       curve: motionAnimationCurve,
     );
   }
-  
+
   void forwardAnimatedBuilder(
     model.Item item, {
     required AnimatedItemBuilder builder,
@@ -892,16 +891,24 @@ extension _ChildrenDelegate on AnimatedReorderableController {
         ),
       );
 
-  void registerRenderedItem(RenderedItem renderedItem) {
-    _state.putRenderedItem(renderedItem);
-    addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
+  void registerRenderedItem(RenderedItem item) {
+    _state.putRenderedItem(item);
+
+    if (_state.isOverlayed(id: item.id)) {
+      log('rebuld overlayed because of RenderedItem(id: ${item.id}, index: ${item.index})');
+      log('${_state.overlayedItemBy(id: item.id)!.position}');
+      addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
+    }
   }
 
   void unregisterRenderedItem(RenderedItem item) {
     final registeredRenderedItem = _state.renderedItemBy(id: item.id);
     if (registeredRenderedItem == item) {
       _state.removeRenderedItemBy(id: item.id);
-      addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
+
+      if (_state.isOverlayed(id: item.id)) {
+        addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
+      }
     }
   }
 }
