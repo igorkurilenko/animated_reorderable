@@ -301,12 +301,12 @@ class AnimatedReorderableController {
     this.didReorder,
     this.didSwipeAway,
     required this.vsync,
-    this.motionAnimationDuration = du300ms,
+    this.motionAnimationDuration = duration500ms,
     this.motionAnimationCurve = Curves.easeInOut,
     this.draggedItemDecorator = defaultDraggedItemDecorator,
-    this.draggedItemDecorationAnimationDuration = du300ms,
+    this.draggedItemDecorationAnimationDuration = duration500ms,
     this.swipedItemDecorator = defaultDraggedItemDecorator,
-    this.swipedItemDecorationAnimationDuration = du300ms,
+    this.swipedItemDecorationAnimationDuration = duration500ms,
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
@@ -342,10 +342,10 @@ class AnimatedReorderableController {
   void insertItem(
     int index, {
     required AnimatedItemBuilder builder,
-    Duration duration = du300ms,
+    Duration duration = duration500ms,
   }) {
     if (itemCount == null) {
-      throw ('AnimatedReorderableController has not been connected with a collection view');
+      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
     }
     if (index < 0 || index > itemCount!) {
       throw RangeError.value(index);
@@ -378,8 +378,7 @@ class AnimatedReorderableController {
               zIndex: minZIndex,
               size: u.item.size,
               position: overlayedItemsLayer!.globalToLocal(
-                (u.index == index ? u.newPosition : u.oldPosition) -
-                    scrollOffset,
+                u.oldPosition - scrollOffset,
               )!,
             ))
         .map(overlay)
@@ -397,16 +396,98 @@ class AnimatedReorderableController {
   void removeItem(
     int index, {
     required AnimatedRemovedItemBuilder builder,
-    Duration duration = du300ms,
-  }) {}
+    Duration duration = duration500ms,
+  }) {
+    if (itemCount == null) {
+      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
+    }
+    if (index < 0 || index >= itemCount!) {
+      throw RangeError.value(index);
+    }
+
+    final item = _state.removeItem(index: index);
+
+    if (item == null) return;
+
+    final originalScrollOffset = scrollOffset;
+    Offset outgoingItemPosition = outgoingItemsLayer!.globalToLocal(
+      item.position - originalScrollOffset,
+    )!;
+
+    model.OverlayedItem? overlayedItem;
+
+    overlayedItemsLayer?.rebuild(() {
+      overlayedItem = _state.removeOverlayedItem(id: item.id);
+      outgoingItemPosition = overlayedItem?.position ?? outgoingItemPosition;
+    });
+
+    final controller = AnimationController(vsync: vsync, duration: duration);
+
+    outgoingItemsLayer?.rebuild(() {
+      _state.putOutgoingItem(
+        model.OutgoingItem(
+          id: item.id,
+          controller: controller,
+          removedItemBuilder: builder,
+          position: outgoingItemPosition,
+          size: item.size,
+        ),
+      );
+    });
+
+    controller
+        .reverse(
+      from: switch (item.builder) {
+        (model.AnimatedItemBuilder b) => b.stopAnimation() ?? 1.0,
+        _ => 1.0,
+      },
+    )
+        .whenComplete(
+      () {
+        final outgoingItem = _state.removeOutgoingItemBy(id: item.id);
+        outgoingItem?.dispose();
+        overlayedItem?.dispose();
+        item.dispose();
+      },
+    );
+
+    recomputeItemPositions()
+        .where((u) => !_state.isDragged(id: u.item.id))
+        .where((u) => !_state.isSwiped(id: u.item.id))
+        .map((u) =>
+            _state.overlayedItemBy(id: u.item.id) ??
+            model.OverlayedItem(
+              draggable: false,
+              index: u.index,
+              id: u.item.id,
+              builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
+              zIndex: minZIndex,
+              size: u.item.size,
+              position: overlayedItemsLayer!.globalToLocal(
+                u.oldPosition - originalScrollOffset,
+              )!,
+            ))
+        .map(overlay)
+        .forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
+
+    collectionViewLayer?.rebuild(() {});
+
+    addPostFrame(() {
+      if(scrollOffset == originalScrollOffset) return;
+
+      for (var x in overlayedItems) {
+        anchor(x,restartAnimation: false).whenComplete(() => unoverlay(x));
+      }
+    });
+  }
 
   void moveItem(
     int index, {
     required int destIndex,
-    Duration duration = du300ms,
+    Duration duration = duration500ms,
   }) {
     if (itemCount == null) {
-      throw ('AnimatedReorderableController has not been connected with a collection view');
+      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
     }
     if (index < 0 || index >= itemCount!) {
       throw RangeError.value(index);
@@ -472,7 +553,6 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
 
   model.OverlayedItem overlay(model.OverlayedItem item) {
     if (_state.isOverlayed(id: item.id)) return item;
-    log('overlay $item');
     overlayedItemsLayer?.rebuild(() => _state.putOverlayedItem(item));
     _state.renderedItemBy(id: item.id)?.rebuild();
     return item;
@@ -514,12 +594,12 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
       item.decoratedBuilder(swipedItemDecoratorId)?.reverseDecoration() ??
       Future.value();
 
-  Future anchor(model.OverlayedItem item) {
+  Future anchor(model.OverlayedItem item, {bool restartAnimation = true}) {
     final anchorPosition = _state.itemBy(id: item.id)!.position - scrollOffset;
 
     return item.forwardMotionAnimation(
       end: overlayedItemsLayer!.globalToLocal(anchorPosition)!,
-      from: 0.0,
+      from: restartAnimation ? 0.0 : null,
       vsync: vsync,
       duration: motionAnimationDuration,
       curve: motionAnimationCurve,
@@ -605,6 +685,9 @@ extension _ScrollHandler on AnimatedReorderableController {
         x.shift(-delta);
       }
     }
+
+    // TODO: debounce
+    overlayedItems.forEach((x) => anchor(x).whenComplete(() => unoverlay(x)));
   }
 }
 
@@ -895,8 +978,6 @@ extension _ChildrenDelegate on AnimatedReorderableController {
     _state.putRenderedItem(item);
 
     if (_state.isOverlayed(id: item.id)) {
-      log('rebuld overlayed because of RenderedItem(id: ${item.id}, index: ${item.index})');
-      log('${_state.overlayedItemBy(id: item.id)!.position}');
       addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
     }
   }

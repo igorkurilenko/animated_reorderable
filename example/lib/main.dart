@@ -32,6 +32,8 @@ class AnimatedReorderableGridSample extends StatefulWidget {
 class _AnimatedReorderableGridSampleState
     extends State<AnimatedReorderableGridSample> with TickerProviderStateMixin {
   final items = List.generate(200, (index) => index);
+  int nextItem = 200;
+
   late final controller = AnimatedReorderableController(
     idGetter: (index) => items[index],
     didReorder: (permutations) => permutations.apply(items),
@@ -96,9 +98,8 @@ class _AnimatedReorderableGridSampleState
   void insertRandomItem() {
     // TODO: randomize index
     const randomIndex = 0;
-    final item = items.length;
 
-    items.insert(randomIndex, item);
+    items.insert(randomIndex, nextItem++);
 
     controller.insertItem(
       randomIndex,

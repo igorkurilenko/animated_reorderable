@@ -28,7 +28,7 @@ class ControllerState {
 
   Item putItem(Item x) => _itemById[x.id] = x;
 
-  RenderedItem putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
+  void putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
 
   RenderedItem? renderedItemBy({required int id}) => _renderedItemById[id];
 
@@ -47,18 +47,23 @@ class ControllerState {
 
   OverlayedItem? overlayedItemBy({required int id}) => _overlayedItemById[id];
 
-  OverlayedItem putOverlayedItem(OverlayedItem x) {
+  void putOverlayedItem(OverlayedItem x) {
     _overlayedItemById.remove(x.id);
-    return _overlayedItemById[x.id] = x;
+    _overlayedItemById[x.id] = x;
   }
 
   OverlayedItem? removeOverlayedItem({required int id}) =>
       _overlayedItemById.remove(id);
 
-  OutgoingItem? outgoingItemBy({required int id}) => _outgoingItemById[id];
-
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
+
+  void putOutgoingItem(OutgoingItem x) => _outgoingItemById[x.id] = x;
+
+  OutgoingItem? outgoingItemBy({required int id}) => _outgoingItemById[id];
+
+  OutgoingItem? removeOutgoingItemBy({required int id}) =>
+      _outgoingItemById.remove(id);
 
   Item insertItem({
     required int index,
@@ -83,6 +88,31 @@ class ControllerState {
     itemCount = itemCount! + 1;
 
     return item;
+  }
+
+  Item? removeItem({required int index}) {
+    final id = _itemIdByIndex.remove(index);
+
+    if (id == null) return null;
+
+    int? lastIndex;
+    for (var i in _itemIdByIndex.keys.toList()) {
+      if (i > index) {
+        _itemIdByIndex[i - 1] = _itemIdByIndex[i]!;
+        lastIndex = i;
+      }
+    }
+    _itemIdByIndex.remove(lastIndex);
+
+    for (var overlayedItem in overlayedItems) {
+      if (overlayedItem.index > index) {
+        overlayedItem.index--;
+      }
+    }
+
+    itemCount = itemCount! - 1;
+
+    return _itemById.remove(id)!;
   }
 
   Permutations moveItem({

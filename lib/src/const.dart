@@ -7,7 +7,7 @@ const int maxInt = kIsWeb
     : ((1 << 63) - 1);
 const minZIndex = 0;
 const maxZIndex = maxInt;
-// const Duration du300ms = Duration(milliseconds: 500);
-const Duration du300ms = Duration(milliseconds: 10000);
+const Duration duration500ms = Duration(milliseconds: 500);
+// const Duration duration500ms = Duration(milliseconds: 10000);
 const double defaultAutoScrollVelocityScalar = 50;
 const alpha = 0.001;
