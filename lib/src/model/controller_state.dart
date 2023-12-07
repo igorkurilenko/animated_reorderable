@@ -2,12 +2,11 @@ part of model;
 
 class ControllerState {
   final _itemById = <int, Item>{};
-  final _overlayedItemById = <int, OverlayedItem>{};
-  final _outgoingItemById = <int, OutgoingItem>{};
   final _itemIdByIndex = SplayTreeMap<int, int>();
+  final _activeItemById = <int, ActiveItem>{};
   final _renderedItemById = <int, RenderedItem>{};
-  OverlayedItem? draggedItem;
-  OverlayedItem? swipedItem;
+  ActiveItem? draggedItem;
+  ActiveItem? swipedItem;
   int? itemUnderThePointerId;
   int? itemCount;
   BoxConstraints? constraintsMark;
@@ -15,12 +14,14 @@ class ControllerState {
   bool shiftItemsOnScroll = true;
 
   Iterable<Item> get items => _itemById.values;
-  Iterable<OutgoingItem> get outgoingItems => _outgoingItemById.values;
-  Iterable<OverlayedItem> get overlayedItems => _overlayedItemById.values;
-  int get overlayedItemsNumber => _overlayedItemById.length;
+  Iterable<ActiveItem> get activeItems => _activeItemById.values;
+  int get activeItemsNumber => _activeItemById.length;
   Iterable<RenderedItem> get renderedItems => _renderedItemById.values;
   bool isDragged({required int id}) => id == draggedItem?.id;
   bool isSwiped({required int id}) => id == swipedItem?.id;
+  Iterable<(int, Item)> iterator() => _itemIdByIndex.entries.map(
+        (e) => (e.key, itemBy(id: e.value)!),
+      );
 
   Item? itemAt({required int index}) => itemBy(id: _itemIdByIndex[index] ?? -1);
 
@@ -40,30 +41,22 @@ class ControllerState {
   void setIndex({required int itemId, required int index}) =>
       _itemIdByIndex[index] = itemId;
 
-  bool isOverlayed({required int id}) => _overlayedItemById.containsKey(id);
+  bool isActive({required int id}) => _activeItemById.containsKey(id);
 
-  bool isOverlayedAt({required int index}) =>
-      _overlayedItemById.containsKey(_itemIdByIndex[index] ?? -1);
+  bool isActiveAt({required int index}) =>
+      _activeItemById.containsKey(_itemIdByIndex[index] ?? -1);
 
-  OverlayedItem? overlayedItemBy({required int id}) => _overlayedItemById[id];
+  ActiveItem? activeItemBy({required int id}) => _activeItemById[id];
 
-  void putOverlayedItem(OverlayedItem x) {
-    _overlayedItemById.remove(x.id);
-    _overlayedItemById[x.id] = x;
+  void putActiveItem(ActiveItem x) {
+    _activeItemById.remove(x.id);
+    _activeItemById[x.id] = x;
   }
 
-  OverlayedItem? removeOverlayedItem({required int id}) =>
-      _overlayedItemById.remove(id);
+  ActiveItem? removeActiveItem({required int id}) => _activeItemById.remove(id);
 
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
-
-  void putOutgoingItem(OutgoingItem x) => _outgoingItemById[x.id] = x;
-
-  OutgoingItem? outgoingItemBy({required int id}) => _outgoingItemById[id];
-
-  OutgoingItem? removeOutgoingItemBy({required int id}) =>
-      _outgoingItemById.remove(id);
 
   Item insertItem({
     required int index,
@@ -74,9 +67,9 @@ class ControllerState {
       _itemIdByIndex[i + 1] = _itemIdByIndex[i]!;
     }
 
-    for (var overlayedItem in overlayedItems) {
-      if (overlayedItem.index >= index) {
-        overlayedItem.index++;
+    for (var activeItem in activeItems) {
+      if (activeItem.index >= index) {
+        activeItem.index++;
       }
     }
 
@@ -93,7 +86,7 @@ class ControllerState {
   Item? removeItem({required int index}) {
     final id = _itemIdByIndex.remove(index);
 
-    if (id == null) return null;
+    itemCount = itemCount! - 1;
 
     int? lastIndex;
     for (var i in _itemIdByIndex.keys.toList()) {
@@ -104,21 +97,19 @@ class ControllerState {
     }
     _itemIdByIndex.remove(lastIndex);
 
-    for (var overlayedItem in overlayedItems) {
-      if (overlayedItem.index > index) {
-        overlayedItem.index--;
+    for (var activeItem in activeItems) {
+      if (activeItem.index > index) {
+        activeItem.index--;
       }
     }
 
-    itemCount = itemCount! - 1;
-
-    return _itemById.remove(id)!;
+    return _itemById.remove(id);
   }
 
   Permutations moveItem({
     required int index,
     required int destIndex,
-    required ReorderableGetter reorderableGetter,
+    required bool Function(int index) reorderableGetter,
     required Item Function(int index) itemFactory,
   }) {
     final permutations = Permutations();
@@ -150,9 +141,9 @@ class ControllerState {
       if (curIndex == index) break;
     }
 
-    for (var overlayedItem in overlayedItems) {
-      overlayedItem.index =
-          permutations.indexOf(overlayedItem.id) ?? overlayedItem.index;
+    for (var activeItem in activeItems) {
+      activeItem.index =
+          permutations.indexOf(activeItem.id) ?? activeItem.index;
     }
 
     return permutations;
@@ -161,31 +152,21 @@ class ControllerState {
   List<ItemPositionUpdate> recomputeItemPositions({
     required Rect canvasGeometry,
     required AxisDirection axisDirection,
-    bool notifyItemListeners = true,
   }) =>
       switch (axisDirection) {
-        AxisDirection.down => _recomputePositionsIfAxisDirectionDown(
-            canvasGeometry: canvasGeometry,
-            notifyItemListeners: notifyItemListeners,
-          ),
-        AxisDirection.up => _recomputePositionsIfAxisDirectionUp(
-            canvasGeometry: canvasGeometry,
-            notifyItemListeners: notifyItemListeners,
-          ),
-        AxisDirection.right => _recomputePositionsIfAxisDirectionRight(
-            canvasGeometry: canvasGeometry,
-            notifyItemListeners: notifyItemListeners,
-          ),
-        AxisDirection.left => _recomputePositionsIfAxisDirectionLeft(
-            canvasGeometry: canvasGeometry,
-            notifyItemListeners: notifyItemListeners,
-          ),
+        AxisDirection.down =>
+          _recomputePositionsIfAxisDirectionDown(canvasGeometry),
+        AxisDirection.up =>
+          _recomputePositionsIfAxisDirectionUp(canvasGeometry),
+        AxisDirection.right =>
+          _recomputePositionsIfAxisDirectionRight(canvasGeometry),
+        AxisDirection.left =>
+          _recomputePositionsIfAxisDirectionLeft(canvasGeometry),
       };
 
   void reset() {
     _itemById.clear();
-    _overlayedItemById.clear();
-    _outgoingItemById.clear();
+    _activeItemById.clear();
     _itemIdByIndex.clear();
     _renderedItemById.clear();
     draggedItem = null;
@@ -201,20 +182,16 @@ class ControllerState {
     for (var x in items) {
       x.dispose();
     }
-    for (var x in overlayedItems) {
-      x.dispose();
-    }
-    for (var x in outgoingItems) {
+    for (var x in activeItems) {
       x.dispose();
     }
   }
 }
 
 extension _ControllerState on ControllerState {
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionDown({
-    required Rect canvasGeometry,
-    bool notifyItemListeners = true,
-  }) {
+  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionDown(
+    Rect canvasGeometry,
+  ) {
     final updates = <ItemPositionUpdate>[];
     var cursor = canvasGeometry.topLeft;
     final minLeft = canvasGeometry.left;
@@ -239,7 +216,7 @@ extension _ControllerState on ControllerState {
           oldPosition: item.position,
           newPosition: anchorPosition,
         ));
-        item.setPosition(anchorPosition, notify: notifyItemListeners);
+        item.setPosition(anchorPosition);
       }
 
       maxRowHeight = math.max(maxRowHeight, item.height);
@@ -248,10 +225,9 @@ extension _ControllerState on ControllerState {
     return updates;
   }
 
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionUp({
-    required Rect canvasGeometry,
-    bool notifyItemListeners = true,
-  }) {
+  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionUp(
+    Rect canvasGeometry,
+  ) {
     final updates = <ItemPositionUpdate>[];
     var cursor = canvasGeometry.bottomLeft;
     final minLeft = canvasGeometry.left;
@@ -276,7 +252,7 @@ extension _ControllerState on ControllerState {
           oldPosition: item.position,
           newPosition: anchorPosition,
         ));
-        item.setPosition(anchorPosition, notify: notifyItemListeners);
+        item.setPosition(anchorPosition);
       }
 
       maxRowHeight = math.max(maxRowHeight, item.height);
@@ -285,10 +261,9 @@ extension _ControllerState on ControllerState {
     return updates;
   }
 
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionRight({
-    required Rect canvasGeometry,
-    bool notifyItemListeners = true,
-  }) {
+  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionRight(
+    Rect canvasGeometry,
+  ) {
     final updates = <ItemPositionUpdate>[];
     var cursor = canvasGeometry.topLeft;
     final minTop = canvasGeometry.top;
@@ -313,7 +288,7 @@ extension _ControllerState on ControllerState {
           oldPosition: item.position,
           newPosition: anchorPosition,
         ));
-        item.setPosition(anchorPosition, notify: notifyItemListeners);
+        item.setPosition(anchorPosition);
       }
 
       maxColWidth = math.max(maxColWidth, item.width);
@@ -322,10 +297,9 @@ extension _ControllerState on ControllerState {
     return updates;
   }
 
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionLeft({
-    required Rect canvasGeometry,
-    bool notifyItemListeners = true,
-  }) {
+  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionLeft(
+    Rect canvasGeometry,
+  ) {
     final updates = <ItemPositionUpdate>[];
     var cursor = canvasGeometry.topRight;
     final minTop = canvasGeometry.top;
@@ -350,7 +324,7 @@ extension _ControllerState on ControllerState {
           oldPosition: item.position,
           newPosition: anchorPosition,
         ));
-        item.setPosition(anchorPosition, notify: notifyItemListeners);
+        item.setPosition(anchorPosition);
       }
 
       maxColWidth = math.max(maxColWidth, item.width);

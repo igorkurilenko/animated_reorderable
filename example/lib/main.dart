@@ -35,14 +35,14 @@ class _AnimatedReorderableGridSampleState
   int nextItem = 200;
 
   late final controller = AnimatedReorderableController(
+    vsync: this,
     idGetter: (index) => items[index],
     didReorder: (permutations) => permutations.apply(items),
     swipeAwayDirectionGetter: (_) => AxisDirection.left,
     didSwipeAway: (index) {
       final item = items.removeAt(index);
-      return (context, animation) => buildItem(item);
+      return createRemovedItemBuilder(item);
     },
-    vsync: this,
   );
 
   @override
@@ -55,7 +55,7 @@ class _AnimatedReorderableGridSampleState
       extendBodyBehindAppBar: true,
       body: AnimatedReorderable.grid(
         controller: controller,
-        gridView: GridView.builder(            
+        gridView: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 5,
             childAspectRatio: 1 / 1.618,
@@ -86,14 +86,36 @@ class _AnimatedReorderableGridSampleState
     );
   }
 
-  Widget buildItem(int data) => Card(
+  Widget buildItem(int item) => Card(
         margin: const EdgeInsets.all(4),
         color: Colors.white,
         elevation: 1,
         child: Center(
-          child: Text('$data'),
+          child: Text('$item'),
         ),
       );
+
+  Widget insertedItemBuilder(
+    BuildContext context,
+    int index,
+    Animation<double> animation,
+  ) =>
+      ScaleTransition(
+        scale: animation,
+        child: FadeTransition(
+          opacity: animation,
+          child: buildItem(items[index]),
+        ),
+      );
+
+  AnimatedRemovedItemBuilder createRemovedItemBuilder(int item) =>
+      (context, animation) => ScaleTransition(
+            scale: animation,
+            child: FadeTransition(
+              opacity: animation,
+              child: buildItem(item),
+            ),
+          );
 
   void insertRandomItem() {
     // TODO: randomize index
@@ -103,13 +125,7 @@ class _AnimatedReorderableGridSampleState
 
     controller.insertItem(
       randomIndex,
-      builder: (context, index, animation) => ScaleTransition(
-        scale: animation,
-        child: FadeTransition(
-          opacity: animation,
-          child: buildItem(items[index]),
-        ),
-      ),
+      builder: insertedItemBuilder,
     );
   }
 
@@ -121,21 +137,18 @@ class _AnimatedReorderableGridSampleState
 
     controller.removeItem(
       randomIndex,
-      builder: (context, animation) => ScaleTransition(
-        scale: animation,
-        child: FadeTransition(
-          opacity: animation,
-          child: buildItem(item),
-        ),
-      ),
+      builder: createRemovedItemBuilder(item),
     );
   }
 
   void moveRandomItem() {
     // TODO: randomize indexes
-    const randomIndex = 199;
-    const randomDestinationIndex = 0;
+    const randomIndex = 0;
+    final randomDestinationIndex = 3;
 
-    controller.moveItem(randomIndex, destIndex: randomDestinationIndex);
+    controller.moveItem(
+      randomIndex,
+      destIndex: randomDestinationIndex,
+    );
   }
 }

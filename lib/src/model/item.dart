@@ -1,11 +1,6 @@
 part of model;
 
 class Item extends widgets.ChangeNotifier {
-  final int id;
-  widgets.Offset _position;
-  widgets.Size _size;
-  ItemBuilder _builder;
-
   Item({
     required this.id,
     required ItemBuilder builder,
@@ -16,9 +11,14 @@ class Item extends widgets.ChangeNotifier {
         _size = size,
         _builder = builder;
 
+  final int id;
+  widgets.Offset _position;
+  widgets.Size _size;
+  ItemBuilder _builder;
   bool measured;
 
   widgets.Offset get position => _position;
+
   void setPosition(widgets.Offset value, {bool notify = true}) {
     if (_position == value) return;
     _position = value;
@@ -26,6 +26,7 @@ class Item extends widgets.ChangeNotifier {
   }
 
   widgets.Size get size => _size;
+
   void setSize(widgets.Size value, {bool notify = true}) {
     if (_size == value) return;
     _size = value;
@@ -33,6 +34,7 @@ class Item extends widgets.ChangeNotifier {
   }
 
   ItemBuilder get builder => _builder;
+
   T setBuilder<T extends ItemBuilder>(T value, {bool notify = true}) {
     if (_builder == value) return value;
     _builder = value;
@@ -41,6 +43,7 @@ class Item extends widgets.ChangeNotifier {
   }
 
   widgets.Rect get geometry => position & size;
+
   void setGeometry(widgets.Rect value, {bool notify = true}) {
     if (geometry == value) return;
     _position = value.topLeft;
@@ -70,35 +73,49 @@ class Item extends widgets.ChangeNotifier {
   String toString() => 'Item(id: $id)';
 }
 
-extension ItemExtension on Item {
-  AnimatedDecoratedItemBuilder? decorateBuilder(
-    AnimatedItemDecorator? decorator, {
-    required String decoratorId,
+extension ItemAnimations on Item {
+  Future animateItemBuilder({
+    required widgets.AnimatedItemBuilder builder,
     required TickerProvider vsync,
     required Duration duration,
-    bool notify = true,
-  }) =>
-      decorator != null
-          ? decoratedBuilder(decoratorId) ??
-              setBuilder(
-                AnimatedDecoratedItemBuilder(
-                  builder,
-                  decoratorId: decoratorId,
-                  decorator: decorator,
-                  controller: AnimationController(
-                    vsync: vsync,
-                    duration: duration,
-                  ),
-                ),
-                notify: notify,
-              )
-          : null;
+    double? from = 0,
+  }) {
+    final originalBuilder = this.builder;
+    final controller = AnimationController(
+      vsync: vsync,
+      duration: duration,
+    );
 
-  AnimatedDecoratedItemBuilder? decoratedBuilder(String? decoratorId) =>
-      switch (builder) {
-        final AnimatedDecoratedItemBuilder b
-            when b.decoratorId == decoratorId =>
-          b,
-        _ => null,
-      };
+    setBuilder(
+      ItemBuilder.adaptAnimatedItemBuilder(
+        builder,
+        controller: controller,
+      ),
+      notify: false,
+    );
+
+    return controller.forward(from: from).whenComplete(() {
+      setBuilder(originalBuilder);
+      controller.dispose();
+    });
+  }
+
+  Future animateRemovedItemBuilder({
+    required widgets.AnimatedRemovedItemBuilder builder,
+    required TickerProvider vsync,
+    required Duration duration,
+  }) {
+    final from = this.builder.asAnimated?.stopAnimation() ?? 1.0;
+    final controller = AnimationController(vsync: vsync, duration: duration);
+
+    setBuilder(
+      ItemBuilder.adaptAnimatedRemovedItemBuilder(
+        builder,
+        controller: controller,
+      ),
+      notify: false,
+    );
+
+    return controller.reverse(from: from);
+  }
 }

@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../model/model.dart';
 
-class OverlayedItemWidget extends StatefulWidget {
-  const OverlayedItemWidget({
+class ActiveItemWidget extends StatefulWidget {
+  const ActiveItemWidget({
     super.key,
     required this.item,
     this.onDragStart,
@@ -14,20 +14,20 @@ class OverlayedItemWidget extends StatefulWidget {
     this.onSwipeEnd,
   });
 
-  final OverlayedItem item;
-  final OverlayedItemCallback? onDragStart;
-  final OverlayedItemCallback? onDragUpdate;
-  final OverlayedItemCallback? onDragEnd;
-  final OverlayedItemCallback? onSwipeStart;
-  final OverlayedItemCallback? onSwipeUpdate;
-  final OverlayedItemCallback? onSwipeEnd;
+  final ActiveItem item;
+  final ActiveItemCallback? onDragStart;
+  final ActiveItemCallback? onDragUpdate;
+  final ActiveItemCallback? onDragEnd;
+  final ActiveItemCallback? onSwipeStart;
+  final ActiveItemCallback? onSwipeUpdate;
+  final ActiveItemCallback? onSwipeEnd;
 
   @override
-  State<OverlayedItemWidget> createState() => _OverlayedItemWidgetState();
+  State<ActiveItemWidget> createState() => _ActiveItemWidgetState();
 }
 
-class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
-  OverlayedItem get item => widget.item;
+class _ActiveItemWidgetState extends State<ActiveItemWidget> {
+  ActiveItem get item => widget.item;
 
   @override
   void initState() {
@@ -48,17 +48,17 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
 
   @override
   Widget build(BuildContext context) => Positioned(
-        left: item.geometry.left,
-        top: item.geometry.top,
-        child: Listener(
-          onPointerDown: item.draggable ? _handlePointerDown : null,
-          child: SizedBox(
-            width: item.geometry.width,
-            height: item.geometry.height,
-            child: item.build(context),
-          ),
-        ),
-      );
+    left: item.geometry.left,
+    top: item.geometry.top,
+    child: Listener(
+      onPointerDown: item.interactive ? _handlePointerDown : null,
+      child: SizedBox(
+        width: item.geometry.width,
+        height: item.geometry.height,
+        child: item.build(context),
+      ),
+    ),
+  );
 
   void _handlePointerDown(PointerDownEvent event) => item.swiped
       ? item.recognizeSwipe(

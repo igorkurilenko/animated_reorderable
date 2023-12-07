@@ -91,9 +91,9 @@ Widget defaultDraggedItemDecorator(
       scale: CurvedAnimation(
         parent: animation,
         curve: Curves.easeInOut,
-      ).drive(Tween(begin: 1, end: 1.1)),
+      ).drive(Tween(begin: 1, end: 1.05)),
       child: FadeTransition(
-        opacity: animation.drive(Tween(begin: 1, end: 0.9)),
+        opacity: animation.drive(Tween(begin: 1, end: 0.7)),
         child: child,
       ),
     );

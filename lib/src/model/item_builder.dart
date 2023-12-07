@@ -56,7 +56,7 @@ abstract class AnimatedItemBuilder implements ItemBuilder {
 
   final widgets.AnimationController controller;
 
-  double? stopAnimation() {
+  double stopAnimation() {
     final result = controller.value;
     controller.stop();
     return result;
@@ -92,52 +92,10 @@ class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
       builder(context, controller.view);
 }
 
-typedef AnimatedItemDecorator = widgets.Widget Function(
-  widgets.Widget child,
-  int index,
-  widgets.Animation<double> animation,
-);
-
-abstract class ItemBuilderDecorator implements ItemBuilder {
-  ItemBuilderDecorator(this.itemBuilder);
-
-  final ItemBuilder itemBuilder;
-
-  @override
-  widgets.Widget? build(widgets.BuildContext context, int index) =>
-      itemBuilder.build(context, index);
-
-  @override
-  void dispose() => itemBuilder.dispose();
-}
-
-class AnimatedDecoratedItemBuilder extends ItemBuilderDecorator {
-  AnimatedDecoratedItemBuilder(
-    super.itemBuilder, {
-    required this.decoratorId,
-    required this.decorator,
-    required this.controller,
-  });
-
-  final String decoratorId;
-  final widgets.AnimationController controller;
-  final AnimatedItemDecorator decorator;
-
-  @override
-  widgets.Widget? build(widgets.BuildContext context, int index) {
-    final item = super.build(context, index);
-    return item != null ? decorator.call(item, index, controller.view) : null;
-  }
-
-  TickerFuture forwardDecoration({double? from}) =>
-      controller.forward(from: from);
-
-  TickerFuture reverseDecoration({double? from}) =>
-      controller.reverse(from: from);
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
+extension ItemBuilderExt on ItemBuilder {
+  AnimatedItemBuilder? get asAnimated => switch (this) {
+        (OtherItemBuilderAdapter b) => b.item.builder.asAnimated,
+        (AnimatedItemBuilder b) => b,
+        _ => null,
+      };
 }
