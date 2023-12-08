@@ -1,154 +1,110 @@
-import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
+import 'list_view_sample.dart';
+import 'grid_view_sample.dart';
+
 void main() {
-  runApp(const AnimatedReorderableDemoApp());
+  runApp(const AnimatedReorderableDemo());
 }
 
-class AnimatedReorderableDemoApp extends StatelessWidget {
-  const AnimatedReorderableDemoApp({super.key});
+final tabControllerKey = GlobalKey();
+final gridViewSampleKey = GlobalKey<GridViewSampleState>();
+final listViewSampleKey = GlobalKey<ListViewSampleState>();
+
+abstract class Sample {
+  void insertFirstItem();
+  void insertLastItem();
+  void removeFirstItem();
+  void removeLastItem();
+  void moveRandomItem();
+}
+
+class AnimatedReorderableDemo extends StatelessWidget {
+  const AnimatedReorderableDemo({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AnimatedReorderable Demo',
+      title: 'AnimatedReorderable',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-      ),
-      home: const AnimatedReorderableGridSample(),
-    );
-  }
-}
-
-class AnimatedReorderableGridSample extends StatefulWidget {
-  const AnimatedReorderableGridSample({super.key});
-
-  @override
-  State<AnimatedReorderableGridSample> createState() =>
-      _AnimatedReorderableGridSampleState();
-}
-
-class _AnimatedReorderableGridSampleState
-    extends State<AnimatedReorderableGridSample> with TickerProviderStateMixin {
-  final items = List.generate(200, (index) => index);
-  int nextItem = 200;
-
-  late final controller = AnimatedReorderableController(
-    vsync: this,
-    idGetter: (index) => items[index],
-    didReorder: (permutations) => permutations.apply(items),
-    swipeAwayDirectionGetter: (_) => AxisDirection.left,
-    didSwipeAway: (index) {
-      final item = items.removeAt(index);
-      return createRemovedItemBuilder(item);
-    },
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('GridView Example'),
-      ),
-      extendBodyBehindAppBar: true,
-      body: AnimatedReorderable.grid(
-        controller: controller,
-        gridView: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 5,
-            childAspectRatio: 1 / 1.618,
-          ),
-          itemCount: items.length,
-          itemBuilder: ((context, index) => buildItem(items[index])),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.grey.shade100,
+          primary: Colors.grey.shade100,
         ),
       ),
-      floatingActionButton: Wrap(
-        direction: Axis.horizontal,
-        children: [
-          FloatingActionButton(
-            onPressed: insertRandomItem,
-            child: const Icon(Icons.add),
-          ),
-          const SizedBox(width: 8),
-          FloatingActionButton(
-            onPressed: removeRandomItem,
-            child: const Icon(Icons.remove),
-          ),
-          const SizedBox(width: 8),
-          FloatingActionButton(
-            onPressed: moveRandomItem,
-            child: const Icon(Icons.swap_calls),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget buildItem(int item) => Card(
-        margin: const EdgeInsets.all(4),
-        color: Colors.white,
-        elevation: 1,
-        child: Center(
-          child: Text('$item'),
-        ),
-      );
-
-  Widget insertedItemBuilder(
-    BuildContext context,
-    int index,
-    Animation<double> animation,
-  ) =>
-      ScaleTransition(
-        scale: animation,
-        child: FadeTransition(
-          opacity: animation,
-          child: buildItem(items[index]),
-        ),
-      );
-
-  AnimatedRemovedItemBuilder createRemovedItemBuilder(int item) =>
-      (context, animation) => ScaleTransition(
-            scale: animation,
-            child: FadeTransition(
-              opacity: animation,
-              child: buildItem(item),
+      home: DefaultTabController(
+        key: tabControllerKey,
+        length: 2,
+        child: Builder(
+          builder: (context) => Scaffold(
+            extendBodyBehindAppBar: true,
+            extendBody: true,
+            appBar: AppBar(
+              title: const Text('AnimatedReorderable'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              bottom: TabBar(
+                labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                indicatorColor:
+                    Theme.of(context).colorScheme.onPrimaryContainer,
+                tabs: const [
+                  Tab(text: 'GridView'),
+                  Tab(text: 'ListView'),
+                ],
+              ),
             ),
-          );
-
-  void insertRandomItem() {
-    // TODO: randomize index
-    const randomIndex = 0;
-
-    items.insert(randomIndex, nextItem++);
-
-    controller.insertItem(
-      randomIndex,
-      builder: insertedItemBuilder,
+            body: TabBarView(children: [
+              GridViewSample(key: gridViewSampleKey),
+              ListViewSample(key: listViewSampleKey),
+            ]),
+            bottomNavigationBar: BottomAppBar(
+              color: Theme.of(context).colorScheme.primary,
+              child: IconTheme(
+                data: IconTheme.of(context).copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    IconButton(
+                      tooltip: 'Add first',
+                      icon: const Icon(Icons.add),
+                      onPressed: () => curSampleOf(context)?.insertFirstItem(),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove first',
+                      icon: const Icon(Icons.remove),
+                      onPressed: () => curSampleOf(context)?.removeFirstItem(),
+                    ),
+                    IconButton(
+                      tooltip: 'Reorder random',
+                      icon: const Icon(Icons.swap_calls),
+                      onPressed: () => curSampleOf(context)?.moveRandomItem(),
+                    ),
+                    IconButton(
+                      tooltip: 'Add last',
+                      icon: const Icon(Icons.add),
+                      onPressed: () => curSampleOf(context)?.insertLastItem(),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove last',
+                      icon: const Icon(Icons.remove),
+                      onPressed: () => curSampleOf(context)?.removeLastItem(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  void removeRandomItem() {
-    // TODO: randomize index
-    const randomIndex = 0;
-
-    final item = items.removeAt(randomIndex);
-
-    controller.removeItem(
-      randomIndex,
-      builder: createRemovedItemBuilder(item),
-    );
-  }
-
-  void moveRandomItem() {
-    // TODO: randomize indexes
-    const randomIndex = 0;
-    final randomDestinationIndex = 3;
-
-    controller.moveItem(
-      randomIndex,
-      destIndex: randomDestinationIndex,
-    );
+  Sample? curSampleOf(BuildContext context) {
+    final index = DefaultTabController.of(context).index;
+    if (index == 0) return gridViewSampleKey.currentState!;
+    if (index == 1) return listViewSampleKey.currentState!;
+    return null;
   }
 }

@@ -97,7 +97,7 @@ class _GridView extends AnimatedReorderable {
   Axis get scrollDirection => gridView.scrollDirection;
 
   @override
-  Widget buildCollectionView(BuildContext context) => GridView.custom(
+  Widget buildCollectionView(BuildContext context) => GridView.custom(    
         key: gridView.key,
         scrollDirection: gridView.scrollDirection,
         reverse: gridView.reverse,

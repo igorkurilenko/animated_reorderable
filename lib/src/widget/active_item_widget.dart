@@ -48,17 +48,20 @@ class _ActiveItemWidgetState extends State<ActiveItemWidget> {
 
   @override
   Widget build(BuildContext context) => Positioned(
-    left: item.geometry.left,
-    top: item.geometry.top,
-    child: Listener(
-      onPointerDown: item.interactive ? _handlePointerDown : null,
-      child: SizedBox(
-        width: item.geometry.width,
-        height: item.geometry.height,
-        child: item.build(context),
-      ),
-    ),
-  );
+        left: item.geometry.left,
+        top: item.geometry.top,
+        child: IgnorePointer(
+          ignoring: !item.interactive,
+          child: Listener(
+            onPointerDown: _handlePointerDown,
+            child: SizedBox(
+              width: item.geometry.width,
+              height: item.geometry.height,
+              child: item.build(context),
+            ),
+          ),
+        ),
+      );
 
   void _handlePointerDown(PointerDownEvent event) => item.swiped
       ? item.recognizeSwipe(
