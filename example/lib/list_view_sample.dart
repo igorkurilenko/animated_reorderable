@@ -15,8 +15,8 @@ class ListViewSample extends StatefulWidget {
 class ListViewSampleState extends State<ListViewSample>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin
     implements Sample {
-  final items = List.generate(200, (index) => index);
-  int nextItem = 200;
+  final items = List.generate(10, (index) => index);
+  late int nextItem = items.length;
 
   late final controller = AnimatedReorderableController(
     vsync: this,
@@ -46,13 +46,25 @@ class ListViewSampleState extends State<ListViewSample>
   }
 
   Widget buildItem(int item) => Card(
-        margin: const EdgeInsets.all(4),
-        color: Colors.white,
-        elevation: 1,
+        color: Colors.grey.shade300,
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(32),
+        ),
         child: SizedBox(
-          height: 100,
+          height: 80,
           child: Center(
-            child: Text('$item'),
+            child: Text(
+              '$item',
+              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
           ),
         ),
       );

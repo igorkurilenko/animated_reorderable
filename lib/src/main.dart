@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
@@ -97,7 +98,7 @@ class _GridView extends AnimatedReorderable {
   Axis get scrollDirection => gridView.scrollDirection;
 
   @override
-  Widget buildCollectionView(BuildContext context) => GridView.custom(    
+  Widget buildCollectionView(BuildContext context) => GridView.custom(
         key: gridView.key,
         scrollDirection: gridView.scrollDirection,
         reverse: gridView.reverse,
@@ -868,9 +869,13 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       onDispose: unregisterRenderedItem,
       onDeactivate: unregisterRenderedItem,
       didBuild: (renderedItem) {
-        final geometry = renderedItem.computeGeometry(scrollOffset);
-        item.setGeometry(geometry ?? item.geometry);
-        item.measured |= geometry != null;
+        final scrollablePosition =
+            scrollController?.scrollablePosition ?? Offset.zero;
+        final itemGeometry = renderedItem.computeGeometry(
+          scrollOffset - scrollablePosition,
+        );
+        item.setGeometry(itemGeometry ?? item.geometry);
+        item.measured |= itemGeometry != null;
       },
       recognizeDrag: (context, event) {
         final geometry = context.computeGeometry()!;
