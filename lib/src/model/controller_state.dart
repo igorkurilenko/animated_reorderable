@@ -3,10 +3,10 @@ part of model;
 class ControllerState {
   final _itemById = <int, Item>{};
   final _itemIdByIndex = SplayTreeMap<int, int>();
-  final _activeItemById = <int, ActiveItem>{};
+  final _overlayedItemById = <int, OverlayedItem>{};
   final _renderedItemById = <int, RenderedItem>{};
-  ActiveItem? draggedItem;
-  ActiveItem? swipedItem;
+  OverlayedItem? draggedItem;
+  OverlayedItem? swipedItem;
   int? itemUnderThePointerId;
   int? itemCount;
   BoxConstraints? constraintsMark;
@@ -14,8 +14,7 @@ class ControllerState {
   bool shiftItemsOnScroll = true;
 
   Iterable<Item> get items => _itemById.values;
-  Iterable<ActiveItem> get activeItems => _activeItemById.values;
-  int get activeItemsNumber => _activeItemById.length;
+  Iterable<OverlayedItem> get overlayedItems => _overlayedItemById.values;
   Iterable<RenderedItem> get renderedItems => _renderedItemById.values;
   bool isDragged({required int id}) => id == draggedItem?.id;
   bool isSwiped({required int id}) => id == swipedItem?.id;
@@ -41,19 +40,20 @@ class ControllerState {
   void setIndex({required int itemId, required int index}) =>
       _itemIdByIndex[index] = itemId;
 
-  bool isActive({required int id}) => _activeItemById.containsKey(id);
+  bool isOverlayed({required int id}) => _overlayedItemById.containsKey(id);
 
-  bool isActiveAt({required int index}) =>
-      _activeItemById.containsKey(_itemIdByIndex[index] ?? -1);
+  bool isOverlayedAt({required int index}) =>
+      _overlayedItemById.containsKey(_itemIdByIndex[index] ?? -1);
 
-  ActiveItem? activeItemBy({required int id}) => _activeItemById[id];
+  OverlayedItem? overlayedItemBy({required int id}) => _overlayedItemById[id];
 
-  void putActiveItem(ActiveItem x) {
-    _activeItemById.remove(x.id);
-    _activeItemById[x.id] = x;
+  void putOverlayedItem(OverlayedItem x) {
+    _overlayedItemById.remove(x.id);
+    _overlayedItemById[x.id] = x;
   }
 
-  ActiveItem? removeActiveItem({required int id}) => _activeItemById.remove(id);
+  OverlayedItem? removeOverlayedItem({required int id}) =>
+      _overlayedItemById.remove(id);
 
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
@@ -67,9 +67,9 @@ class ControllerState {
       _itemIdByIndex[i + 1] = _itemIdByIndex[i]!;
     }
 
-    for (var activeItem in activeItems) {
-      if (activeItem.index >= index) {
-        activeItem.index++;
+    for (var overlayedItem in overlayedItems) {
+      if (overlayedItem.index >= index) {
+        overlayedItem.index++;
       }
     }
 
@@ -97,9 +97,9 @@ class ControllerState {
     }
     _itemIdByIndex.remove(lastIndex);
 
-    for (var activeItem in activeItems) {
-      if (activeItem.index > index) {
-        activeItem.index--;
+    for (var overlayedItem in overlayedItems) {
+      if (overlayedItem.index > index) {
+        overlayedItem.index--;
       }
     }
 
@@ -141,9 +141,9 @@ class ControllerState {
       if (curIndex == index) break;
     }
 
-    for (var activeItem in activeItems) {
-      activeItem.index =
-          permutations.indexOf(activeItem.id) ?? activeItem.index;
+    for (var overlayedItem in overlayedItems) {
+      overlayedItem.index =
+          permutations.indexOf(overlayedItem.id) ?? overlayedItem.index;
     }
 
     return permutations;
@@ -166,7 +166,7 @@ class ControllerState {
 
   void reset() {
     _itemById.clear();
-    _activeItemById.clear();
+    _overlayedItemById.clear();
     _itemIdByIndex.clear();
     _renderedItemById.clear();
     draggedItem = null;
@@ -182,7 +182,7 @@ class ControllerState {
     for (var x in items) {
       x.dispose();
     }
-    for (var x in activeItems) {
+    for (var x in overlayedItems) {
       x.dispose();
     }
   }

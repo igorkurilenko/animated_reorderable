@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'main.dart';
 
+const initialNumberOfItems = 10;
+
 class ListViewSample extends StatefulWidget {
   const ListViewSample({super.key});
 
@@ -15,8 +17,8 @@ class ListViewSample extends StatefulWidget {
 class ListViewSampleState extends State<ListViewSample>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin
     implements Sample {
-  final items = List.generate(10, (index) => index);
-  late int nextItem = items.length;
+  final items = List.generate(initialNumberOfItems, (index) => index);
+  int nextItem = initialNumberOfItems;
 
   late final controller = AnimatedReorderableController(
     vsync: this,

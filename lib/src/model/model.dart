@@ -15,7 +15,7 @@ import '../util/misc.dart';
 import '../util/offset_animation.dart';
 
 part 'item.dart';
-part 'active_item.dart';
+part 'overlayed_item.dart';
 part 'item_builder.dart';
 part 'item_decorator.dart';
 part 'controller_state.dart';

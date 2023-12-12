@@ -1,9 +1,11 @@
-import 'dart:math';
+import 'dart:developer';
 
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
 import 'main.dart';
+
+const initialNumberOfItems = 10;
 
 class GridViewSample extends StatefulWidget {
   const GridViewSample({super.key});
@@ -15,8 +17,8 @@ class GridViewSample extends StatefulWidget {
 class GridViewSampleState extends State<GridViewSample>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin
     implements Sample {
-  final items = List.generate(10, (index) => index);
-  late int nextItem = items.length;
+  final items = List.generate(initialNumberOfItems, (index) => index);
+  int nextItem = initialNumberOfItems;
 
   late final controller = AnimatedReorderableController(
     vsync: this,
@@ -95,8 +97,6 @@ class GridViewSampleState extends State<GridViewSample>
   @override
   void insertFirstItem() => insertItemAt(0);
 
-  void insertRandomItem() => insertItemAt(Random().nextInt(items.length));
-
   @override
   void insertLastItem() => insertItemAt(items.length);
 
@@ -107,8 +107,6 @@ class GridViewSampleState extends State<GridViewSample>
 
   @override
   void removeFirstItem() => removeItemAt(0);
-
-  void removeRandomItem() => removeItemAt(Random().nextInt(items.length));
 
   @override
   void removeLastItem() => removeItemAt(items.length - 1);

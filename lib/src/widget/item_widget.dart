@@ -15,7 +15,7 @@ class ItemWidget extends StatefulWidget {
     required this.id,
     required this.reorderableGetter,
     required this.draggableGetter,
-    required this.activeGetter,
+    required this.overlayedGetter,
     required this.swipeAwayDirectionGetter,
     required this.builder,
     this.onInit,
@@ -32,7 +32,7 @@ class ItemWidget extends StatefulWidget {
   final NullableIndexedWidgetBuilder builder;
   final ReorderableGetter reorderableGetter;
   final DraggableGetter draggableGetter;
-  final bool Function(int id) activeGetter;
+  final bool Function(int id) overlayedGetter;
   final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
   final RenderedItemLifecycleCallback? onInit;
   final RenderedItemLifecycleCallback? didUpdate;
@@ -52,7 +52,7 @@ class _ItemWidgetState extends State<ItemWidget> {
   NullableIndexedWidgetBuilder get builder => widget.builder;
   bool get reorderable => widget.reorderableGetter(index);
   bool get draggable => widget.draggableGetter(index);
-  bool get isActive => widget.activeGetter(id);
+  bool get isOverlayed => widget.overlayedGetter(id);
   bool get swipeable => widget.swipeAwayDirectionGetter?.call(index) != null;
   Offset get globalPosition => findRenderBox()!.localToGlobal(Offset.zero);
   Size get size => findRenderBox()!.size;
@@ -94,11 +94,11 @@ class _ItemWidgetState extends State<ItemWidget> {
       addPostFrame(() => widget.didBuild!.call(this));
     }
     return Opacity(
-      opacity: isActive ? 0 : 1,
+      opacity: isOverlayed ? 0 : 1,
       child: Listener(
-        onPointerDown: swipeable && !isActive ? _recognizeSwipe : null,
+        onPointerDown: swipeable && !isOverlayed ? _recognizeSwipe : null,
         child: Listener(
-          onPointerDown: draggable && !isActive ? _recognizeDrag : null,
+          onPointerDown: draggable && !isOverlayed ? _recognizeDrag : null,
           child: widget.builder(context, index),
         ),
       ),

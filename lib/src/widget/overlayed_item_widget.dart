@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../model/model.dart';
 
-class ActiveItemWidget extends StatefulWidget {
-  const ActiveItemWidget({
+class OverlayedItemWidget extends StatefulWidget {
+  const OverlayedItemWidget({
     super.key,
     required this.item,
     this.onDragStart,
@@ -14,20 +14,20 @@ class ActiveItemWidget extends StatefulWidget {
     this.onSwipeEnd,
   });
 
-  final ActiveItem item;
-  final ActiveItemCallback? onDragStart;
-  final ActiveItemCallback? onDragUpdate;
-  final ActiveItemCallback? onDragEnd;
-  final ActiveItemCallback? onSwipeStart;
-  final ActiveItemCallback? onSwipeUpdate;
-  final ActiveItemCallback? onSwipeEnd;
+  final OverlayedItem item;
+  final OverlayedItemCallback? onDragStart;
+  final OverlayedItemCallback? onDragUpdate;
+  final OverlayedItemCallback? onDragEnd;
+  final OverlayedItemCallback? onSwipeStart;
+  final OverlayedItemCallback? onSwipeUpdate;
+  final OverlayedItemCallback? onSwipeEnd;
 
   @override
-  State<ActiveItemWidget> createState() => _ActiveItemWidgetState();
+  State<OverlayedItemWidget> createState() => _OverlayedItemWidgetState();
 }
 
-class _ActiveItemWidgetState extends State<ActiveItemWidget> {
-  ActiveItem get item => widget.item;
+class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
+  OverlayedItem get item => widget.item;
 
   @override
   void initState() {

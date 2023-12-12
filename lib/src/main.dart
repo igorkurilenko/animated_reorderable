@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
@@ -9,7 +8,7 @@ import 'model/model.dart' as model;
 import 'model/permutations.dart';
 import 'util/measure_util.dart';
 import 'widget/item_widget.dart';
-import 'widget/active_item_widget.dart';
+import 'widget/overlayed_item_widget.dart';
 import 'util/misc.dart';
 import 'util/overrided_sliver_child_builder_delegate.dart';
 import 'util/sliver_grid_delegate_decorator.dart';
@@ -65,8 +64,8 @@ abstract class AnimatedReorderable extends StatelessWidget {
                 controller: controller,
                 builder: buildCollectionView,
               ),
-              _ActiveItemsLayer(
-                key: controller.activeItemsLayerKey,
+              _OverlayedItemsLayer(
+                key: controller.overlayedItemsLayerKey,
                 controller: controller,
                 clipBehavior: clipBehavior,
                 padding: padding,
@@ -183,8 +182,8 @@ class _ItemsLayerState extends State<_ItemsLayer> {
   Widget build(BuildContext context) => widget.builder(context);
 }
 
-class _ActiveItemsLayer extends StatefulWidget {
-  const _ActiveItemsLayer({
+class _OverlayedItemsLayer extends StatefulWidget {
+  const _OverlayedItemsLayer({
     super.key,
     required this.controller,
     required this.clipBehavior,
@@ -198,10 +197,10 @@ class _ActiveItemsLayer extends StatefulWidget {
   final Axis scrollDirection;
 
   @override
-  State<_ActiveItemsLayer> createState() => _ActiveItemsLayerState();
+  State<_OverlayedItemsLayer> createState() => _OverlayedItemsLayerState();
 }
 
-class _ActiveItemsLayerState extends State<_ActiveItemsLayer> {
+class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
   final canvasKey = GlobalKey();
 
   AnimatedReorderableController get controller => widget.controller;
@@ -221,8 +220,8 @@ class _ActiveItemsLayerState extends State<_ActiveItemsLayer> {
           key: canvasKey,
           clipBehavior: widget.clipBehavior,
           children: [
-            for (var item in controller.activeItemsToRender)
-              ActiveItemWidget(
+            for (var item in controller.overlayedItemsToRender)
+              OverlayedItemWidget(
                 key: ValueKey(item.id),
                 item: item,
                 onDragStart: controller.handleItemDragStart,
@@ -260,7 +259,7 @@ class AnimatedReorderableController {
         draggableGetter = draggableGetter ?? returnTrue;
 
   final _itemsLayerKey = GlobalKey<_ItemsLayerState>();
-  final _activeItemsLayerKey = GlobalKey<_ActiveItemsLayerState>();
+  final _overlayedItemsLayerKey = GlobalKey<_OverlayedItemsLayerState>();
 
   final IdGetter idGetter;
   final ReorderableGetter reorderableGetter;
@@ -319,22 +318,22 @@ class AnimatedReorderableController {
         .where((u) => !_state.isSwiped(id: u.item.id))
         .where((u) => u.index != index)
         .map((u) =>
-            _state.activeItemBy(id: u.item.id) ??
-            model.ActiveItem(
+            _state.overlayedItemBy(id: u.item.id) ??
+            model.OverlayedItem(
               interactive: false,
               index: u.index,
               id: u.item.id,
               builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
               zIndex: defaultZIndex,
               size: u.item.size,
-              position: activeItemsLayer!.globalToLocal(
+              position: overlayedItemsLayer!.globalToLocal(
                 u.oldPosition - scrollOffset,
               )!,
             ))
         .map(overlay)
         .forEach((x) => x
             .animateTo(
-              activeItemsLayer!.globalToLocal(
+              overlayedItemsLayer!.globalToLocal(
                 getGlobalAnchorPosition(itemId: x.id),
               )!,
               curve: motionAnimationCurve,
@@ -368,14 +367,16 @@ class AnimatedReorderableController {
     final item = _state.removeItem(index: index);
     if (item == null) return;
 
+    final originalScrollOffset = scrollOffset;
+
     if (builder != null) {
-      final outgoingItem = _state.activeItemBy(id: item.id) ??
-          model.ActiveItem(
+      final outgoingItem = _state.overlayedItemBy(id: item.id) ??
+          model.OverlayedItem(
             id: item.id,
             index: index,
             builder: item.builder,
             size: item.size,
-            position: activeItemsLayer!.globalToLocal(
+            position: overlayedItemsLayer!.globalToLocal(
               item.position - scrollOffset,
             )!,
           );
@@ -390,14 +391,14 @@ class AnimatedReorderableController {
         vsync: vsync,
       )
           .whenComplete(() {
-        activeItemsLayer!.rebuild(() {
-          _state.removeActiveItem(id: item.id)?.dispose();
+        overlayedItemsLayer!.rebuild(() {
+          _state.removeOverlayedItem(id: item.id)?.dispose();
           item.dispose();
         });
       });
     } else {
-      activeItemsLayer!.rebuild(() {
-        _state.removeActiveItem(id: item.id)?.dispose();
+      overlayedItemsLayer!.rebuild(() {
+        _state.removeOverlayedItem(id: item.id)?.dispose();
         item.dispose();
       });
     }
@@ -407,15 +408,15 @@ class AnimatedReorderableController {
         .where((u) => !_state.isSwiped(id: u.item.id))
         .map(
           (u) =>
-              _state.activeItemBy(id: u.item.id) ??
-              model.ActiveItem(
+              _state.overlayedItemBy(id: u.item.id) ??
+              model.OverlayedItem(
                 interactive: false,
                 index: u.index,
                 id: u.item.id,
                 builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
                 zIndex: defaultZIndex,
                 size: u.item.size,
-                position: activeItemsLayer!.globalToLocal(
+                position: overlayedItemsLayer!.globalToLocal(
                   u.oldPosition - scrollOffset,
                 )!,
               ),
@@ -424,7 +425,7 @@ class AnimatedReorderableController {
         .forEach(
           (x) => x
               .animateTo(
-                activeItemsLayer!.globalToLocal(
+                overlayedItemsLayer!.globalToLocal(
                   getGlobalAnchorPosition(itemId: x.id),
                 )!,
                 vsync: vsync,
@@ -435,8 +436,6 @@ class AnimatedReorderableController {
                 () => unoverlay(x),
               ),
         );
-
-    final originalScrollOffset = scrollOffset;
 
     itemsLayer?.rebuild(() {});
 
@@ -487,22 +486,22 @@ class AnimatedReorderableController {
         .where((u) => !_state.isDragged(id: u.item.id))
         .where((u) => !_state.isSwiped(id: u.item.id))
         .map((u) =>
-            _state.activeItemBy(id: u.item.id) ??
-            model.ActiveItem(
+            _state.overlayedItemBy(id: u.item.id) ??
+            model.OverlayedItem(
               interactive: false,
               index: u.index,
               id: u.item.id,
               builder: model.ItemBuilder.adaptOtherItemBuilder(u.item),
               zIndex: defaultZIndex,
               size: u.item.size,
-              position: activeItemsLayer!.globalToLocal(
+              position: overlayedItemsLayer!.globalToLocal(
                 u.oldPosition - scrollOffset,
               )!,
             ))
         .map(overlay)
         .forEach((x) => x
             .animateTo(
-              activeItemsLayer!.globalToLocal(
+              overlayedItemsLayer!.globalToLocal(
                 getGlobalAnchorPosition(itemId: x.id),
               )!,
               curve: motionAnimationCurve,
@@ -531,16 +530,16 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
     return this;
   }
 
-  model.ActiveItem overlay(model.ActiveItem item) {
-    if (_state.isActive(id: item.id)) return item;
-    activeItemsLayer?.rebuild(() => _state.putActiveItem(item));
+  model.OverlayedItem overlay(model.OverlayedItem item) {
+    if (_state.isOverlayed(id: item.id)) return item;
+    overlayedItemsLayer?.rebuild(() => _state.putOverlayedItem(item));
     _state.renderedItemBy(id: item.id)?.rebuild();
     return item;
   }
 
-  void unoverlay(model.ActiveItem item) {
-    if (!_state.isActive(id: item.id)) return;
-    activeItemsLayer?.rebuild(() => _state.removeActiveItem(id: item.id));
+  void unoverlay(model.OverlayedItem item) {
+    if (!_state.isOverlayed(id: item.id)) return;
+    overlayedItemsLayer?.rebuild(() => _state.removeOverlayedItem(id: item.id));
     _state.renderedItemBy(id: item.id)?.rebuild();
   }
 
@@ -580,8 +579,8 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
         builder: (context) =>
             _childrenDelegate.originalBuilder(context, index)!,
         constraints: scrollController!.axis == Axis.vertical
-            ? _state.constraintsMark?.copyWith(maxHeight: double.infinity)
-            : _state.constraintsMark?.copyWith(maxWidth: double.infinity),
+            ? BoxConstraints(maxWidth: _state.constraintsMark?.maxWidth ?? 0.0)
+            : BoxConstraints(maxHeight: _state.constraintsMark?.maxHeight ?? 0.0),
       );
 }
 
@@ -590,7 +589,7 @@ extension _ScrollHandler on AnimatedReorderableController {
     final delta = markScrollOffset(scrollOffset);
 
     if (_state.shiftItemsOnScroll) {
-      for (var x in _state.activeItems
+      for (var x in _state.overlayedItems
           .where((x) => !_state.isDragged(id: x.id))
           .where((x) => !_state.isSwiped(id: x.id))) {
         x.shift(-delta);
@@ -616,7 +615,7 @@ extension _ConstraintsChangeHandler on AnimatedReorderableController {
       for (var x in _state.items) {
         x.scale(scaleFactor);
       }
-      for (var x in _state.activeItems) {
+      for (var x in _state.overlayedItems) {
         x.scale(scaleFactor);
       }
 
@@ -630,7 +629,7 @@ extension _ConstraintsChangeHandler on AnimatedReorderableController {
 }
 
 extension _ItemDragHandlers on AnimatedReorderableController {
-  void handleItemDragStart(model.ActiveItem item) {
+  void handleItemDragStart(model.OverlayedItem item) {
     item.stopMotion();
     _state.draggedItem = item;
     overlay(item);
@@ -641,16 +640,16 @@ extension _ItemDragHandlers on AnimatedReorderableController {
     );
   }
 
-  void handleItemDragUpdate(model.ActiveItem _) =>
+  void handleItemDragUpdate(model.OverlayedItem _) =>
       reorderAndAutoScrollIfNecessary();
 
-  void handleItemDragEnd(model.ActiveItem item) {
+  void handleItemDragEnd(model.OverlayedItem item) {
     _state.draggedItem = null;
     stopAutoScroll(forceStopAnimation: true);
     Future.wait([
       item.animateUndecoration(),
       item.animateFlingTo(
-        activeItemsLayer!.globalToLocal(
+        overlayedItemsLayer!.globalToLocal(
           getGlobalAnchorPosition(itemId: item.id),
         )!,
         velocity: item.swipeVelocity,
@@ -686,7 +685,7 @@ extension _ItemDragHandlers on AnimatedReorderableController {
 }
 
 extension _ItemSwipeHandlers on AnimatedReorderableController {
-  void handleItemSwipeStart(model.ActiveItem item) {
+  void handleItemSwipeStart(model.OverlayedItem item) {
     item.stopMotion();
     _state.swipedItem = item;
     overlay(item);
@@ -697,11 +696,11 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
     );
   }
 
-  void handleItemSwipeUpdate(model.ActiveItem item) {
+  void handleItemSwipeUpdate(model.OverlayedItem item) {
     // noop
   }
 
-  void handleItemSwipeEnd(model.ActiveItem item) {
+  void handleItemSwipeEnd(model.OverlayedItem item) {
     _state.swipedItem = null;
 
     final undecorateFuture = item.animateUndecoration();
@@ -736,7 +735,7 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
       Future.wait([
         undecorateFuture,
         item.animateFlingTo(
-          activeItemsLayer!.globalToLocal(
+          overlayedItemsLayer!.globalToLocal(
             getGlobalAnchorPosition(itemId: item.id),
           )!,
           velocity: item.swipeVelocity,
@@ -753,16 +752,16 @@ extension _ItemSwipeHandlers on AnimatedReorderableController {
 extension _Misc on AnimatedReorderableController {
   int? get itemCount => _state.itemCount;
 
-  Iterable<model.ActiveItem> get activeItems => _state.activeItems;
+  Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
 
-  Iterable<model.ActiveItem> get activeItemsToRender => activeItems
+  Iterable<model.OverlayedItem> get overlayedItemsToRender => overlayedItems
       .where((x) => _state.isRendered(id: x.id) || x.outgoing)
       .toList()
     ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
   List<model.ItemPositionUpdate> recomputeItemPositions() =>
       _state.recomputeItemPositions(
-        canvasGeometry: activeItemsLayer!.computeCanvasGeometry()!,
+        canvasGeometry: overlayedItemsLayer!.computeCanvasGeometry()!,
         axisDirection: scrollController!.axisDirection,
       );
 
@@ -770,11 +769,11 @@ extension _Misc on AnimatedReorderableController {
 
   _ItemsLayerState? get itemsLayer => itemsLayerKey.currentState;
 
-  GlobalKey<_ActiveItemsLayerState> get activeItemsLayerKey =>
-      _activeItemsLayerKey;
+  GlobalKey<_OverlayedItemsLayerState> get overlayedItemsLayerKey =>
+      _overlayedItemsLayerKey;
 
-  _ActiveItemsLayerState? get activeItemsLayer =>
-      activeItemsLayerKey.currentState;
+  _OverlayedItemsLayerState? get overlayedItemsLayer =>
+      overlayedItemsLayerKey.currentState;
 
   Size getScreenSize() {
     final screenView = WidgetsBinding.instance.platformDispatcher.views.first;
@@ -859,7 +858,7 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       reorderableGetter: reorderableGetter,
       draggableGetter: draggableGetter,
       swipeAwayDirectionGetter: swipeAwayDirectionGetter,
-      activeGetter: (id) => _state.isActive(id: id),
+      overlayedGetter: (id) => _state.isOverlayed(id: id),
       builder: item.builder.build,
       onInit: registerRenderedItem,
       didUpdate: (renderedItem) {
@@ -880,10 +879,10 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       recognizeDrag: (context, event) {
         final geometry = context.computeGeometry()!;
 
-        model.ActiveItem(
+        model.OverlayedItem(
           index: index,
           id: item.id,
-          position: activeItemsLayer!.globalToLocal(geometry.position)!,
+          position: overlayedItemsLayer!.globalToLocal(geometry.position)!,
           size: geometry.size,
           interactive: true,
           builder: model.ItemBuilder.adaptOtherItemBuilder(item),
@@ -891,10 +890,10 @@ extension _ChildrenDelegate on AnimatedReorderableController {
         ).recognizeDrag(
           event,
           context: context,
-          onDragStart: (activeItem) {
-            activeItem.setZIndex(maxZIndex);
-            activeItem.recognizerFactory = createImmediateGestureRecognizer;
-            handleItemDragStart(activeItem);
+          onDragStart: (overlayedItem) {
+            overlayedItem.setZIndex(maxZIndex);
+            overlayedItem.recognizerFactory = createImmediateGestureRecognizer;
+            handleItemDragStart(overlayedItem);
           },
           onDragUpdate: handleItemDragUpdate,
           onDragEnd: handleItemDragEnd,
@@ -903,10 +902,10 @@ extension _ChildrenDelegate on AnimatedReorderableController {
       recognizeSwipe: (context, event) {
         final geometry = context.computeGeometry()!;
 
-        model.ActiveItem(
+        model.OverlayedItem(
           index: index,
           id: item.id,
-          position: activeItemsLayer!.globalToLocal(geometry.position)!,
+          position: overlayedItemsLayer!.globalToLocal(geometry.position)!,
           size: geometry.size,
           interactive: true,
           builder: model.ItemBuilder.adaptOtherItemBuilder(item),
@@ -917,9 +916,9 @@ extension _ChildrenDelegate on AnimatedReorderableController {
           event,
           context: context,
           swipeDirection: swipeAwayDirectionGetter!.call(index)!,
-          onSwipeStart: (activeItem) {
-            activeItem.setZIndex(maxZIndex);
-            handleItemSwipeStart(activeItem);
+          onSwipeStart: (overlayedItem) {
+            overlayedItem.setZIndex(maxZIndex);
+            handleItemSwipeStart(overlayedItem);
           },
           onSwipeUpdate: handleItemSwipeUpdate,
           onSwipeEnd: handleItemSwipeEnd,
@@ -948,8 +947,8 @@ extension _ChildrenDelegate on AnimatedReorderableController {
   void registerRenderedItem(RenderedItem item) {
     _state.putRenderedItem(item);
 
-    if (_state.isActive(id: item.id)) {
-      addPostFrame(() => activeItemsLayer?.rebuild(() {}));
+    if (_state.isOverlayed(id: item.id)) {
+      addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
     }
   }
 
@@ -958,8 +957,8 @@ extension _ChildrenDelegate on AnimatedReorderableController {
     if (registeredRenderedItem == item) {
       _state.removeRenderedItemBy(id: item.id);
 
-      if (_state.isActive(id: item.id)) {
-        addPostFrame(() => activeItemsLayer?.rebuild(() {}));
+      if (_state.isOverlayed(id: item.id)) {
+        addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
       }
     }
   }

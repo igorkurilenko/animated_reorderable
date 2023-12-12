@@ -1,12 +1,12 @@
 part of model;
 
-typedef ActiveItemCallback = void Function(ActiveItem item);
+typedef OverlayedItemCallback = void Function(OverlayedItem item);
 typedef RecognizerFactory = gestures.MultiDragGestureRecognizer Function(
   widgets.BuildContext context,
 );
 
-class ActiveItem extends Item {
-  ActiveItem({
+class OverlayedItem extends Item {
+  OverlayedItem({
     required super.id,
     required super.builder,
     required super.position,
@@ -26,7 +26,7 @@ class ActiveItem extends Item {
   int _zIndex = 0;
   RecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
-  _ActiveItemSwipe? _swipe;
+  _OverlayedItemSwipe? _swipe;
   widgets.Offset? _pointerPosition;
   OffsetAnimation? _motionAnimation;
   widgets.Widget? _widget;
@@ -107,9 +107,9 @@ class ActiveItem extends Item {
   void recognizeDrag(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
-    ActiveItemCallback? onDragStart,
-    ActiveItemCallback? onDragUpdate,
-    ActiveItemCallback? onDragEnd,
+    OverlayedItemCallback? onDragStart,
+    OverlayedItemCallback? onDragUpdate,
+    OverlayedItemCallback? onDragEnd,
   }) {
     _recognizer?.dispose();
     _swipe = null;
@@ -122,7 +122,7 @@ class ActiveItem extends Item {
         _pointerPosition = pointerPosition;
         onDragStart?.call(this);
 
-        return _ActiveItemDrag(
+        return _OverlayedItemDrag(
           item: this,
           onDragUpdate: onDragUpdate,
           onDragEnd: onDragEnd,
@@ -135,9 +135,9 @@ class ActiveItem extends Item {
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
     required widgets.AxisDirection swipeDirection,
-    ActiveItemCallback? onSwipeStart,
-    ActiveItemCallback? onSwipeUpdate,
-    ActiveItemCallback? onSwipeEnd,
+    OverlayedItemCallback? onSwipeStart,
+    OverlayedItemCallback? onSwipeUpdate,
+    OverlayedItemCallback? onSwipeEnd,
   }) {
     _recognizer?.dispose();
 
@@ -149,7 +149,7 @@ class ActiveItem extends Item {
         _pointerPosition = pointerPosition;
         onSwipeStart?.call(this);
 
-        return _swipe = _ActiveItemSwipe(
+        return _swipe = _OverlayedItemSwipe(
           item: this,
           swipeDirection: swipeDirection,
           onSwipeUpdate: onSwipeUpdate,
@@ -283,19 +283,19 @@ class ActiveItem extends Item {
   }
 
   @override
-  String toString() => 'ActiveItem(id: $id, index: $index)';
+  String toString() => 'OverlayedItem(id: $id, index: $index)';
 }
 
-class _ActiveItemDrag implements gestures.Drag {
-  _ActiveItemDrag({
+class _OverlayedItemDrag implements gestures.Drag {
+  _OverlayedItemDrag({
     required this.item,
     this.onDragUpdate,
     this.onDragEnd,
   });
 
-  final ActiveItem item;
-  ActiveItemCallback? onDragUpdate;
-  ActiveItemCallback? onDragEnd;
+  final OverlayedItem item;
+  OverlayedItemCallback? onDragUpdate;
+  OverlayedItemCallback? onDragEnd;
 
   @override
   void update(widgets.DragUpdateDetails details) {
@@ -314,18 +314,18 @@ class _ActiveItemDrag implements gestures.Drag {
   void cancel() {}
 }
 
-class _ActiveItemSwipe implements gestures.Drag {
-  _ActiveItemSwipe({
+class _OverlayedItemSwipe implements gestures.Drag {
+  _OverlayedItemSwipe({
     required this.item,
     required this.swipeDirection,
     this.onSwipeUpdate,
     this.onSwipeEnd,
   });
 
-  final ActiveItem item;
+  final OverlayedItem item;
   final widgets.AxisDirection swipeDirection;
-  ActiveItemCallback? onSwipeUpdate;
-  ActiveItemCallback? onSwipeEnd;
+  OverlayedItemCallback? onSwipeUpdate;
+  OverlayedItemCallback? onSwipeEnd;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
   widgets.Velocity _velocity = widgets.Velocity.zero;
 
