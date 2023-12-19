@@ -210,6 +210,9 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
   Offset? globalToLocal(Offset point) =>
       canvasKey.currentContext?.findRenderBox()?.globalToLocal(point);
 
+  Offset? localToGlobal(Offset point) =>
+      canvasKey.currentContext?.findRenderBox()?.localToGlobal(point);
+
   Rect? computeCanvasGeometry([Offset offset = Offset.zero]) =>
       canvasKey.currentContext?.computeGeometry(offset);
 
@@ -580,7 +583,8 @@ extension _AnimatedReorderableController on AnimatedReorderableController {
             _childrenDelegate.originalBuilder(context, index)!,
         constraints: scrollController!.axis == Axis.vertical
             ? BoxConstraints(maxWidth: _state.constraintsMark?.maxWidth ?? 0.0)
-            : BoxConstraints(maxHeight: _state.constraintsMark?.maxHeight ?? 0.0),
+            : BoxConstraints(
+                maxHeight: _state.constraintsMark?.maxHeight ?? 0.0),
       );
 }
 
@@ -813,8 +817,16 @@ extension _Scrolling on AnimatedReorderableController {
   void autoScrollIfNecessary() {
     if (_state.draggedItem == null) return;
 
+    final geometry = _state.draggedItem!.geometry.deflate(alpha);
+    final globalPosition = overlayedItemsLayer!.localToGlobal(geometry.topLeft)!;
+
     _autoScroller?.startAutoScrollIfNecessary(
-      _state.draggedItem!.geometry.deflate(alpha),
+      Rect.fromLTWH(
+        globalPosition.dx,
+        globalPosition.dy,
+        geometry.width,
+        geometry.height,
+      ),
     );
   }
 
