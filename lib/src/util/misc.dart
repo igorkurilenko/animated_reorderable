@@ -9,6 +9,12 @@ dynamic Function(dynamic) returnNull = (_) => null;
 void addPostFrame(VoidCallback cb) =>
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) => cb());
 
+extension AnimationStatusExtension on AnimationStatus {
+  bool get idle => !animating;
+  bool get animating =>
+      this == AnimationStatus.forward || this == AnimationStatus.reverse;
+}
+
 extension StateExtension on State {
   bool contains(Offset point) =>
       findRenderBox()?.getGeometry().contains(point) ?? false;
@@ -69,6 +75,15 @@ extension ScrollControllerExtension on ScrollController {
 
 extension RectExtension on Rect {
   Offset get position => topLeft;
+}
+
+extension IterableExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T element) test) {
+    for (var element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
 }
 
 extension SliverGridGeometryExtension on SliverGridGeometry {

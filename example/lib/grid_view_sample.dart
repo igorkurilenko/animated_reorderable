@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'main.dart';
 
-const initialNumberOfItems = 10;
+const initialNumberOfItems = 5;
 
 class GridViewSample extends StatefulWidget {
   const GridViewSample({super.key});
@@ -102,7 +102,7 @@ class GridViewSampleState extends State<GridViewSample>
 
   void insertItemAt(int index) {
     items.insert(index, nextItem++);
-    controller.insertItem(index, builder: insertedItemBuilder);
+    controller.insertItem(index, insertedItemBuilder);
   }
 
   @override
@@ -113,18 +113,19 @@ class GridViewSampleState extends State<GridViewSample>
 
   void removeItemAt(int index) {
     final item = items.removeAt(index);
-    controller.removeItem(index, builder: createRemovedItemBuilder(item));
+    controller.removeItem(index, createRemovedItemBuilder(item));
   }
 
   @override
   void moveRandomItem() {
-    // TODO: randomize indexes
-    const randomIndex = 0;
-    final randomDestinationIndex = 3;
+    if (items.length < 2) return;
 
-    controller.moveItem(
-      randomIndex,
-      destIndex: randomDestinationIndex,
-    );
+    final indexes = List.generate(items.length, (i) => i)..shuffle();
+    final index = indexes[0];
+    final destIndex = indexes[1];
+
+    log('move item at $index to $destIndex');
+
+    controller.moveItem(index, destIndex: destIndex);
   }
 }

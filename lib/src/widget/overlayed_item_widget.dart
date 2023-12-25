@@ -48,15 +48,14 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
 
   @override
   Widget build(BuildContext context) => Positioned(
-        left: item.geometry.left,
-        top: item.geometry.top,
+        left: item.position.dx,
+        top: item.position.dy,
         child: IgnorePointer(
           ignoring: !item.interactive,
           child: Listener(
             onPointerDown: _handlePointerDown,
-            child: SizedBox(
-              width: item.geometry.width,
-              height: item.geometry.height,
+            child: ConstrainedBox(
+              constraints: item.constraints,
               child: item.build(context),
             ),
           ),
@@ -67,7 +66,7 @@ class _OverlayedItemWidgetState extends State<OverlayedItemWidget> {
       ? item.recognizeSwipe(
           event,
           context: context,
-          swipeDirection: item.swipeDirection!,
+          swipeDirection: item.swipeToRemoveDirection!,
           onSwipeStart: widget.onSwipeStart,
           onSwipeUpdate: widget.onSwipeUpdate,
           onSwipeEnd: widget.onSwipeEnd,

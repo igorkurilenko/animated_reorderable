@@ -9,8 +9,8 @@ class ControllerState {
   OverlayedItem? swipedItem;
   int? itemUnderThePointerId;
   int? itemCount;
-  BoxConstraints? constraintsMark;
-  Offset scrollOffsetMark = Offset.zero;
+  BoxConstraints? constraints;
+  Offset scrollOffset = Offset.zero;
   bool shiftItemsOnScroll = true;
 
   Iterable<Item> get items => _itemById.values;
@@ -149,21 +149,6 @@ class ControllerState {
     return permutations;
   }
 
-  List<ItemPositionUpdate> recomputeItemPositions({
-    required Rect canvasGeometry,
-    required AxisDirection axisDirection,
-  }) =>
-      switch (axisDirection) {
-        AxisDirection.down =>
-          _recomputePositionsIfAxisDirectionDown(canvasGeometry),
-        AxisDirection.up =>
-          _recomputePositionsIfAxisDirectionUp(canvasGeometry),
-        AxisDirection.right =>
-          _recomputePositionsIfAxisDirectionRight(canvasGeometry),
-        AxisDirection.left =>
-          _recomputePositionsIfAxisDirectionLeft(canvasGeometry),
-      };
-
   void reset() {
     _itemById.clear();
     _overlayedItemById.clear();
@@ -173,8 +158,8 @@ class ControllerState {
     swipedItem = null;
     itemUnderThePointerId = null;
     itemCount = null;
-    constraintsMark = null;
-    scrollOffsetMark = Offset.zero;
+    constraints = null;
+    scrollOffset = Offset.zero;
     shiftItemsOnScroll = true;
   }
 
@@ -186,164 +171,4 @@ class ControllerState {
       x.dispose();
     }
   }
-}
-
-extension _ControllerState on ControllerState {
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionDown(
-    Rect canvasGeometry,
-  ) {
-    final updates = <ItemPositionUpdate>[];
-    var cursor = canvasGeometry.topLeft;
-    final minLeft = canvasGeometry.left;
-    final maxRight = canvasGeometry.right;
-    var maxRowHeight = 0.0;
-
-    for (var (idx, id) in _itemIdByIndex.entries.map((e) => (e.key, e.value))) {
-      final item = itemBy(id: id)!;
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).right > maxRight) {
-        cursor += Offset(-(cursor.dx - minLeft), maxRowHeight);
-        maxRowHeight = item.height;
-      }
-
-      final anchorPosition = cursor;
-
-      if ((item.position - anchorPosition).distance > alpha) {
-        updates.add(ItemPositionUpdate(
-          item: item,
-          index: idx,
-          oldPosition: item.position,
-          newPosition: anchorPosition,
-        ));
-        item.setPosition(anchorPosition);
-      }
-
-      maxRowHeight = math.max(maxRowHeight, item.height);
-      cursor += Offset(item.width, 0);
-    }
-    return updates;
-  }
-
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionUp(
-    Rect canvasGeometry,
-  ) {
-    final updates = <ItemPositionUpdate>[];
-    var cursor = canvasGeometry.bottomLeft;
-    final minLeft = canvasGeometry.left;
-    final maxRight = canvasGeometry.right;
-    var maxRowHeight = 0.0;
-
-    for (var (idx, id) in _itemIdByIndex.entries.map((e) => (e.key, e.value))) {
-      final item = itemBy(id: id)!;
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).right > maxRight) {
-        cursor += Offset(-(cursor.dx - minLeft), -maxRowHeight);
-        maxRowHeight = item.height;
-      }
-
-      final anchorPosition = cursor - Offset(0, item.height);
-
-      if ((item.position - anchorPosition).distance > alpha) {
-        updates.add(ItemPositionUpdate(
-          item: item,
-          index: idx,
-          oldPosition: item.position,
-          newPosition: anchorPosition,
-        ));
-        item.setPosition(anchorPosition);
-      }
-
-      maxRowHeight = math.max(maxRowHeight, item.height);
-      cursor += Offset(item.width, 0);
-    }
-    return updates;
-  }
-
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionRight(
-    Rect canvasGeometry,
-  ) {
-    final updates = <ItemPositionUpdate>[];
-    var cursor = canvasGeometry.topLeft;
-    final minTop = canvasGeometry.top;
-    final maxBottom = canvasGeometry.bottom;
-    var maxColWidth = 0.0;
-
-    for (var (idx, id) in _itemIdByIndex.entries.map((e) => (e.key, e.value))) {
-      final item = itemBy(id: id)!;
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).bottom > maxBottom) {
-        cursor += Offset(maxColWidth, -(cursor.dy - minTop));
-        maxColWidth = item.width;
-      }
-
-      final anchorPosition = cursor;
-
-      if ((item.position - anchorPosition).distance > alpha) {
-        updates.add(ItemPositionUpdate(
-          item: item,
-          index: idx,
-          oldPosition: item.position,
-          newPosition: anchorPosition,
-        ));
-        item.setPosition(anchorPosition);
-      }
-
-      maxColWidth = math.max(maxColWidth, item.width);
-      cursor += Offset(0, item.height);
-    }
-    return updates;
-  }
-
-  List<ItemPositionUpdate> _recomputePositionsIfAxisDirectionLeft(
-    Rect canvasGeometry,
-  ) {
-    final updates = <ItemPositionUpdate>[];
-    var cursor = canvasGeometry.topRight;
-    final minTop = canvasGeometry.top;
-    final maxBottom = canvasGeometry.bottom;
-    var maxColWidth = 0.0;
-
-    for (var (idx, id) in _itemIdByIndex.entries.map((e) => (e.key, e.value))) {
-      final item = itemBy(id: id)!;
-      final testGeometry = cursor & item.size;
-
-      if (testGeometry.deflate(alpha).bottom > maxBottom) {
-        cursor += Offset(-maxColWidth, -(cursor.dy - minTop));
-        maxColWidth = item.width;
-      }
-
-      final anchorPosition = cursor + Offset(-item.width, 0);
-
-      if ((item.position - anchorPosition).distance > alpha) {
-        updates.add(ItemPositionUpdate(
-          item: item,
-          index: idx,
-          oldPosition: item.position,
-          newPosition: anchorPosition,
-        ));
-        item.setPosition(anchorPosition);
-      }
-
-      maxColWidth = math.max(maxColWidth, item.width);
-      cursor += Offset(0, item.height);
-    }
-    return updates;
-  }
-}
-
-class ItemPositionUpdate {
-  final Item item;
-  final int index;
-  final Offset oldPosition;
-  final Offset newPosition;
-
-  ItemPositionUpdate({
-    required this.item,
-    required this.index,
-    required this.oldPosition,
-    required this.newPosition,
-  });
 }

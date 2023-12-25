@@ -1,11 +1,11 @@
-import 'dart:math';
+import 'dart:developer';
 
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
 import 'main.dart';
 
-const initialNumberOfItems = 10;
+const initialNumberOfItems = 5;
 
 class ListViewSample extends StatefulWidget {
   const ListViewSample({super.key});
@@ -39,12 +39,12 @@ class ListViewSampleState extends State<ListViewSample>
     super.build(context);
 
     return AnimatedReorderable.list(
-        controller: controller,
-        listView: ListView.builder(
-          itemCount: items.length,
-          itemBuilder: ((context, index) => buildItem(items[index])),
-        ),
-      );
+      controller: controller,
+      listView: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: ((context, index) => buildItem(items[index])),
+      ),
+    );
   }
 
   Widget buildItem(int item) => Card(
@@ -58,7 +58,7 @@ class ListViewSampleState extends State<ListViewSample>
           borderRadius: BorderRadius.circular(32),
         ),
         child: SizedBox(
-          height: 80,
+          height: item % 2 == 0 ? 80 : 160,
           child: Center(
             child: Text(
               '$item',
@@ -96,38 +96,35 @@ class ListViewSampleState extends State<ListViewSample>
   @override
   void insertFirstItem() => insertItemAt(0);
 
-  void insertRandomItem() => insertItemAt(Random().nextInt(items.length));
-
   @override
   void insertLastItem() => insertItemAt(items.length);
 
   void insertItemAt(int index) {
     items.insert(index, nextItem++);
-    controller.insertItem(index, builder: insertedItemBuilder);
+    controller.insertItem(index, insertedItemBuilder);
   }
 
   @override
   void removeFirstItem() => removeItemAt(0);
-
-  void removeRandomItem() => removeItemAt(Random().nextInt(items.length));
 
   @override
   void removeLastItem() => removeItemAt(items.length - 1);
 
   void removeItemAt(int index) {
     final item = items.removeAt(index);
-    controller.removeItem(index, builder: createRemovedItemBuilder(item));
+    controller.removeItem(index, createRemovedItemBuilder(item));
   }
 
   @override
   void moveRandomItem() {
-    // TODO: randomize indexes
-    const randomIndex = 0;
-    final randomDestinationIndex = 3;
+    if (items.length < 2) return;
 
-    controller.moveItem(
-      randomIndex,
-      destIndex: randomDestinationIndex,
-    );
+    final indexes = List.generate(items.length, (i) => i)..shuffle();
+    final index = indexes[0];
+    final destIndex = indexes[1];
+
+    log('move item at $index to $destIndex');
+
+    controller.moveItem(index, destIndex: destIndex);
   }
 }

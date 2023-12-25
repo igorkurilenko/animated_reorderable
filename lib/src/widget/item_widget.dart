@@ -6,7 +6,7 @@ import '../util/misc.dart';
 typedef RenderedItem = _ItemWidgetState;
 typedef RenderedItemLifecycleCallback = void Function(RenderedItem item);
 typedef ItemGestureRecognizer = void Function(
-    BuildContext context, PointerDownEvent event);
+    RenderedItem item, PointerDownEvent event);
 
 class ItemWidget extends StatefulWidget {
   const ItemWidget({
@@ -54,8 +54,8 @@ class _ItemWidgetState extends State<ItemWidget> {
   bool get draggable => widget.draggableGetter(index);
   bool get isOverlayed => widget.overlayedGetter(id);
   bool get swipeable => widget.swipeAwayDirectionGetter?.call(index) != null;
-  Offset get globalPosition => findRenderBox()!.localToGlobal(Offset.zero);
-  Size get size => findRenderBox()!.size;
+  Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
+  Size? get size => findRenderBox()?.size;
 
   @override
   void initState() {
@@ -90,9 +90,8 @@ class _ItemWidgetState extends State<ItemWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.didBuild != null) {
-      addPostFrame(() => widget.didBuild!.call(this));
-    }
+    addPostFrame(() => widget.didBuild?.call(this));
+
     return Opacity(
       opacity: isOverlayed ? 0 : 1,
       child: Listener(
@@ -106,8 +105,14 @@ class _ItemWidgetState extends State<ItemWidget> {
   }
 
   void _recognizeSwipe(PointerDownEvent event) =>
-      widget.recognizeSwipe(context, event);
+      widget.recognizeSwipe(this, event);
 
   void _recognizeDrag(PointerDownEvent event) =>
-      widget.recognizeDrag(context, event);
+      widget.recognizeDrag(this, event);
+
+  @override
+  String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
+    final position = computeGeometry()?.topLeft;
+    return 'RenderedItem(id: $id, position: $position)';
+  }
 }

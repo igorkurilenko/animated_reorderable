@@ -9,20 +9,23 @@ class OverlayedItem extends Item {
   OverlayedItem({
     required super.id,
     required super.builder,
-    required super.position,
-    required super.size,
+    required Offset position,
+    required BoxConstraints constraints,
     required this.index,
     bool interactive = true,
-    bool outgoing = false,
+    this.outgoing = false,
     int zIndex = defaultZIndex,
     this.recognizerFactory,
-  })  : _interactive = interactive,
-        _outgoing = outgoing,
+  })  : _position = position,
+        _constraints = constraints,
+        _interactive = interactive,
         _zIndex = zIndex;
 
   int index;
+  widgets.Offset _position;
+  widgets.BoxConstraints _constraints;
   bool _interactive;
-  bool _outgoing;
+  bool outgoing;
   int _zIndex = 0;
   RecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
@@ -32,6 +35,26 @@ class OverlayedItem extends Item {
   widgets.Widget? _widget;
   AnimatedItemDecoratorAdapter? _decorator;
 
+  widgets.Offset get position => _position;
+  widgets.Offset get anchorPosition =>
+      _motionAnimation != null ? _motionAnimation!.end : position;
+  widgets.AnimationStatus? get motionAnimationStatus =>
+      _motionAnimation?.controller.status;
+
+  void setPosition(widgets.Offset value, {bool notify = true}) {
+    if (_position == value) return;
+    _position = value;
+    if (notify) notifyListeners();
+  }
+
+  widgets.BoxConstraints get constraints => _constraints;
+
+  void setConstraints(widgets.BoxConstraints value, {bool notify = true}) {
+    if (_constraints == value) return;
+    _constraints = value;
+    if (notify) notifyListeners();
+  }
+
   bool get interactive => _interactive;
 
   void setInteractive(bool value, {bool notify = true}) {
@@ -40,17 +63,9 @@ class OverlayedItem extends Item {
     if (notify) notifyListeners();
   }
 
-  bool get outgoing => _outgoing;
-
-  void setOutgoing(bool value, {bool notify = true}) {
-    if (outgoing == value) return;
-    _outgoing = value;
-    if (notify) notifyListeners();
-  }
-
   bool get swiped => _swipe != null;
 
-  widgets.AxisDirection? get swipeDirection => _swipe?.swipeDirection;
+  widgets.AxisDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
 
   Offset get swipeOffset => _swipe?.swipeOffset ?? Offset.zero;
 
@@ -68,7 +83,7 @@ class OverlayedItem extends Item {
     required double velocityToRemove,
   }) =>
       swiped &&
-      switch (swipeDirection) {
+      switch (swipeToRemoveDirection) {
         AxisDirection.left => swipeExtent < -extentToRemove ||
             swipeVelocity.pixelsPerSecond.dx < -velocityToRemove,
         AxisDirection.right => swipeExtent > extentToRemove ||
@@ -85,16 +100,16 @@ class OverlayedItem extends Item {
     return _decorator?.decorate(_widget, index) ?? _widget;
   }
 
-  @override
   void shift(Offset delta, {bool notify = true}) {
     _motionAnimation?.shift(delta);
-    super.shift(delta, notify: notify);
+    setPosition(position + delta, notify: notify);
   }
 
-  @override
   void scale(double scaleFactor, {bool notify = true}) {
     _motionAnimation?.scale(scaleFactor);
-    super.scale(scaleFactor, notify: notify);
+    if (scaleFactor == 1) return;
+    setPosition(position * scaleFactor, notify: false);
+    setConstraints(constraints * scaleFactor, notify: notify);
   }
 
   int get zIndex => _zIndex;
@@ -246,32 +261,6 @@ class OverlayedItem extends Item {
         _ => 0.0,
       };
 
-  Future animateOutgoing({
-    required widgets.AnimatedRemovedItemBuilder builder,
-    int? zIndex,
-    required Duration duration,
-    required TickerProvider vsync,
-  }) {
-    setInteractive(
-      false,
-      notify: false,
-    );
-    setOutgoing(
-      true,
-      notify: false,
-    );
-    setZIndex(
-      zIndex ?? outgoingItemZIndex,
-      notify: false,
-    );
-
-    return animateRemovedItemBuilder(
-      builder: builder,
-      duration: duration,
-      vsync: vsync,
-    );
-  }
-
   @override
   void dispose() {
     _recognizer?.dispose();
@@ -330,12 +319,12 @@ class _OverlayedItemSwipe implements gestures.Drag {
   widgets.Velocity _velocity = widgets.Velocity.zero;
 
   widgets.Velocity get velocity => _velocity;
+
   widgets.Offset get swipeOffset => _swipeOffset;
-  double get swipeExtent => _swipeOffset.dx.abs() > 0
-      ? _swipeOffset.dx / item.geometry.width
-      : _swipeOffset.dy.abs() > 0
-          ? _swipeOffset.dy / item.geometry.height
-          : 0.0;
+
+  double get swipeExtent => _swipeOffset.dx != 0
+      ? _swipeOffset.dx / item.constraints.maxWidth
+      : _swipeOffset.dy / item.constraints.maxHeight;
 
   @override
   void update(widgets.DragUpdateDetails details) {

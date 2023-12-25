@@ -1,18 +1,35 @@
+import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/physics.dart';
 
-const int maxInt = kIsWeb ? 9007199254740992 : ((1 << 63) - 1);
-const outgoingItemZIndex = -1;
-const defaultZIndex = 0;
-const maxZIndex = maxInt;
-
-const Duration duration500ms = Duration(milliseconds: 500);
-// const Duration duration500ms = Duration(milliseconds: 10000);
-const double defaultAutoScrollVelocityScalar = 50;
 const alpha = 0.001;
 
+const maxInt = kIsWeb ? 9007199254740992 : ((1 << 63) - 1);
+
+const maxZIndex = maxInt;
+
+const defaultZIndex = 0;
+
+const outgoingItemZIndex = -1;
+
+const defaultAutoScrollVelocityScalar = 50.0;
+
+const duration500ms = Duration(milliseconds: 500);
+
+const defaultMotionAnimationCurve = Curves.easeInOut;
+
+const defaultMotionAnimationDuration = duration500ms;
+
 const defaultSwipeAwayExtent = 0.6;
+
 const defaultSwipeAwayVelocity = 700.0;
+
+const defaultSwipedItemDecorationAnimationDuration = duration500ms;
+
+const defaultDraggedItemDecorationAnimationDuration = duration500ms;
+
+const defaultInsertItemAnimationDuration = duration500ms;
+
+const defaultRemoveItemAnimationDuration = duration500ms;
 
 const defaultFlingSpringDescription = SpringDescription(
   mass: 1.0,
