@@ -16,7 +16,7 @@ typedef ReorderableGetter = bool Function(int index);
 typedef DraggableGetter = bool Function(int index);
 typedef SwipeAwayDirectionGetter = AxisDirection? Function(int index);
 typedef ReorderCallback = void Function(Permutations permutations);
-typedef SwipeAwayCallback = AnimatedRemovedItemBuilder? Function(int index);
+typedef SwipeAwayCallback = AnimatedRemovedItemBuilder Function(int index);
 
 abstract class AnimatedReorderable extends StatelessWidget {
   const AnimatedReorderable({super.key, required this.controller});
@@ -268,8 +268,12 @@ class AnimatedReorderableController {
   })  : reorderableGetter = reorderableGetter ?? returnTrue,
         draggableGetter = draggableGetter ?? returnTrue;
 
-  final _itemsLayerKey = GlobalKey<_ItemsLayerState>();
-  final _overlayedItemsLayerKey = GlobalKey<_OverlayedItemsLayerState>();
+  final _state =
+      model.ControllerState<_ItemsLayerState, _OverlayedItemsLayerState>();
+
+  ScrollController? _scrollController;
+  EdgeDraggingAutoScroller? _autoScroller;
+  late OverridedSliverChildBuilderDelegate _childrenDelegate;
 
   final IdGetter idGetter;
   final ReorderableGetter reorderableGetter;
@@ -279,34 +283,25 @@ class AnimatedReorderableController {
   final double swipeAwayExtent;
   final double swipeAwayVelocity;
   final SpringDescription swipeAwaySpringDescription;
-
   final ReorderCallback? didReorder;
   final SwipeAwayCallback? didSwipeAway;
-
   final TickerProvider vsync;
-
   final Duration motionAnimationDuration;
   final Curve motionAnimationCurve;
-
   final model.AnimatedItemDecorator? draggedItemDecorator;
   final Duration draggedItemDecorationAnimationDuration;
   final model.AnimatedItemDecorator? swipedItemDecorator;
   final Duration swipedItemDecorationAnimationDuration;
-  final _state = model.ControllerState();
-  ScrollController? _scrollController;
-  EdgeDraggingAutoScroller? _autoScroller;
-  late OverridedSliverChildBuilderDelegate _childrenDelegate;
-  SliverGridLayout? _gridLayout;
 
   void insertItem(
     int index,
     AnimatedItemBuilder builder, {
     Duration duration = defaultInsertItemAnimationDuration,
   }) {
-    if (itemCount == null) {
-      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
+    if (_state.itemCount == null) {
+      throw ('$runtimeType must be connected with a $ListView or $GridView');
     }
-    if (index < 0 || index > itemCount!) {
+    if (index < 0 || index > _state.itemCount!) {
       throw RangeError.value(index);
     }
 
@@ -315,30 +310,29 @@ class AnimatedReorderableController {
       itemFactory: createItem,
     );
 
-    overlayedItemsLayer!.rebuild(() {
-      for (var renderedItem in _state.renderedItems
-          .where((x) => x.id != insertedItem.id)
-          .where(isNotDragged)
-          .where(isNotSwiped)) {
-        _state.putOverlayedItem(
-          ensureOverlayedItem(
-            renderedItem,
-            index: renderedItem.index >= index
-                ? renderedItem.index + 1
-                : renderedItem.index,
-            interactive: false,
-          ),
-        );
-      }
-    });
-
     insertedItem.animateItemBuilder(
       builder: builder,
       duration: duration,
       vsync: vsync,
     );
 
-    itemsLayer?.rebuild(() {});
+    overlayedItemsLayer!.rebuild(() {
+      for (var renderedItem in _state.renderedItems
+          .where((x) => x.id != insertedItem.id)
+          .where(isNotDragged)
+          .where(isNotSwiped)) {
+        _state.putOverlayedItemIfAbsent(
+          id: renderedItem.id,
+          ifAbsent: () => createOverlayedItem(renderedItem),
+        )
+          ..index = renderedItem.index >= index
+              ? renderedItem.index + 1
+              : renderedItem.index
+          ..setInteractive(false, notify: false);
+      }
+    });
+
+    itemsLayer!.rebuild();
   }
 
   void removeItem(
@@ -347,10 +341,10 @@ class AnimatedReorderableController {
     int? zIndex,
     Duration duration = defaultRemoveItemAnimationDuration,
   }) {
-    if (itemCount == null) {
-      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
+    if (_state.itemCount == null) {
+      throw ('$runtimeType must be connected with a $ListView or $GridView');
     }
-    if (index < 0 || index >= itemCount!) {
+    if (index < 0 || index >= _state.itemCount!) {
       throw RangeError.value(index);
     }
 
@@ -358,30 +352,7 @@ class AnimatedReorderableController {
     if (removedItem == null) return;
 
     final renderedItem = _state.renderedItemBy(id: removedItem.id);
-
-    if (renderedItem != null) {
-      final outgoingItem = ensureOverlayedItem(
-        renderedItem,
-        builder: removedItem.builder,
-        zIndex: zIndex ?? outgoingItemZIndex,
-        interactive: false,
-      );
-
-      overlayIfNecessary(outgoingItem);
-
-      outgoingItem
-        ..outgoing = true
-        ..animateRemovedItemBuilder(
-          builder: builder,
-          duration: duration,
-          vsync: vsync,
-        ).whenComplete(
-          () => overlayedItemsLayer!.rebuild(() {
-            _state.removeOverlayedItem(id: removedItem.id)?.dispose();
-            removedItem.dispose();
-          }),
-        );
-    } else {
+    if (renderedItem == null) {
       removedItem.dispose();
     }
 
@@ -390,19 +361,41 @@ class AnimatedReorderableController {
           .where((x) => x.id != removedItem.id)
           .where(isNotDragged)
           .where(isNotSwiped)) {
-        _state.putOverlayedItem(
-          ensureOverlayedItem(
+        _state.putOverlayedItemIfAbsent(
+          id: renderedItem.id,
+          ifAbsent: () => createOverlayedItem(renderedItem),
+        )
+          ..index = renderedItem.index > index
+              ? renderedItem.index - 1
+              : renderedItem.index
+          ..setInteractive(false, notify: false);
+      }
+
+      if (renderedItem != null) {
+        _state.putOverlayedItemIfAbsent(
+          id: renderedItem.id,
+          ifAbsent: () => createOverlayedItem(
             renderedItem,
-            index: renderedItem.index > index
-                ? renderedItem.index - 1
-                : renderedItem.index,
-            interactive: false,
+            builder: removedItem.builder,
           ),
-        );
+        )
+          ..outgoing = true
+          ..setInteractive(false, notify: false)
+          ..setZIndex(zIndex ?? outgoingItemZIndex, notify: false)
+          ..animateRemovedItemBuilder(
+            builder: builder,
+            duration: duration,
+            vsync: vsync,
+          ).whenComplete(
+            () => overlayedItemsLayer!.rebuild(() {
+              _state.removeOverlayedItem(id: removedItem.id)?.dispose();
+              removedItem.dispose();
+            }),
+          );
       }
     });
 
-    itemsLayer?.rebuild(() {});
+    itemsLayer!.rebuild();
   }
 
   void moveItem(
@@ -411,10 +404,10 @@ class AnimatedReorderableController {
     Duration? duration,
     Curve? curve,
   }) {
-    if (itemCount == null) {
-      throw ('AnimatedReorderableController must be connected with a ListView or GridView');
+    if (_state.itemCount == null) {
+      throw ('$runtimeType must be connected with a $ListView or $GridView');
     }
-    if (index < 0 || index >= itemCount!) {
+    if (index < 0 || index >= _state.itemCount!) {
       throw RangeError.value(index);
     }
     if (!reorderableGetter(index)) {
@@ -438,96 +431,256 @@ class AnimatedReorderableController {
     overlayedItemsLayer!.rebuild(() {
       for (var renderedItem
           in _state.renderedItems.where(isNotDragged).where(isNotSwiped)) {
-        _state.putOverlayedItem(
-          ensureOverlayedItem(
-            renderedItem,
-            index: permutations.indexOf(renderedItem.id) ?? renderedItem.index,
-            interactive: false,
-          ),
-        );
+        _state.putOverlayedItemIfAbsent(
+          id: renderedItem.id,
+          ifAbsent: () => createOverlayedItem(renderedItem),
+        )
+          ..index = permutations.indexOf(renderedItem.id) ?? renderedItem.index
+          ..setInteractive(false, notify: false);
       }
 
       if (!_state.isRendered(id: itemAtIndex.id)) {
-        final fakeGeometry = getNotRenderedItemFakeAnchorGeometry(
+        final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: index,
           anyRenderedItemIndex: _state.renderedItems.first.index,
         );
 
-        _state.putOverlayedItem(
-          model.OverlayedItem(
-            index: permutations.indexOf(itemAtIndex.id)!,
-            id: itemAtIndex.id,
-            position: fakeGeometry.topLeft,
-            constraints: BoxConstraints.tight(fakeGeometry.size),
-            builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtIndex),
-            interactive: false,
-          ),
-        );
+        _state
+            .putOverlayedItem(
+              model.OverlayedItem(
+                index: permutations.indexOf(itemAtIndex.id)!,
+                id: itemAtIndex.id,
+                position: fakeGeometry.topLeft,
+                constraints: BoxConstraints.tight(fakeGeometry.size),
+                builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtIndex),
+                interactive: false,
+              ),
+            )
+            .addListener(overlayedItemsLayer!.rebuild);
       }
 
       if (!_state.isRendered(id: itemAtDestIndex.id)) {
-        final fakeGeometry = getNotRenderedItemFakeAnchorGeometry(
+        final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: destIndex,
           anyRenderedItemIndex: _state.renderedItems.first.index,
         );
 
-        _state.putOverlayedItem(
-          model.OverlayedItem(
-            index: permutations.indexOf(itemAtDestIndex.id)!,
-            id: itemAtDestIndex.id,
-            position: fakeGeometry.topLeft,
-            constraints: BoxConstraints.tight(fakeGeometry.size),
-            builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtDestIndex),
-            interactive: false,
-          ),
-        );
+        _state
+            .putOverlayedItem(
+              model.OverlayedItem(
+                index: permutations.indexOf(itemAtDestIndex.id)!,
+                id: itemAtDestIndex.id,
+                position: fakeGeometry.topLeft,
+                constraints: BoxConstraints.tight(fakeGeometry.size),
+                builder:
+                    model.ItemBuilder.adaptOtherItemBuilder(itemAtDestIndex),
+                interactive: false,
+              ),
+            )
+            .addListener(overlayedItemsLayer!.rebuild);
       }
     });
 
-    itemsLayer?.rebuild(() => didReorder!.call(permutations));
+    itemsLayer!.rebuild(() => didReorder!.call(permutations));
   }
 
   void dispose() => _state.dispose();
 }
 
-extension _AnimatedReorderableController on AnimatedReorderableController {
-  AnimatedReorderableController setup({
-    required SliverChildDelegate childrenDelegate,
-    ScrollController? scrollController,
-  }) {
-    _state
-      ..reset()
-      ..itemCount = getChildCount(childrenDelegate);
-    setupScrollController(scrollController ?? ScrollController());
-    return this;
+extension _RenderedItemLifecycleHandlers on AnimatedReorderableController {
+  void handleRenderedItemInit(RenderedItem item) => registerRenderedItem(item);
+
+  void handleRenderedItemDidUpdate(RenderedItem item) {
+    unregisterRenderedItem(item);
+    registerRenderedItem(item);
   }
 
-  void overlayIfNecessary(model.OverlayedItem item) {
-    if (_state.isOverlayed(id: item.id)) return;
-    overlayedItemsLayer?.rebuild(() => _state.putOverlayedItem(item));
-    _state.renderedItemBy(id: item.id)?.rebuild();
-    return;
-  }
+  void handleRenderedItemDispose(RenderedItem item) =>
+      unregisterRenderedItem(item);
 
-  void unoverlay(model.OverlayedItem item) {
-    if (!_state.isOverlayed(id: item.id)) return;
-    overlayedItemsLayer?.rebuild(() => _state.removeOverlayedItem(id: item.id));
-    _state.renderedItemBy(id: item.id)?.rebuild();
-  }
+  void handleRenderedItemDeactivate(RenderedItem item) =>
+      unregisterRenderedItem(item);
 
-  void reorderAndAutoScrollIfNecessary() {
-    reorderIfNecessary();
-    autoScrollIfNecessary();
-  }
+  void handleRenderedItemDidBuild(item) {
+    if (isDragged(item)) return;
+    if (isSwiped(item)) return;
 
-  Size measureItemWidgetAt({required int index}) => MeasureUtil.measureWidget(
-        context: _scrollController!.scrollableState!.context,
-        builder: (context) =>
-            _childrenDelegate.originalBuilder(context, index)!,
-        constraints: scrollController!.axis == Axis.vertical
-            ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
-            : BoxConstraints(maxHeight: _state.constraints!.maxHeight),
+    final globalPosition = item.globalPosition;
+    if (globalPosition == null) return;
+
+    final overlayedItem = _state.overlayedItemBy(id: item.id);
+    if (overlayedItem == null) return;
+
+    final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition)!;
+
+    if (overlayedItem.anchorPosition != anchorPosition) {
+      overlayedItem
+          .animateTo(
+            anchorPosition,
+            vsync: vsync,
+            duration: motionAnimationDuration,
+            curve: motionAnimationCurve,
+          )
+          .whenComplete(
+            () => unoverlay(overlayedItem),
+          );
+    } else if (overlayedItem.motionAnimationStatus?.idle ?? true) {
+      unoverlay(overlayedItem);
+    }
+  }
+}
+
+extension _ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
+  void handleDidBuildItemsLayer() {
+    for (var overlayedItem in _state.overlayedItems
+        .where(isNotRendered)
+        .where((x) => !x.outgoing)
+        .toList()) {
+      final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
+        notRenderedItemIndex: overlayedItem.index,
+        anyRenderedItemIndex: _state.renderedItems.first.index,
+        itemSize: overlayedItem.constraints.biggest,
       );
+
+      overlayedItem
+          .animateTo(
+            fakeGeometry.topLeft,
+            vsync: vsync,
+            duration: motionAnimationDuration,
+            curve: motionAnimationCurve,
+          )
+          .whenComplete(
+            () => unoverlay(overlayedItem),
+          );
+    }
+  }
+}
+
+extension _OverlayedItemDragHandlers on AnimatedReorderableController {
+  void handleItemDragStart(model.OverlayedItem item) {
+    item.stopMotion();
+
+    _state.draggedItem = item;
+
+    if (!_state.isOverlayed(id: item.id)) {
+      overlayedItemsLayer?.rebuild(
+        () => _state.putOverlayedItem(item)
+          ..setZIndex(
+            maxZIndex,
+            notify: false,
+          ),
+      );
+      _state.renderedItemBy(id: item.id)?.rebuild();
+    } else {
+      item.setZIndex(maxZIndex);
+    }
+
+    item.animateDecoration(
+      decorator: draggedItemDecorator,
+      duration: draggedItemDecorationAnimationDuration,
+      vsync: vsync,
+    );
+  }
+
+  void handleItemDragUpdate(model.OverlayedItem _) =>
+      reorderAndAutoScrollIfNecessary();
+
+  void handleItemDragEnd(model.OverlayedItem item) {
+    _state.draggedItem = null;
+    stopAutoScroll(forceStopAnimation: true);
+    Future.wait([
+      item.animateUndecoration(),
+      item.animateFlingTo(
+        overlayedItemsLayer!.globalToLocal(
+          _state.renderedItemBy(id: item.id)!.globalPosition!,
+        )!,
+        velocity: item.swipeVelocity,
+        screenSize: getScreenSize(),
+        vsync: vsync,
+      ),
+    ]).whenComplete(
+      () => unoverlay(item),
+    );
+  }
+}
+
+extension _OverlayedItemSwipeHandlers on AnimatedReorderableController {
+  void handleItemSwipeStart(model.OverlayedItem item) {
+    item.stopMotion();
+
+    _state.swipedItem = item;
+
+    if (!_state.isOverlayed(id: item.id)) {
+      overlayedItemsLayer?.rebuild(
+        () => _state.putOverlayedItem(item)
+          ..setZIndex(
+            maxZIndex,
+            notify: false,
+          ),
+      );
+      _state.renderedItemBy(id: item.id)?.rebuild();
+    } else {
+      item.setZIndex(maxZIndex);
+    }
+
+    item.animateDecoration(
+      decorator: swipedItemDecorator,
+      duration: swipedItemDecorationAnimationDuration,
+      vsync: vsync,
+    );
+  }
+
+  void handleItemSwipeUpdate(model.OverlayedItem item) {
+    // noop
+  }
+
+  void handleItemSwipeEnd(model.OverlayedItem item) {
+    _state.swipedItem = null;
+
+    final undecorateFuture = item.animateUndecoration();
+    final screenSize = getScreenSize();
+
+    if (item.swipedToRemove(
+      extentToRemove: swipeAwayExtent,
+      velocityToRemove: swipeAwayVelocity,
+    )) {
+      final removedItemBuilder = didSwipeAway!.call(item.index);
+
+      removeItem(
+        item.index,
+        removedItemBuilder,
+        zIndex: item.zIndex,
+      );
+
+      item.animateFlingTo(
+        switch (item.swipeToRemoveDirection!) {
+          AxisDirection.left =>
+            Offset(-item.constraints.maxWidth, item.position.dy),
+          AxisDirection.right => Offset(screenSize.width, item.position.dy),
+          AxisDirection.up =>
+            Offset(item.position.dx, -item.constraints.maxHeight),
+          AxisDirection.down => Offset(item.position.dx, screenSize.height),
+        },
+        velocity: item.swipeVelocity,
+        screenSize: screenSize,
+        vsync: vsync,
+      );
+    } else {
+      Future.wait([
+        undecorateFuture,
+        item.animateFlingTo(
+          overlayedItemsLayer!.globalToLocal(
+            _state.renderedItemBy(id: item.id)!.globalPosition!,
+          )!,
+          velocity: item.swipeVelocity,
+          screenSize: screenSize,
+          vsync: vsync,
+        )
+      ]).whenComplete(
+        () => unoverlay(item),
+      );
+    }
+  }
 }
 
 extension _ScrollHandler on AnimatedReorderableController {
@@ -542,11 +695,6 @@ extension _ScrollHandler on AnimatedReorderableController {
       }
     }
   }
-}
-
-extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
-  void handleSliverGridLayoutChange(SliverGridLayout layout) =>
-      _gridLayout = layout;
 }
 
 extension _ConstraintsChangeHandler on AnimatedReorderableController {
@@ -571,185 +719,72 @@ extension _ConstraintsChangeHandler on AnimatedReorderableController {
   }
 }
 
-extension _ItemDragHandlers on AnimatedReorderableController {
-  void handleItemDragStart(model.OverlayedItem item) {
-    item.stopMotion();
-    _state.draggedItem = item;
-    overlayIfNecessary(item);
-    item.animateDecoration(
-      decorator: draggedItemDecorator,
-      duration: draggedItemDecorationAnimationDuration,
-      vsync: vsync,
-    );
-  }
-
-  void handleItemDragUpdate(model.OverlayedItem _) =>
-      reorderAndAutoScrollIfNecessary();
-
-  void handleItemDragEnd(model.OverlayedItem item) {
-    _state.draggedItem = null;
-    stopAutoScroll(forceStopAnimation: true);
-    Future.wait([
-      item.animateUndecoration(),
-      item.animateFlingTo(
-        overlayedItemsLayer!.globalToLocal(
-          getGlobalAnchorPosition(itemId: item.id),
-        )!,
-        velocity: item.swipeVelocity,
-        screenSize: getScreenSize(),
-        vsync: vsync,
-      ),
-    ]).whenComplete(
-      () => unoverlay(item),
-    );
-  }
-
-  void reorderIfNecessary() {
-    if (_state.draggedItem == null) return;
-    final item = _state.draggedItem!;
-
-    if (!reorderableGetter(item.index)) return;
-
-    final pointerPosition = item.pointerPosition!;
-    final renderedItem = _state.renderedItemAt(position: pointerPosition);
-
-    if (renderedItem?.id == _state.itemUnderThePointerId) return;
-    _state.itemUnderThePointerId = renderedItem?.id;
-
-    if (renderedItem == null) return;
-    if (renderedItem.id == item.id) return;
-    if (!renderedItem.reorderable) return;
-
-    moveItem(item.index, destIndex: renderedItem.index);
-
-    addPostFrame(() => _state.itemUnderThePointerId =
-        _state.renderedItemAt(position: pointerPosition)?.id);
-  }
+extension _SliverGridLayoutChangeHandler on AnimatedReorderableController {
+  void handleSliverGridLayoutChange(SliverGridLayout layout) =>
+      _state.gridLayout = layout;
 }
 
-extension _ItemSwipeHandlers on AnimatedReorderableController {
-  void handleItemSwipeStart(model.OverlayedItem item) {
-    item.stopMotion();
-    _state.swipedItem = item;
-    overlayIfNecessary(item);
-    item.animateDecoration(
-      decorator: swipedItemDecorator,
-      duration: swipedItemDecorationAnimationDuration,
-      vsync: vsync,
+extension _ChildrenDelegate on AnimatedReorderableController {
+  OverridedSliverChildBuilderDelegate get childrenDelegate => _childrenDelegate;
+  set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
+      _childrenDelegate = value;
+
+  SliverChildDelegate overrideChildrenDelegate(SliverChildDelegate delegate) =>
+      childrenDelegate = OverridedSliverChildBuilderDelegate.override(
+        delegate: delegate,
+        overridedChildBuilder: buildItemWidget,
+        overridedChildCountGetter: () => _state.itemCount,
+      );
+
+  Widget buildItemWidget(BuildContext context, int index) {
+    final item = ensureItemAt(index: index);
+
+    return ItemWidget(
+      key: ValueKey(item.id),
+      index: index,
+      id: item.id,
+      reorderableGetter: reorderableGetter,
+      draggableGetter: draggableGetter,
+      swipeAwayDirectionGetter: swipeAwayDirectionGetter,
+      overlayedGetter: (id) => _state.isOverlayed(id: id),
+      builder: item.builder.build,
+      onInit: handleRenderedItemInit,
+      didUpdate: handleRenderedItemDidUpdate,
+      onDispose: handleRenderedItemDispose,
+      onDeactivate: handleRenderedItemDeactivate,
+      didBuild: handleRenderedItemDidBuild,
+      recognizeDrag: (renderedItem, event) {
+        createOverlayedItem(
+          renderedItem,
+          recognizerFactory: createReoderGestureRecognizer,
+        ).recognizeDrag(
+          event,
+          context: context,
+          onDragStart: (overlayedItem) {
+            overlayedItem.recognizerFactory = createImmediateGestureRecognizer;
+            handleItemDragStart(overlayedItem);
+          },
+          onDragUpdate: handleItemDragUpdate,
+          onDragEnd: handleItemDragEnd,
+        );
+      },
+      recognizeSwipe: (renderedItem, event) {
+        createOverlayedItem(
+          renderedItem,
+          recognizerFactory: scrollController!.axis == Axis.horizontal
+              ? createHorizontalSwipeAwayGestureRecognizer
+              : createVerticalSwipeAwayGestureRecognizer,
+        ).recognizeSwipe(
+          event,
+          context: context,
+          swipeDirection: swipeAwayDirectionGetter!.call(index)!,
+          onSwipeStart: handleItemSwipeStart,
+          onSwipeUpdate: handleItemSwipeUpdate,
+          onSwipeEnd: handleItemSwipeEnd,
+        );
+      },
     );
   }
-
-  void handleItemSwipeUpdate(model.OverlayedItem item) {
-    // noop
-  }
-
-  void handleItemSwipeEnd(model.OverlayedItem item) {
-    _state.swipedItem = null;
-
-    final undecorateFuture = item.animateUndecoration();
-
-    final swipedToRemove = item.swipedToRemove(
-      extentToRemove: swipeAwayExtent,
-      velocityToRemove: swipeAwayVelocity,
-    );
-
-    if (swipedToRemove) {
-      final removedItemBuilder = didSwipeAway!.call(item.index);
-      final screenSize = getScreenSize();
-
-      removeItem(
-        item.index,
-        removedItemBuilder ?? (_, __) => item.widget!,
-        zIndex: item.zIndex,
-      );
-
-      item.animateFlingTo(
-        switch (item.swipeToRemoveDirection!) {
-          AxisDirection.left =>
-            Offset(-item.constraints.maxWidth, item.position.dy),
-          AxisDirection.right => Offset(screenSize.width, item.position.dy),
-          AxisDirection.up =>
-            Offset(item.position.dx, -item.constraints.maxHeight),
-          AxisDirection.down => Offset(item.position.dx, screenSize.height),
-        },
-        velocity: item.swipeVelocity,
-        screenSize: getScreenSize(),
-        vsync: vsync,
-      );
-    } else {
-      Future.wait([
-        undecorateFuture,
-        item.animateFlingTo(
-          overlayedItemsLayer!.globalToLocal(
-            getGlobalAnchorPosition(itemId: item.id),
-          )!,
-          velocity: item.swipeVelocity,
-          screenSize: getScreenSize(),
-          vsync: vsync,
-        )
-      ]).whenComplete(
-        () => unoverlay(item),
-      );
-    }
-  }
-}
-
-extension _ItemLayerHandlers on AnimatedReorderableController {
-  void handleDidBuildItemsLayer() {
-    for (var overlayedItem in _state.overlayedItems
-        .where(isNotRendered)
-        .where((x) => !x.outgoing)
-        .toList()) {
-      final fakeGeometry = getNotRenderedItemFakeAnchorGeometry(
-          notRenderedItemIndex: overlayedItem.index,
-          anyRenderedItemIndex: _state.renderedItems.first.index,
-          itemSize: overlayedItem.constraints.biggest);
-
-      overlayedItem
-          .animateTo(
-            fakeGeometry.topLeft,
-            vsync: vsync,
-            duration: motionAnimationDuration,
-            curve: motionAnimationCurve,
-          )
-          .whenComplete(
-            () => unoverlay(overlayedItem),
-          );
-    }
-  }
-}
-
-extension _Misc on AnimatedReorderableController {
-  int? get itemCount => _state.itemCount;
-
-  Iterable<model.OverlayedItem> get overlayedItems => _state.overlayedItems;
-  Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
-      overlayedItems.toList()..sort((a, b) => a.zIndex.compareTo(b.zIndex));
-
-  GlobalKey<_ItemsLayerState> get itemsLayerKey => _itemsLayerKey;
-
-  _ItemsLayerState? get itemsLayer => itemsLayerKey.currentState;
-
-  GlobalKey<_OverlayedItemsLayerState> get overlayedItemsLayerKey =>
-      _overlayedItemsLayerKey;
-
-  _OverlayedItemsLayerState? get overlayedItemsLayer =>
-      overlayedItemsLayerKey.currentState;
-
-  Size getScreenSize() {
-    final screenView = WidgetsBinding.instance.platformDispatcher.views.first;
-    return screenView.physicalSize / screenView.devicePixelRatio;
-  }
-
-  Offset getGlobalAnchorPosition({required int itemId}) =>
-      _state.renderedItemBy(id: itemId)?.globalPosition ?? Offset.zero;
-
-  bool isDragged(RenderedItem item) => _state.isDragged(id: item.id);
-  bool isSwiped(RenderedItem item) => _state.isSwiped(id: item.id);
-  bool isNotDragged(RenderedItem item) => !isDragged(item);
-  bool isNotSwiped(RenderedItem item) => !isSwiped(item);
-  bool isRendered(model.OverlayedItem item) => _state.isRendered(id: item.id);
-  bool isNotRendered(model.OverlayedItem item) => !isRendered(item);
 }
 
 extension _Scrolling on AnimatedReorderableController {
@@ -809,115 +844,16 @@ extension _Scrolling on AnimatedReorderableController {
   }
 }
 
-extension _ChildrenDelegate on AnimatedReorderableController {
-  OverridedSliverChildBuilderDelegate get childrenDelegate => _childrenDelegate;
-  set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
-      _childrenDelegate = value;
-
-  SliverChildDelegate overrideChildrenDelegate(SliverChildDelegate delegate) =>
-      childrenDelegate = OverridedSliverChildBuilderDelegate.override(
-        delegate: delegate,
-        overridedChildBuilder: buildItemWidget,
-        overridedChildCountGetter: () => itemCount,
-      );
-
-  Widget buildItemWidget(BuildContext context, int index) {
-    final item = ensureItemAt(index: index);
-
-    return ItemWidget(
-      key: ValueKey(item.id),
-      index: index,
-      id: item.id,
-      reorderableGetter: reorderableGetter,
-      draggableGetter: draggableGetter,
-      swipeAwayDirectionGetter: swipeAwayDirectionGetter,
-      overlayedGetter: (id) => _state.isOverlayed(id: id),
-      builder: item.builder.build,
-      onInit: registerRenderedItem,
-      didUpdate: (renderedItem) {
-        unregisterRenderedItem(renderedItem);
-        registerRenderedItem(renderedItem);
-      },
-      onDispose: unregisterRenderedItem,
-      onDeactivate: unregisterRenderedItem,
-      didBuild: (renderedItem) {
-        if (isDragged(renderedItem)) return;
-        if (isSwiped(renderedItem)) return;
-
-        final globalPosition = renderedItem.globalPosition;
-        if (globalPosition == null) return;
-
-        final overlayedItem = _state.overlayedItemBy(id: renderedItem.id);
-        if (overlayedItem == null) return;
-
-        final anchorPosition =
-            overlayedItemsLayer!.globalToLocal(globalPosition)!;
-
-        if (overlayedItem.anchorPosition != anchorPosition) {
-          overlayedItem
-              .animateTo(
-                anchorPosition,
-                vsync: vsync,
-                duration: motionAnimationDuration,
-                curve: motionAnimationCurve,
-              )
-              .whenComplete(
-                () => unoverlay(overlayedItem),
-              );
-        } else if (overlayedItem.motionAnimationStatus?.idle ?? true) {
-          unoverlay(overlayedItem);
-        }
-      },
-      recognizeDrag: (renderedItem, event) {
-        ensureOverlayedItem(
-          renderedItem,
-          recognizerFactory: createReoderGestureRecognizer,
-        ).recognizeDrag(
-          event,
-          context: context,
-          onDragStart: (overlayedItem) {
-            overlayedItem.setZIndex(maxZIndex);
-            overlayedItem.recognizerFactory = createImmediateGestureRecognizer;
-            handleItemDragStart(overlayedItem);
-          },
-          onDragUpdate: handleItemDragUpdate,
-          onDragEnd: handleItemDragEnd,
-        );
-      },
-      recognizeSwipe: (renderedItem, event) {
-        ensureOverlayedItem(
-          renderedItem,
-          recognizerFactory: scrollController!.axis == Axis.horizontal
-              ? createHorizontalSwipeAwayGestureRecognizer
-              : createVerticalSwipeAwayGestureRecognizer,
-        ).recognizeSwipe(
-          event,
-          context: context,
-          swipeDirection: swipeAwayDirectionGetter!.call(index)!,
-          onSwipeStart: (overlayedItem) {
-            overlayedItem.setZIndex(maxZIndex);
-            handleItemSwipeStart(overlayedItem);
-          },
-          onSwipeUpdate: handleItemSwipeUpdate,
-          onSwipeEnd: handleItemSwipeEnd,
-        );
-      },
-    );
-  }
-
-  void registerRenderedItem(RenderedItem item) {
-    _state.putRenderedItem(item);
-
-    if (_state.isOverlayed(id: item.id)) {
-      addPostFrame(() => overlayedItemsLayer?.rebuild(() {}));
-    }
-  }
-
-  void unregisterRenderedItem(RenderedItem item) {
-    final registeredRenderedItem = _state.renderedItemBy(id: item.id);
-    if (registeredRenderedItem == item) {
-      _state.removeRenderedItemBy(id: item.id);
-    }
+extension _AnimatedReorderableController on AnimatedReorderableController {
+  AnimatedReorderableController setup({
+    required SliverChildDelegate childrenDelegate,
+    ScrollController? scrollController,
+  }) {
+    _state
+      ..reset()
+      ..itemCount = getChildCount(childrenDelegate);
+    setupScrollController(scrollController ?? ScrollController());
+    return this;
   }
 
   model.Item ensureItemAt({required int index}) =>
@@ -937,15 +873,15 @@ extension _ChildrenDelegate on AnimatedReorderableController {
         ),
       );
 
-  model.OverlayedItem ensureOverlayedItem(
+  model.OverlayedItem createOverlayedItem(
     RenderedItem renderedItem, {
     int? index,
     bool interactive = true,
+    bool outgoing = false,
     int zIndex = defaultZIndex,
     model.RecognizerFactory? recognizerFactory,
     model.ItemBuilder? builder,
   }) =>
-      _state.overlayedItemBy(id: renderedItem.id) ??
       model.OverlayedItem(
         index: index ?? renderedItem.index,
         id: renderedItem.id,
@@ -955,38 +891,127 @@ extension _ChildrenDelegate on AnimatedReorderableController {
         constraints: BoxConstraints.tight(renderedItem.size!),
         zIndex: zIndex,
         interactive: interactive,
+        outgoing: outgoing,
         builder: builder ??
             model.ItemBuilder.adaptOtherItemBuilder(
               _state.itemBy(id: renderedItem.id)!,
             ),
         recognizerFactory: recognizerFactory,
-      );
+      )..addListener(overlayedItemsLayer!.rebuild);
 
-  Rect getNotRenderedItemFakeAnchorGeometry({
+  void registerRenderedItem(RenderedItem item) => _state.putRenderedItem(item);
+
+  void unregisterRenderedItem(RenderedItem item) {
+    final registeredRenderedItem = _state.renderedItemBy(id: item.id);
+    if (registeredRenderedItem == item) {
+      _state.removeRenderedItemBy(id: item.id);
+    }
+  }
+
+  void reorderAndAutoScrollIfNecessary() {
+    reorderIfNecessary();
+    autoScrollIfNecessary();
+  }
+
+  void reorderIfNecessary() {
+    if (_state.draggedItem == null) return;
+    final item = _state.draggedItem!;
+
+    if (!reorderableGetter(item.index)) return;
+
+    final pointerPosition = item.pointerPosition!;
+    final renderedItem = _state.renderedItemAt(position: pointerPosition);
+
+    if (renderedItem?.id == _state.itemUnderThePointerId) return;
+    _state.itemUnderThePointerId = renderedItem?.id;
+
+    if (renderedItem == null) return;
+    if (renderedItem.id == item.id) return;
+    if (!renderedItem.reorderable) return;
+
+    moveItem(item.index, destIndex: renderedItem.index);
+
+    addPostFrame(() => _state.itemUnderThePointerId =
+        _state.renderedItemAt(position: pointerPosition)?.id);
+  }
+
+  void unoverlay(model.OverlayedItem item) {
+    if (!_state.isOverlayed(id: item.id)) return;
+    overlayedItemsLayer?.rebuild(() => _state.removeOverlayedItem(id: item.id));
+    _state.renderedItemBy(id: item.id)?.rebuild();
+  }
+
+  Rect getFakeAnchorGeometryOfNotRenderedItem({
     required int notRenderedItemIndex,
     required int anyRenderedItemIndex,
     Size? itemSize,
   }) {
-    final screenGeometry = Offset.zero & getScreenSize();
-    final size = itemSize ??
-        _gridLayout?.getChildSize(
-            notRenderedItemIndex, scrollController!.axis) ??
+    itemSize ??= _state.gridLayout
+            ?.getChildSize(notRenderedItemIndex, scrollController!.axis) ??
         measureItemWidgetAt(index: notRenderedItemIndex);
+
+    final screenGeometry = Offset.zero & getScreenSize();
     final fakePosition = switch (scrollController!.axisDirection) {
       AxisDirection.down => notRenderedItemIndex < anyRenderedItemIndex
-          ? screenGeometry.topCenter - Offset(size.width / 2, size.height)
-          : screenGeometry.bottomCenter - Offset(size.width / 2, 0),
+          ? screenGeometry.topCenter -
+              Offset(itemSize.width / 2, itemSize.height)
+          : screenGeometry.bottomCenter - Offset(itemSize.width / 2, 0),
       AxisDirection.right => notRenderedItemIndex < anyRenderedItemIndex
-          ? screenGeometry.centerLeft - Offset(size.width, size.height / 2)
-          : screenGeometry.centerRight - Offset(0, size.height / 2),
+          ? screenGeometry.centerLeft -
+              Offset(itemSize.width, itemSize.height / 2)
+          : screenGeometry.centerRight - Offset(0, itemSize.height / 2),
       AxisDirection.up => notRenderedItemIndex < anyRenderedItemIndex
-          ? screenGeometry.bottomCenter - Offset(size.width / 2, 0)
-          : screenGeometry.topCenter - Offset(size.width / 2, size.height),
+          ? screenGeometry.bottomCenter - Offset(itemSize.width / 2, 0)
+          : screenGeometry.topCenter -
+              Offset(itemSize.width / 2, itemSize.height),
       AxisDirection.left => notRenderedItemIndex < anyRenderedItemIndex
-          ? screenGeometry.centerRight - Offset(0, size.height / 2)
-          : screenGeometry.centerLeft - Offset(size.width, size.height / 2),
+          ? screenGeometry.centerRight - Offset(0, itemSize.height / 2)
+          : screenGeometry.centerLeft -
+              Offset(itemSize.width, itemSize.height / 2),
     };
 
-    return fakePosition & size;
+    return fakePosition & itemSize;
   }
+
+  Size measureItemWidgetAt({required int index}) => MeasureUtil.measureWidget(
+        context: _scrollController!.scrollableState!.context,
+        builder: (context) =>
+            _childrenDelegate.originalBuilder(context, index)!,
+        constraints: scrollController!.axis == Axis.vertical
+            ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
+            : BoxConstraints(maxHeight: _state.constraints!.maxHeight),
+      );
+
+  Size getScreenSize() {
+    final screenView = WidgetsBinding.instance.platformDispatcher.views.first;
+    return screenView.physicalSize / screenView.devicePixelRatio;
+  }
+}
+
+extension _StateUtils on AnimatedReorderableController {
+  Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
+      _state.overlayedItems.toList()
+        ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+
+  bool isDragged(RenderedItem item) => _state.isDragged(id: item.id);
+
+  bool isSwiped(RenderedItem item) => _state.isSwiped(id: item.id);
+
+  bool isNotDragged(RenderedItem item) => !isDragged(item);
+
+  bool isNotSwiped(RenderedItem item) => !isSwiped(item);
+
+  bool isRendered(model.OverlayedItem item) => _state.isRendered(id: item.id);
+
+  bool isNotRendered(model.OverlayedItem item) => !isRendered(item);
+
+  GlobalKey<_ItemsLayerState> get itemsLayerKey => _state.itemsLayerKey;
+
+  GlobalKey<_OverlayedItemsLayerState> get overlayedItemsLayerKey =>
+      _state.overlayedItemsLayerKey;
+
+  _ItemsLayerState? get itemsLayer => _state.itemsLayerState;
+
+  _OverlayedItemsLayerState? get overlayedItemsLayer =>
+      _state.overlayedItemsLayerState;
 }

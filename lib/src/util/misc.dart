@@ -25,10 +25,10 @@ extension StateExtension on State {
       scrollDirection == Axis.vertical
           ? MediaQuery.paddingOf(context).copyWith(left: 0.0, right: 0.0)
           : MediaQuery.paddingOf(context).copyWith(top: 0.0, bottom: 0.0);
-  void rebuild(VoidCallback cb) {
+  void rebuild([VoidCallback? cb]) {
     if (!mounted) return;
     // ignore: invalid_use_of_protected_member
-    setState(cb);
+    setState(() => cb?.call());
   }
 }
 

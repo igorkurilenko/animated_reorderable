@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'main.dart';
 
-const initialNumberOfItems = 5;
+const initialNumberOfItems = 100;
 
 class GridViewSample extends StatefulWidget {
   const GridViewSample({super.key});
@@ -42,7 +42,7 @@ class GridViewSampleState extends State<GridViewSample>
       controller: controller,
       gridView: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
+          crossAxisCount: 5,
           childAspectRatio: 1 / 1.618,
         ),
         itemCount: items.length,
@@ -54,13 +54,6 @@ class GridViewSampleState extends State<GridViewSample>
   Widget buildItem(int item) => Card(
         color: Colors.grey.shade300,
         elevation: 0,
-        margin: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 32,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(32),
-        ),
         child: Center(
           child: Text(
             '$item',

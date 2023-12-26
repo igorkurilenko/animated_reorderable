@@ -1,6 +1,11 @@
 part of model;
 
-class ControllerState {
+class ControllerState<ItemsLayerState extends State<StatefulWidget>,
+    OverlayedItemsLayerState extends State<StatefulWidget>> {
+  GlobalKey<ItemsLayerState> _itemsLayerKey = GlobalKey<ItemsLayerState>();
+  GlobalKey<OverlayedItemsLayerState> _overlayedItemsLayerKey =
+      GlobalKey<OverlayedItemsLayerState>();
+
   final _itemById = <int, Item>{};
   final _itemIdByIndex = SplayTreeMap<int, int>();
   final _overlayedItemById = <int, OverlayedItem>{};
@@ -10,14 +15,30 @@ class ControllerState {
   int? itemUnderThePointerId;
   int? itemCount;
   BoxConstraints? constraints;
+  SliverGridLayout? gridLayout;
   Offset scrollOffset = Offset.zero;
   bool shiftItemsOnScroll = true;
 
+  GlobalKey<ItemsLayerState> get itemsLayerKey => _itemsLayerKey;
+
+  ItemsLayerState? get itemsLayerState => itemsLayerKey.currentState;
+
+  GlobalKey<OverlayedItemsLayerState> get overlayedItemsLayerKey =>
+      _overlayedItemsLayerKey;
+
+  OverlayedItemsLayerState? get overlayedItemsLayerState =>
+      overlayedItemsLayerKey.currentState;
+
   Iterable<Item> get items => _itemById.values;
+
   Iterable<OverlayedItem> get overlayedItems => _overlayedItemById.values;
+
   Iterable<RenderedItem> get renderedItems => _renderedItemById.values;
+
   bool isDragged({required int id}) => id == draggedItem?.id;
+
   bool isSwiped({required int id}) => id == swipedItem?.id;
+
   Iterable<(int, Item)> iterator() => _itemIdByIndex.entries.map(
         (e) => (e.key, itemBy(id: e.value)!),
       );
@@ -28,7 +49,7 @@ class ControllerState {
 
   Item putItem(Item x) => _itemById[x.id] = x;
 
-  void putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
+  RenderedItem putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
 
   RenderedItem? renderedItemBy({required int id}) => _renderedItemById[id];
 
@@ -47,10 +68,14 @@ class ControllerState {
 
   OverlayedItem? overlayedItemBy({required int id}) => _overlayedItemById[id];
 
-  void putOverlayedItem(OverlayedItem x) {
+  OverlayedItem putOverlayedItem(OverlayedItem x) {
     _overlayedItemById.remove(x.id);
-    _overlayedItemById[x.id] = x;
+    return _overlayedItemById[x.id] = x;
   }
+
+  OverlayedItem putOverlayedItemIfAbsent(
+          {required int id, required OverlayedItem Function() ifAbsent}) =>
+      putOverlayedItem(overlayedItemBy(id: id) ?? ifAbsent());
 
   OverlayedItem? removeOverlayedItem({required int id}) =>
       _overlayedItemById.remove(id);
@@ -150,6 +175,8 @@ class ControllerState {
   }
 
   void reset() {
+    _itemsLayerKey = GlobalKey<ItemsLayerState>();
+    _overlayedItemsLayerKey = GlobalKey<OverlayedItemsLayerState>();
     _itemById.clear();
     _overlayedItemById.clear();
     _itemIdByIndex.clear();
@@ -161,6 +188,7 @@ class ControllerState {
     constraints = null;
     scrollOffset = Offset.zero;
     shiftItemsOnScroll = true;
+    gridLayout = null;
   }
 
   void dispose() {
@@ -170,5 +198,6 @@ class ControllerState {
     for (var x in overlayedItems) {
       x.dispose();
     }
+    reset();
   }
 }

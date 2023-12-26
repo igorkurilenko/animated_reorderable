@@ -1,11 +1,11 @@
 library model;
 
 import 'dart:collection';
-import 'package:flutter/animation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter/gestures.dart' as gestures;
+import 'package:flutter/widgets.dart';
 
 import '../const.dart';
 import '../widget/item_widget.dart' show RenderedItem;

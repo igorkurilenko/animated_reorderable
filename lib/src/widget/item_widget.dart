@@ -109,10 +109,4 @@ class _ItemWidgetState extends State<ItemWidget> {
 
   void _recognizeDrag(PointerDownEvent event) =>
       widget.recognizeDrag(this, event);
-
-  @override
-  String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    final position = computeGeometry()?.topLeft;
-    return 'RenderedItem(id: $id, position: $position)';
-  }
 }
