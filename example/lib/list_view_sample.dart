@@ -41,6 +41,7 @@ class ListViewSampleState extends State<ListViewSample>
     return AnimatedReorderable.list(
       controller: controller,
       listView: ListView.builder(
+        shrinkWrap: true,
         itemCount: items.length,
         itemBuilder: ((context, index) => buildItem(items[index])),
       ),

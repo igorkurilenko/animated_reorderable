@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -57,17 +58,19 @@ abstract class AnimatedReorderable extends StatelessWidget {
           controller.handleConstraintsChange(constraints);
           return Stack(
             children: [
-              _ItemsLayer(
-                key: controller.itemsLayerKey,
-                controller: controller,
-                builder: buildCollectionView,
-                didBuild: controller.handleDidBuildItemsLayer,
+              Align(
+                alignment: Alignment.center,
+                child: _ItemsLayer(
+                  key: controller.itemsLayerKey,
+                  controller: controller,
+                  builder: buildCollectionView,
+                  didBuild: controller.handleDidBuildItemsLayer,
+                ),
               ),
               _OverlayedItemsLayer(
                 key: controller.overlayedItemsLayerKey,
                 controller: controller,
                 clipBehavior: clipBehavior,
-                padding: padding,
                 scrollDirection: scrollDirection,
               ),
             ],
@@ -192,13 +195,11 @@ class _OverlayedItemsLayer extends StatefulWidget {
     super.key,
     required this.controller,
     required this.clipBehavior,
-    this.padding,
     required this.scrollDirection,
   });
 
   final AnimatedReorderableController controller;
   final Clip clipBehavior;
-  final EdgeInsetsGeometry? padding;
   final Axis scrollDirection;
 
   @override
@@ -209,8 +210,6 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
   final canvasKey = GlobalKey();
 
   AnimatedReorderableController get controller => widget.controller;
-  EdgeInsetsGeometry get effectivePadding =>
-      widget.padding ?? mediaQueryScrollablePaddingOf(widget.scrollDirection);
 
   Offset? globalToLocal(Offset point) =>
       canvasKey.currentContext?.findRenderBox()?.globalToLocal(point);
@@ -222,25 +221,22 @@ class _OverlayedItemsLayerState extends State<_OverlayedItemsLayer> {
       canvasKey.currentContext?.computeGeometry(offset);
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: effectivePadding,
-        child: Stack(
-          key: canvasKey,
-          clipBehavior: widget.clipBehavior,
-          children: [
-            for (var item in controller.overlayedItemsOrderedByZIndex)
-              OverlayedItemWidget(
-                key: ValueKey(item.id),
-                item: item,
-                onDragStart: controller.handleItemDragStart,
-                onDragUpdate: controller.handleItemDragUpdate,
-                onDragEnd: controller.handleItemDragEnd,
-                onSwipeStart: controller.handleItemSwipeStart,
-                onSwipeUpdate: controller.handleItemSwipeUpdate,
-                onSwipeEnd: controller.handleItemSwipeEnd,
-              ),
-          ],
-        ),
+  Widget build(BuildContext context) => Stack(
+        key: canvasKey,
+        clipBehavior: widget.clipBehavior,
+        children: [
+          for (var item in controller.overlayedItemsOrderedByZIndex)
+            OverlayedItemWidget(
+              key: ValueKey(item.id),
+              item: item,
+              onDragStart: controller.handleItemDragStart,
+              onDragUpdate: controller.handleItemDragUpdate,
+              onDragEnd: controller.handleItemDragEnd,
+              onSwipeStart: controller.handleItemSwipeStart,
+              onSwipeUpdate: controller.handleItemSwipeUpdate,
+              onSwipeEnd: controller.handleItemSwipeEnd,
+            ),
+        ],
       );
 }
 
