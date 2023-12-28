@@ -1,3 +1,4 @@
+import 'package:example/model.dart';
 import 'package:flutter/material.dart';
 
 import 'list_view_sample.dart';
@@ -11,19 +12,19 @@ final tabControllerKey = GlobalKey();
 final gridViewSampleKey = GlobalKey<GridViewSampleState>();
 final listViewSampleKey = GlobalKey<ListViewSampleState>();
 
-abstract class Sample {
-  void insertFirstItem();
-  void insertLastItem();
-  void removeFirstItem();
-  void removeLastItem();
-  void moveRandomItem();
-}
-
 class AnimatedReorderableDemo extends StatelessWidget {
   const AnimatedReorderableDemo({super.key});
 
+  Sample? _currentSampleOf(BuildContext context) {
+    final index = DefaultTabController.of(context).index;
+    if (index == 0) return listViewSampleKey.currentState!;
+    if (index == 1) return gridViewSampleKey.currentState!;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
         title: 'AnimatedReorderable',
         theme: ThemeData(
           useMaterial3: true,
@@ -37,11 +38,25 @@ class AnimatedReorderableDemo extends StatelessWidget {
           length: 2,
           child: Builder(
             builder: (context) => Scaffold(
-              extendBodyBehindAppBar: true,
-              extendBody: true,
               appBar: AppBar(
                 title: const Text('AnimatedReorderable'),
-                backgroundColor: Theme.of(context).colorScheme.primary,
+                actions: <Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.add_circle),
+                    onPressed: () => _currentSampleOf(context)?.insert(),
+                    tooltip: 'insert a new item',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.swap_calls),
+                    onPressed: () => _currentSampleOf(context)?.moveRandom(),
+                    tooltip: 'insert a new item',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle),
+                    onPressed: () => _currentSampleOf(context)?.remove(),
+                    tooltip: 'remove the selected item',
+                  ),
+                ],
                 bottom: TabBar(
                   labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
                   indicatorColor:
@@ -56,55 +71,8 @@ class AnimatedReorderableDemo extends StatelessWidget {
                 ListViewSample(key: listViewSampleKey),
                 GridViewSample(key: gridViewSampleKey),
               ]),
-              bottomNavigationBar: BottomAppBar(
-                color: Theme.of(context).colorScheme.primary,
-                child: IconTheme(
-                  data: IconTheme.of(context).copyWith(
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: <Widget>[
-                      IconButton(
-                        tooltip: 'Add first',
-                        icon: const Icon(Icons.add),
-                        onPressed: () =>
-                            curSampleOf(context)?.insertFirstItem(),
-                      ),
-                      IconButton(
-                        tooltip: 'Remove first',
-                        icon: const Icon(Icons.remove),
-                        onPressed: () =>
-                            curSampleOf(context)?.removeFirstItem(),
-                      ),
-                      IconButton(
-                        tooltip: 'Reorder random',
-                        icon: const Icon(Icons.swap_calls),
-                        onPressed: () => curSampleOf(context)?.moveRandomItem(),
-                      ),
-                      IconButton(
-                        tooltip: 'Add last',
-                        icon: const Icon(Icons.add),
-                        onPressed: () => curSampleOf(context)?.insertLastItem(),
-                      ),
-                      IconButton(
-                        tooltip: 'Remove last',
-                        icon: const Icon(Icons.remove),
-                        onPressed: () => curSampleOf(context)?.removeLastItem(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
           ),
         ),
       );
-
-  Sample? curSampleOf(BuildContext context) {
-    final index = DefaultTabController.of(context).index;
-    if (index == 0) return listViewSampleKey.currentState!;
-    if (index == 1) return gridViewSampleKey.currentState!;
-    return null;
-  }
 }

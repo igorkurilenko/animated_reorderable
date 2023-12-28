@@ -1,11 +1,9 @@
-import 'dart:developer';
-
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
-import 'main.dart';
+import 'model.dart';
 
-const initialNumberOfItems = 100;
+const initialItemCount = 5;
 
 class GridViewSample extends StatefulWidget {
   const GridViewSample({super.key});
@@ -14,57 +12,35 @@ class GridViewSample extends StatefulWidget {
   State<GridViewSample> createState() => GridViewSampleState();
 }
 
-class GridViewSampleState extends State<GridViewSample>
-    with AutomaticKeepAliveClientMixin
-    implements Sample {
+class GridViewSampleState extends State<GridViewSample> implements Sample {
   final _gridKey = GlobalKey<AnimatedReorderableState>();
-  final _items = List.generate(initialNumberOfItems, (index) => index);
-  int _nextItem = initialNumberOfItems;
-
-  AnimatedReorderableState? get _grid => _gridKey.currentState;
-
-  @override
-  bool get wantKeepAlive => true;
+  late final GridModel<Item> _grid;
+  Item? _selectedItem;
+  late int _nextItemId;
 
   @override
-  Widget build(BuildContext context) {
-    super.build(context);
-
-    return AnimatedReorderable.grid(
-      key: _gridKey,
-      idGetter: (index) => _items[index],
-      didReorder: (permutations) => permutations.apply(_items),
-      swipeAwayDirectionGetter: (index) => AxisDirection.left,
-      didSwipeAway: (index) {
-        final item = _items.removeAt(index);
-        return createRemovedItemBuilder(item);
-      },
-      gridView: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          childAspectRatio: 1 / 1.618,
-        ),
-        itemCount: _items.length,
-        itemBuilder: ((context, index) => buildItem(_items[index])),
-      ),
+  void initState() {
+    super.initState();
+    _grid = GridModel<Item>(
+      gridKey: _gridKey,
+      initialItems: List.generate(initialItemCount, (id) => Item(id: id)),
+      insertedItemBuilder: _buildInsertedItem,
+      removedItemBuilder: _buildRemovedItem,
     );
+    _nextItemId = initialItemCount;
   }
 
-  Widget buildItem(int item) => Card(
-        color: Colors.grey.shade300,
-        elevation: 0,
-        child: Center(
-          child: Text(
-            '$item',
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
+  Widget _buildItem(Item item) => CardItem(
+        item: item,
+        selected: _selectedItem == item,
+        onTap: () {
+          setState(() {
+            _selectedItem = _selectedItem == item ? null : item;
+          });
+        },
       );
 
-  Widget insertedItemBuilder(
+  Widget _buildInsertedItem(
     BuildContext context,
     int index,
     Animation<double> animation,
@@ -73,51 +49,162 @@ class GridViewSampleState extends State<GridViewSample>
         scale: animation,
         child: FadeTransition(
           opacity: animation,
-          child: buildItem(_items[index]),
+          child: _buildItem(_grid[index]),
         ),
       );
 
-  AnimatedRemovedItemBuilder createRemovedItemBuilder(int item) =>
-      (context, animation) => ScaleTransition(
-            scale: animation,
-            child: FadeTransition(
-              opacity: animation,
-              child: buildItem(item),
-            ),
-          );
+  Widget _buildRemovedItem(
+    Item item,
+    BuildContext context,
+    Animation<double> animation,
+  ) =>
+      ScaleTransition(
+        scale: animation,
+        child: FadeTransition(
+          opacity: animation,
+          child: _buildItem(item),
+        ),
+      );
 
   @override
-  void insertFirstItem() => insertItemAt(0);
-
-  @override
-  void insertLastItem() => insertItemAt(_items.length);
-
-  void insertItemAt(int index) {
-    _items.insert(index, _nextItem++);
-    _grid!.insertItem(index, insertedItemBuilder);
+  void insert() {
+    final int index =
+        _selectedItem == null ? _grid.length : _grid.indexOf(_selectedItem!);
+    _grid.insert(index, Item(id: _nextItemId++));
   }
 
   @override
-  void removeFirstItem() => removeItemAt(0);
+  void moveRandom() {
+    if (_grid.length < 2) return;
 
-  @override
-  void removeLastItem() => removeItemAt(_items.length - 1);
+    final int index, destIndex;
+    final indexes = List.generate(_grid.length, (i) => i);
 
-  void removeItemAt(int index) {
-    final item = _items.removeAt(index);
-    _grid!.removeItem(index, createRemovedItemBuilder(item));
+    if (_selectedItem == null) {
+      indexes.shuffle();
+      index = indexes.removeAt(0);
+      destIndex = indexes.removeAt(0);
+    } else {
+      index = _grid.indexOf(_selectedItem!);
+      indexes.removeAt(index);
+      indexes.shuffle();
+      destIndex = indexes.removeAt(0);
+    }
+
+    _grid.move(index, destIndex);
   }
 
   @override
-  void moveRandomItem() {
-    if (_items.length < 2) return;
+  void remove() {
+    final int index = _selectedItem == null
+        ? _grid.length - 1
+        : _grid.indexOf(_selectedItem!);
+    final item = _grid.removeAt(index);
+    if (item == _selectedItem) {
+      setState(() => _selectedItem = null);
+    }
+  }
 
-    final indexes = List.generate(_items.length, (i) => i)..shuffle();
-    final index = indexes[0];
-    final destIndex = indexes[1];
+  @override
+  Widget build(BuildContext context) => AnimatedReorderable.grid(
+        key: _gridKey,
+        idGetter: (index) => _grid[index].id,
+        onReorder: (permutations) => _grid.onReorder(permutations),
+        swipeAwayDirectionGetter: (index) => AxisDirection.left,
+        onSwipeAway: (index) {
+          final item = _grid.removeAt(index);
+          if (item == _selectedItem) {
+            setState(() => _selectedItem = null);
+          }
+        },
+        gridView: GridView.builder(
+          shrinkWrap: true,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 1 / 1.618,
+          ),
+          itemCount: _grid.length,
+          itemBuilder: ((context, index) => _buildItem(_grid[index])),
+        ),
+      );
+}
 
-    log('move item at $index to $destIndex');
+typedef RemovedItemBuilder<T> = Widget Function(
+    T item, BuildContext context, Animation<double> animation);
 
-    _grid!.moveItem(index, destIndex: destIndex);
+class GridModel<E extends HasId> {
+  GridModel({
+    required this.gridKey,
+    required this.insertedItemBuilder,
+    required this.removedItemBuilder,
+    Iterable<E>? initialItems,
+  }) : _items = List<E>.from(initialItems ?? <E>[]);
+
+  final GlobalKey<AnimatedReorderableState> gridKey;
+  final AnimatedItemBuilder insertedItemBuilder;
+  final RemovedItemBuilder<E> removedItemBuilder;
+  final List<E> _items;
+
+  AnimatedReorderableState? get _animatedReorderableGrid =>
+      gridKey.currentState;
+
+  void insert(int index, E item) {
+    _items.insert(index, item);
+    _animatedReorderableGrid!.insertItem(index, insertedItemBuilder);
+  }
+
+  E removeAt(int index) {
+    final E removedItem = _items.removeAt(index);
+    _animatedReorderableGrid!.removeItem(
+      index,
+      (BuildContext context, Animation<double> animation) =>
+          removedItemBuilder(removedItem, context, animation),
+    );
+    return removedItem;
+  }
+
+  void move(int index, int destIndex) =>
+      _animatedReorderableGrid!.moveItem(index, destIndex: destIndex);
+
+  void onReorder(Permutations permutations) => permutations.apply(_items);
+
+  int get length => _items.length;
+
+  E operator [](int index) => _items[index];
+
+  int indexOf(E item) => _items.indexOf(item);
+}
+
+class CardItem extends StatelessWidget {
+  const CardItem({
+    super.key,
+    this.onTap,
+    this.selected = false,
+    required this.item,
+  });
+
+  final VoidCallback? onTap;
+  final Item item;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    TextStyle textStyle = Theme.of(context).textTheme.headlineMedium!;
+    if (selected) {
+      textStyle = textStyle.copyWith(color: Colors.lightGreenAccent[400]);
+    }
+    return Padding(
+      padding: const EdgeInsets.all(2.0),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Card(
+          color: Colors.primaries[item.id % Colors.primaries.length],
+          child: Center(
+            child: Text('$item', style: textStyle),
+          ),
+        ),
+      ),
+    );
   }
 }

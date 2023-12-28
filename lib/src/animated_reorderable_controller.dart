@@ -18,8 +18,8 @@ class AnimatedReorderableController {
     ReorderableGetter? reorderableGetter,
     DraggableGetter? draggableGetter,
     this.swipeAwayDirectionGetter,
-    this.didReorder,
-    this.didSwipeAway,
+    this.onReorder,
+    this.onSwipeAway,
     required this.vsync,
     required this.motionAnimationDuration,
     required this.motionAnimationCurve,
@@ -48,8 +48,8 @@ class AnimatedReorderableController {
   final double swipeAwayExtent;
   final double swipeAwayVelocity;
   final widgets.SpringDescription swipeAwaySpringDescription;
-  final ReorderCallback? didReorder;
-  final SwipeAwayCallback? didSwipeAway;
+  final ReorderCallback? onReorder;
+  final SwipeAwayCallback? onSwipeAway;
   final widgets.TickerProvider vsync;
   final Duration motionAnimationDuration;
   final widgets.Curve motionAnimationCurve;
@@ -241,7 +241,7 @@ class AnimatedReorderableController {
       }
     });
 
-    itemsLayer!.rebuild(() => didReorder!.call(permutations));
+    itemsLayer!.rebuild(() => onReorder!.call(permutations));
   }
 
   void dispose() => _state.dispose();
@@ -363,7 +363,8 @@ class AnimatedReorderableController {
     return fakePosition & itemSize;
   }
 
-  widgets.Size measureItemWidgetAt({required int index}) => MeasureUtil.measureWidget(
+  widgets.Size measureItemWidgetAt({required int index}) =>
+      MeasureUtil.measureWidget(
         context: _scrollController!.scrollableState!.context,
         builder: (context) =>
             _childrenDelegate.originalBuilder(context, index)!,
@@ -373,7 +374,8 @@ class AnimatedReorderableController {
       );
 
   widgets.Size getScreenSize() {
-    final screenView = widgets.WidgetsBinding.instance.platformDispatcher.views.first;
+    final screenView =
+        widgets.WidgetsBinding.instance.platformDispatcher.views.first;
     return screenView.physicalSize / screenView.devicePixelRatio;
   }
 }
@@ -535,23 +537,18 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
       extentToRemove: swipeAwayExtent,
       velocityToRemove: swipeAwayVelocity,
     )) {
-      final removedItemBuilder = didSwipeAway!.call(item.index);
-
-      removeItem(
-        item.index,
-        removedItemBuilder,
-        defaultRemoveItemAnimationDuration,
-        zIndex: item.zIndex,
-      );
+      onSwipeAway!.call(item.index);
 
       item.animateFlingTo(
         switch (item.swipeToRemoveDirection!) {
           widgets.AxisDirection.left =>
             widgets.Offset(-item.constraints.maxWidth, item.position.dy),
-          widgets.AxisDirection.right => widgets.Offset(screenSize.width, item.position.dy),
+          widgets.AxisDirection.right =>
+            widgets.Offset(screenSize.width, item.position.dy),
           widgets.AxisDirection.up =>
             widgets.Offset(item.position.dx, -item.constraints.maxHeight),
-          widgets.AxisDirection.down => widgets.Offset(item.position.dx, screenSize.height),
+          widgets.AxisDirection.down =>
+            widgets.Offset(item.position.dx, screenSize.height),
         },
         velocity: item.swipeVelocity,
         screenSize: screenSize,
@@ -621,7 +618,8 @@ extension ChildrenDelegate on AnimatedReorderableController {
   set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
       _childrenDelegate = value;
 
-  widgets.SliverChildDelegate overrideChildrenDelegate(widgets.SliverChildDelegate delegate) =>
+  widgets.SliverChildDelegate overrideChildrenDelegate(
+          widgets.SliverChildDelegate delegate) =>
       childrenDelegate = OverridedSliverChildBuilderDelegate.override(
         delegate: delegate,
         overridedChildBuilder: buildItemWidget,
