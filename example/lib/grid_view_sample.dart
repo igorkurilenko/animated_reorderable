@@ -15,21 +15,13 @@ class GridViewSample extends StatefulWidget {
 }
 
 class GridViewSampleState extends State<GridViewSample>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin
+    with AutomaticKeepAliveClientMixin
     implements Sample {
-  final items = List.generate(initialNumberOfItems, (index) => index);
-  int nextItem = initialNumberOfItems;
+  final _gridKey = GlobalKey<AnimatedReorderableState>();
+  final _items = List.generate(initialNumberOfItems, (index) => index);
+  int _nextItem = initialNumberOfItems;
 
-  late final controller = AnimatedReorderableController(
-    vsync: this,
-    idGetter: (index) => items[index],
-    didReorder: (permutations) => permutations.apply(items),
-    swipeAwayDirectionGetter: (index) => AxisDirection.left,
-    didSwipeAway: (index) {
-      final item = items.removeAt(index);
-      return createRemovedItemBuilder(item);
-    },
-  );
+  AnimatedReorderableState? get _grid => _gridKey.currentState;
 
   @override
   bool get wantKeepAlive => true;
@@ -39,14 +31,21 @@ class GridViewSampleState extends State<GridViewSample>
     super.build(context);
 
     return AnimatedReorderable.grid(
-      controller: controller,
+      key: _gridKey,
+      idGetter: (index) => _items[index],
+      didReorder: (permutations) => permutations.apply(_items),
+      swipeAwayDirectionGetter: (index) => AxisDirection.left,
+      didSwipeAway: (index) {
+        final item = _items.removeAt(index);
+        return createRemovedItemBuilder(item);
+      },
       gridView: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 5,
           childAspectRatio: 1 / 1.618,
         ),
-        itemCount: items.length,
-        itemBuilder: ((context, index) => buildItem(items[index])),
+        itemCount: _items.length,
+        itemBuilder: ((context, index) => buildItem(_items[index])),
       ),
     );
   }
@@ -74,7 +73,7 @@ class GridViewSampleState extends State<GridViewSample>
         scale: animation,
         child: FadeTransition(
           opacity: animation,
-          child: buildItem(items[index]),
+          child: buildItem(_items[index]),
         ),
       );
 
@@ -91,34 +90,34 @@ class GridViewSampleState extends State<GridViewSample>
   void insertFirstItem() => insertItemAt(0);
 
   @override
-  void insertLastItem() => insertItemAt(items.length);
+  void insertLastItem() => insertItemAt(_items.length);
 
   void insertItemAt(int index) {
-    items.insert(index, nextItem++);
-    controller.insertItem(index, insertedItemBuilder);
+    _items.insert(index, _nextItem++);
+    _grid!.insertItem(index, insertedItemBuilder);
   }
 
   @override
   void removeFirstItem() => removeItemAt(0);
 
   @override
-  void removeLastItem() => removeItemAt(items.length - 1);
+  void removeLastItem() => removeItemAt(_items.length - 1);
 
   void removeItemAt(int index) {
-    final item = items.removeAt(index);
-    controller.removeItem(index, createRemovedItemBuilder(item));
+    final item = _items.removeAt(index);
+    _grid!.removeItem(index, createRemovedItemBuilder(item));
   }
 
   @override
   void moveRandomItem() {
-    if (items.length < 2) return;
+    if (_items.length < 2) return;
 
-    final indexes = List.generate(items.length, (i) => i)..shuffle();
+    final indexes = List.generate(_items.length, (i) => i)..shuffle();
     final index = indexes[0];
     final destIndex = indexes[1];
 
     log('move item at $index to $destIndex');
 
-    controller.moveItem(index, destIndex: destIndex);
+    _grid!.moveItem(index, destIndex: destIndex);
   }
 }

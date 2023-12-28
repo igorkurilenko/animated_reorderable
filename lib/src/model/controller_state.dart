@@ -2,6 +2,8 @@ part of model;
 
 class ControllerState<ItemsLayerState extends State<StatefulWidget>,
     OverlayedItemsLayerState extends State<StatefulWidget>> {
+  ControllerState({this.itemCount});
+
   GlobalKey<ItemsLayerState> _itemsLayerKey = GlobalKey<ItemsLayerState>();
   GlobalKey<OverlayedItemsLayerState> _overlayedItemsLayerKey =
       GlobalKey<OverlayedItemsLayerState>();
