@@ -31,8 +31,8 @@ class AnimatedReorderableController {
     required this.swipeAwayExtent,
     required this.swipeAwayVelocity,
     required this.swipeAwaySpringDescription,
-  })  : reorderableGetter = reorderableGetter ?? returnTrue,
-        draggableGetter = draggableGetter ?? returnTrue,
+  })  : reorderableGetter = reorderableGetter ?? returnFalse,
+        draggableGetter = draggableGetter ?? returnFalse,
         _state = model.ControllerState(itemCount: itemCount);
 
   widgets.ScrollController? _scrollController;
@@ -171,10 +171,10 @@ class AnimatedReorderableController {
       throw RangeError.value(index);
     }
     if (!reorderableGetter(index)) {
-      throw ('The item is not reorderable at $index');
+      throw ('The item at index $index is not reorderable');
     }
     if (!reorderableGetter(destIndex)) {
-      throw ('The item is not reorderable at $destIndex');
+      throw ('The item at index $destIndex is not reorderable');
     }
     if (index == destIndex) return;
 

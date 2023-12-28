@@ -119,6 +119,8 @@ class ListViewSampleState extends State<ListViewSample> implements Sample {
   Widget build(BuildContext context) => AnimatedReorderable.list(
         key: _listKey,
         idGetter: (index) => _list[index].id,
+        draggableGetter: (index) => true,
+        reorderableGetter: (index) => true,
         onReorder: (permutations) => _list.onReorder(permutations),
         swipeAwayDirectionGetter: (index) => AxisDirection.left,
         onSwipeAway: (index) {

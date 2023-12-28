@@ -38,7 +38,14 @@ abstract class AnimatedReorderable extends StatefulWidget {
     this.swipedItemDecorator,
     this.swipedItemDecorationAnimationDuration =
         defaultSwipedItemDecorationAnimationDuration,
-  });
+  })  : assert(
+            (swipeAwayDirectionGetter != null && onSwipeAway != null) ||
+                swipeAwayDirectionGetter == null,
+            "The 'onSwipeAway' parameter must be specified"),
+        assert(
+            (reorderableGetter != null && onReorder != null) ||
+                reorderableGetter == null,
+            "The 'onReorder' parameter must be specified");
 
   factory AnimatedReorderable.list({
     Key? key,
@@ -144,10 +151,11 @@ abstract class AnimatedReorderable extends StatefulWidget {
   final ReorderCallback? onReorder;
 
   final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
+  final SwipeAwayCallback? onSwipeAway;
+
   final SpringDescription swipeAwaySpringDescription;
   final double swipeAwayExtent;
   final double swipeAwayVelocity;
-  final SwipeAwayCallback? onSwipeAway;
 
   final Duration motionAnimationDuration;
   final Curve motionAnimationCurve;
@@ -164,19 +172,21 @@ abstract class AnimatedReorderable extends StatefulWidget {
   }
 
   static AnimatedReorderableState of(BuildContext context) {
-    final AnimatedReorderableState? result = AnimatedReorderable.maybeOf(context);
+    final AnimatedReorderableState? result =
+        AnimatedReorderable.maybeOf(context);
     assert(() {
       if (result == null) {
         throw FlutterError.fromParts(<DiagnosticsNode>[
-          ErrorSummary('AnimatedReorderable.of() called with a context that does not contain an AnimatedReorderable.'),
+          ErrorSummary(
+              'AnimatedReorderable.of() called with a context that does not contain an AnimatedReorderable.'),
           ErrorDescription(
             'No AnimatedReorderable ancestor could be found starting from the context that was passed to AnimatedReorderable.of().',
           ),
           ErrorHint(
             'This can happen when the context provided is from the same StatefulWidget that '
-                'built the AnimatedReorderable. Please see the AnimatedReorderable documentation for examples '
-                'of how to refer to an AnimatedReorderableState object:\n'
-                '  https://pub.dev/packages/animated_reorderable',
+            'built the AnimatedReorderable. Please see the AnimatedReorderable documentation for examples '
+            'of how to refer to an AnimatedReorderableState object:\n'
+            '  https://pub.dev/packages/animated_reorderable',
           ),
           context.describeElement('The context used was'),
         ]);
@@ -405,4 +415,3 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
         clipBehavior: clipBehavior,
       );
 }
-

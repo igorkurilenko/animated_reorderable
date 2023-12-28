@@ -62,8 +62,8 @@ class AnimatedReorderableDemo extends StatelessWidget {
                   indicatorColor:
                       Theme.of(context).colorScheme.onPrimaryContainer,
                   tabs: const [
-                    Tab(text: 'ListView'),
-                    Tab(text: 'GridView'),
+                    Tab(text: 'List'),
+                    Tab(text: 'Grid'),
                   ],
                 ),
               ),

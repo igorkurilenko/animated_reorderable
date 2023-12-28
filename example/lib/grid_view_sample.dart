@@ -109,6 +109,8 @@ class GridViewSampleState extends State<GridViewSample> implements Sample {
   Widget build(BuildContext context) => AnimatedReorderable.grid(
         key: _gridKey,
         idGetter: (index) => _grid[index].id,
+        draggableGetter: (index) => true,
+        reorderableGetter: (index) => true,
         onReorder: (permutations) => _grid.onReorder(permutations),
         swipeAwayDirectionGetter: (index) => AxisDirection.left,
         onSwipeAway: (index) {
