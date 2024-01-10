@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'model.dart';
 
-const initialItemCount = 5;
+const initialItemCount = 6;
 
 class GridViewSample extends StatefulWidget {
   const GridViewSample({super.key});
@@ -108,12 +108,12 @@ class GridViewSampleState extends State<GridViewSample> implements Sample {
   @override
   Widget build(BuildContext context) => AnimatedReorderable.grid(
         key: _gridKey,
-        idGetter: (index) => _grid[index].id,
+        keyGetter: (index) => ValueKey(_grid[index]),
         draggableGetter: (index) => true,
         reorderableGetter: (index) => true,
         onReorder: (permutations) => _grid.onReorder(permutations),
-        swipeAwayDirectionGetter: (index) => AxisDirection.left,
-        onSwipeAway: (index) {
+        swipeToRemoveDirectionGetter: (index) => AxisDirection.left,
+        onSwipeToRemove: (index) {
           final item = _grid.removeAt(index);
           if (item == _selectedItem) {
             setState(() => _selectedItem = null);

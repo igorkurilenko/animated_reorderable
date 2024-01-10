@@ -8,13 +8,13 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
   GlobalKey<OverlayedItemsLayerState> _overlayedItemsLayerKey =
       GlobalKey<OverlayedItemsLayerState>();
 
-  final _itemById = <int, Item>{};
-  final _itemIdByIndex = SplayTreeMap<int, int>();
-  final _overlayedItemById = <int, OverlayedItem>{};
-  final _renderedItemById = <int, RenderedItem>{};
+  final _itemByKey = <Key, Item>{};
+  final _itemKeyByIndex = SplayTreeMap<int, Key>();
+  final _overlayedItemByKey = <Key, OverlayedItem>{};
+  final _renderedItemByKey = <Key, RenderedItem>{};
   OverlayedItem? draggedItem;
   OverlayedItem? swipedItem;
-  int? itemUnderThePointerId;
+  Key? itemUnderThePointerKey;
   int? itemCount;
   BoxConstraints? constraints;
   SliverGridLayout? gridLayout;
@@ -31,56 +31,57 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
   OverlayedItemsLayerState? get overlayedItemsLayerState =>
       overlayedItemsLayerKey.currentState;
 
-  Iterable<Item> get items => _itemById.values;
+  Iterable<Item> get items => _itemByKey.values;
 
-  Iterable<OverlayedItem> get overlayedItems => _overlayedItemById.values;
+  Iterable<OverlayedItem> get overlayedItems => _overlayedItemByKey.values;
 
-  Iterable<RenderedItem> get renderedItems => _renderedItemById.values;
+  Iterable<RenderedItem> get renderedItems => _renderedItemByKey.values;
 
-  bool isDragged({required int id}) => id == draggedItem?.id;
+  bool isDragged({required Key key}) => key == draggedItem?.key;
 
-  bool isSwiped({required int id}) => id == swipedItem?.id;
+  bool isSwiped({required Key key}) => key == swipedItem?.key;
 
-  Iterable<(int, Item)> iterator() => _itemIdByIndex.entries.map(
-        (e) => (e.key, itemBy(id: e.value)!),
+  Iterable<(int, Item)> iterator() => _itemKeyByIndex.entries.map(
+        (e) => (e.key, itemBy(key: e.value)!),
       );
 
-  Item? itemAt({required int index}) => itemBy(id: _itemIdByIndex[index] ?? -1);
+  Item? itemAt({required int index}) =>
+      itemBy(key: _itemKeyByIndex[index] ?? UniqueKey());
 
-  Item? itemBy({required int id}) => _itemById[id];
+  Item? itemBy({required Key key}) => _itemByKey[key];
 
-  Item putItem(Item x) => _itemById[x.id] = x;
+  Item putItem(Item x) => _itemByKey[x.key] = x;
 
-  RenderedItem putRenderedItem(RenderedItem x) => _renderedItemById[x.id] = x;
+  RenderedItem putRenderedItem(RenderedItem x) => _renderedItemByKey[x.key] = x;
 
-  RenderedItem? renderedItemBy({required int id}) => _renderedItemById[id];
+  RenderedItem? renderedItemBy({required Key key}) => _renderedItemByKey[key];
 
-  RenderedItem? removeRenderedItemBy({required int id}) =>
-      _renderedItemById.remove(id);
+  RenderedItem? removeRenderedItemBy({required Key key}) =>
+      _renderedItemByKey.remove(key);
 
-  bool isRendered({required int id}) => _renderedItemById.containsKey(id);
+  bool isRendered({required Key key}) => _renderedItemByKey.containsKey(key);
 
-  void setIndex({required int itemId, required int index}) =>
-      _itemIdByIndex[index] = itemId;
+  void setIndex({required Key itemKey, required int index}) =>
+      _itemKeyByIndex[index] = itemKey;
 
-  bool isOverlayed({required int id}) => _overlayedItemById.containsKey(id);
+  bool isOverlayed({required Key key}) => _overlayedItemByKey.containsKey(key);
 
   bool isOverlayedAt({required int index}) =>
-      _overlayedItemById.containsKey(_itemIdByIndex[index] ?? -1);
+      _overlayedItemByKey.containsKey(_itemKeyByIndex[index] ?? -1);
 
-  OverlayedItem? overlayedItemBy({required int id}) => _overlayedItemById[id];
+  OverlayedItem? overlayedItemBy({required Key key}) => _overlayedItemByKey[key];
 
   OverlayedItem putOverlayedItem(OverlayedItem x) {
-    _overlayedItemById.remove(x.id);
-    return _overlayedItemById[x.id] = x;
+    _overlayedItemByKey.remove(x.key);
+    return _overlayedItemByKey[x.key] = x;
   }
 
   OverlayedItem putOverlayedItemIfAbsent(
-          {required int id, required OverlayedItem Function() ifAbsent}) =>
-      putOverlayedItem(overlayedItemBy(id: id) ?? ifAbsent());
+          {required Key key, required OverlayedItem Function() ifAbsent}) =>
+      putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
 
-  OverlayedItem? removeOverlayedItem({required int id}) =>
-      _overlayedItemById.remove(id);
+  OverlayedItem? removeOverlayedItem({required Key key}) =>
+      _overlayedItemByKey.remove(key);
 
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
@@ -89,9 +90,9 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
     required int index,
     required Item Function(int index) itemFactory,
   }) {
-    for (var i in _itemIdByIndex.keys.toList().reversed) {
+    for (var i in _itemKeyByIndex.keys.toList().reversed) {
       if (i < index) break;
-      _itemIdByIndex[i + 1] = _itemIdByIndex[i]!;
+      _itemKeyByIndex[i + 1] = _itemKeyByIndex[i]!;
     }
 
     for (var overlayedItem in overlayedItems) {
@@ -102,8 +103,8 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
 
     final item = itemFactory.call(index);
 
-    _itemById[item.id] = item;
-    _itemIdByIndex[index] = item.id;
+    _itemByKey[item.key] = item;
+    _itemKeyByIndex[index] = item.key;
 
     itemCount = itemCount! + 1;
 
@@ -111,18 +112,18 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
   }
 
   Item? removeItem({required int index}) {
-    final id = _itemIdByIndex.remove(index);
+    final key = _itemKeyByIndex.remove(index);
 
     itemCount = itemCount! - 1;
 
     int? lastIndex;
-    for (var i in _itemIdByIndex.keys.toList()) {
+    for (var i in _itemKeyByIndex.keys.toList()) {
       if (i > index) {
-        _itemIdByIndex[i - 1] = _itemIdByIndex[i]!;
+        _itemKeyByIndex[i - 1] = _itemKeyByIndex[i]!;
         lastIndex = i;
       }
     }
-    _itemIdByIndex.remove(lastIndex);
+    _itemKeyByIndex.remove(lastIndex);
 
     for (var overlayedItem in overlayedItems) {
       if (overlayedItem.index > index) {
@@ -130,7 +131,7 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
       }
     }
 
-    return _itemById.remove(id);
+    return _itemByKey.remove(key);
   }
 
   Permutations moveItem({
@@ -146,22 +147,22 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
     decrement(int i) => i - 1;
     final nextIndex = index > destIndex ? increment : decrement;
     var curItem = itemAt(index: index) ?? putItem(itemFactory(index));
-    int unorderedItemId = curItem.id;
+    Key unorderedItemKey = curItem.key;
     int unorderedItemIndex = index;
 
     for (var curIndex = destIndex;; curIndex = nextIndex(curIndex)) {
       curItem = itemAt(index: curIndex) ?? putItem(itemFactory(curIndex));
 
       if (reorderableGetter(curIndex)) {
-        _itemIdByIndex[curIndex] = unorderedItemId;
+        _itemKeyByIndex[curIndex] = unorderedItemKey;
 
         permutations.addPermutation(
-          elementId: unorderedItemId,
+          itemKey: unorderedItemKey,
           from: unorderedItemIndex,
           to: curIndex,
         );
 
-        unorderedItemId = curItem.id;
+        unorderedItemKey = curItem.key;
         unorderedItemIndex = curIndex;
       }
 
@@ -170,7 +171,7 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
 
     for (var overlayedItem in overlayedItems) {
       overlayedItem.index =
-          permutations.indexOf(overlayedItem.id) ?? overlayedItem.index;
+          permutations.indexOf(overlayedItem.key) ?? overlayedItem.index;
     }
 
     return permutations;
@@ -179,13 +180,13 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
   void reset() {
     _itemsLayerKey = GlobalKey<ItemsLayerState>();
     _overlayedItemsLayerKey = GlobalKey<OverlayedItemsLayerState>();
-    _itemById.clear();
-    _overlayedItemById.clear();
-    _itemIdByIndex.clear();
-    _renderedItemById.clear();
+    _itemByKey.clear();
+    _overlayedItemByKey.clear();
+    _itemKeyByIndex.clear();
+    _renderedItemByKey.clear();
     draggedItem = null;
     swipedItem = null;
-    itemUnderThePointerId = null;
+    itemUnderThePointerKey = null;
     itemCount = null;
     constraints = null;
     scrollOffset = Offset.zero;

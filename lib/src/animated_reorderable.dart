@@ -10,28 +10,28 @@ import 'util/misc.dart';
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
-typedef IdGetter = int Function(int index);
+typedef KeyGetter = Key Function(int index);
 typedef ReorderableGetter = bool Function(int index);
 typedef DraggableGetter = bool Function(int index);
-typedef SwipeAwayDirectionGetter = AxisDirection? Function(int index);
+typedef SwipeToRemoveDirectionGetter = AxisDirection? Function(int index);
 typedef ReorderCallback = void Function(Permutations permutations);
-typedef SwipeAwayCallback = void Function(int index);
+typedef SwipeToRemoveCallback = void Function(int index);
 
 abstract class AnimatedReorderable extends StatefulWidget {
   const AnimatedReorderable({
     super.key,
-    required this.idGetter,
+    required this.keyGetter,
     this.motionAnimationDuration = defaultMotionAnimationDuration,
     this.motionAnimationCurve = defaultMotionAnimationCurve,
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     this.draggableGetter,
     this.reorderableGetter,
     this.onReorder,
-    this.swipeAwayDirectionGetter,
-    this.swipeAwaySpringDescription = defaultFlingSpringDescription,
-    this.swipeAwayExtent = defaultSwipeAwayExtent,
-    this.swipeAwayVelocity = defaultSwipeAwayVelocity,
-    this.onSwipeAway,
+    this.swipeToRemoveDirectionGetter,
+    this.swipeToRemoveSpringDescription = defaultFlingSpringDescription,
+    this.swipeToRemoveExtent = defaultSwipeToRemoveExtent,
+    this.swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
+    this.onSwipeToRemove,
     this.draggedItemDecorator,
     this.draggedItemDecorationAnimationDuration =
         defaultDraggedItemDecorationAnimationDuration,
@@ -39,9 +39,9 @@ abstract class AnimatedReorderable extends StatefulWidget {
     this.swipedItemDecorationAnimationDuration =
         defaultSwipedItemDecorationAnimationDuration,
   })  : assert(
-            (swipeAwayDirectionGetter != null && onSwipeAway != null) ||
-                swipeAwayDirectionGetter == null,
-            "The 'onSwipeAway' parameter must be specified"),
+            (swipeToRemoveDirectionGetter != null && onSwipeToRemove != null) ||
+                swipeToRemoveDirectionGetter == null,
+            "The 'onSwipeToRemove' parameter must be specified"),
         assert(
             (reorderableGetter != null && onReorder != null) ||
                 reorderableGetter == null,
@@ -49,19 +49,19 @@ abstract class AnimatedReorderable extends StatefulWidget {
 
   factory AnimatedReorderable.list({
     Key? key,
-    required IdGetter idGetter,
+    required KeyGetter keyGetter,
     Duration motionAnimationDuration = defaultMotionAnimationDuration,
     Curve motionAnimationCurve = defaultMotionAnimationCurve,
     double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     DraggableGetter? draggableGetter,
     ReorderableGetter? reorderableGetter,
     ReorderCallback? onReorder,
-    SwipeAwayDirectionGetter? swipeAwayDirectionGetter,
-    double swipeAwayExtent = defaultSwipeAwayExtent,
-    double swipeAwayVelocity = defaultSwipeAwayVelocity,
-    SpringDescription swipeAwaySpringDescription =
+    SwipeToRemoveDirectionGetter? swipeToRemoveDirectionGetter,
+    double swipeToRemoveExtent = defaultSwipeToRemoveExtent,
+    double swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
+    SpringDescription swipeToRemoveSpringDescription =
         defaultFlingSpringDescription,
-    SwipeAwayCallback? onSwipeAway,
+    SwipeToRemoveCallback? onSwipeToRemove,
     model.AnimatedItemDecorator? draggedItemDecorator =
         defaultDraggedItemDecorator,
     Duration draggedItemDecorationAnimationDuration =
@@ -74,18 +74,18 @@ abstract class AnimatedReorderable extends StatefulWidget {
   }) =>
       _ListView(
         key: key,
-        idGetter: idGetter,
+        keyGetter: keyGetter,
         motionAnimationDuration: motionAnimationDuration,
         motionAnimationCurve: motionAnimationCurve,
         autoScrollerVelocityScalar: autoScrollerVelocityScalar,
         draggableGetter: draggableGetter,
         reorderableGetter: reorderableGetter,
         onReorder: onReorder,
-        swipeAwayDirectionGetter: swipeAwayDirectionGetter,
-        swipeAwayExtent: swipeAwayExtent,
-        swipeAwayVelocity: swipeAwayVelocity,
-        swipeAwaySpringDescription: swipeAwaySpringDescription,
-        onSwipeAway: onSwipeAway,
+        swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
+        swipeToRemoveExtent: swipeToRemoveExtent,
+        swipeToRemoveVelocity: swipeToRemoveVelocity,
+        swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+        onSwipeToRemove: onSwipeToRemove,
         draggedItemDecorator: draggedItemDecorator,
         draggedItemDecorationAnimationDuration:
             draggedItemDecorationAnimationDuration,
@@ -97,19 +97,19 @@ abstract class AnimatedReorderable extends StatefulWidget {
 
   factory AnimatedReorderable.grid({
     Key? key,
-    required IdGetter idGetter,
+    required KeyGetter keyGetter,
     Duration motionAnimationDuration = defaultMotionAnimationDuration,
     Curve motionAnimationCurve = defaultMotionAnimationCurve,
     double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     DraggableGetter? draggableGetter,
     ReorderableGetter? reorderableGetter,
     ReorderCallback? onReorder,
-    SwipeAwayDirectionGetter? swipeAwayDirectionGetter,
-    double swipeAwayExtent = defaultSwipeAwayExtent,
-    double swipeAwayVelocity = defaultSwipeAwayVelocity,
-    SpringDescription swipeAwaySpringDescription =
+    SwipeToRemoveDirectionGetter? swipeToRemoveDirectionGetter,
+    double swipeToRemoveExtent = defaultSwipeToRemoveExtent,
+    double swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
+    SpringDescription swipeToRemoveSpringDescription =
         defaultFlingSpringDescription,
-    SwipeAwayCallback? onSwipeAway,
+    SwipeToRemoveCallback? onSwipeToRemove,
     model.AnimatedItemDecorator? draggedItemDecorator =
         defaultDraggedItemDecorator,
     Duration draggedItemDecorationAnimationDuration =
@@ -122,18 +122,18 @@ abstract class AnimatedReorderable extends StatefulWidget {
   }) =>
       _GridView(
         key: key,
-        idGetter: idGetter,
+        keyGetter: keyGetter,
         motionAnimationDuration: motionAnimationDuration,
         motionAnimationCurve: motionAnimationCurve,
         autoScrollerVelocityScalar: autoScrollerVelocityScalar,
         draggableGetter: draggableGetter,
         reorderableGetter: reorderableGetter,
         onReorder: onReorder,
-        swipeAwayDirectionGetter: swipeAwayDirectionGetter,
-        swipeAwayExtent: swipeAwayExtent,
-        swipeAwayVelocity: swipeAwayVelocity,
-        swipeAwaySpringDescription: swipeAwaySpringDescription,
-        onSwipeAway: onSwipeAway,
+        swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
+        swipeToRemoveExtent: swipeToRemoveExtent,
+        swipeToRemoveVelocity: swipeToRemoveVelocity,
+        swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+        onSwipeToRemove: onSwipeToRemove,
         draggedItemDecorator: draggedItemDecorator,
         draggedItemDecorationAnimationDuration:
             draggedItemDecorationAnimationDuration,
@@ -143,19 +143,19 @@ abstract class AnimatedReorderable extends StatefulWidget {
         gridView: gridView,
       );
 
-  final IdGetter idGetter;
+  final KeyGetter keyGetter;
 
   final DraggableGetter? draggableGetter;
 
   final ReorderableGetter? reorderableGetter;
   final ReorderCallback? onReorder;
 
-  final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
-  final SwipeAwayCallback? onSwipeAway;
+  final SwipeToRemoveDirectionGetter? swipeToRemoveDirectionGetter;
+  final SwipeToRemoveCallback? onSwipeToRemove;
 
-  final SpringDescription swipeAwaySpringDescription;
-  final double swipeAwayExtent;
-  final double swipeAwayVelocity;
+  final SpringDescription swipeToRemoveSpringDescription;
+  final double swipeToRemoveExtent;
+  final double swipeToRemoveVelocity;
 
   final Duration motionAnimationDuration;
   final Curve motionAnimationCurve;
@@ -212,13 +212,13 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     super.initState();
 
     _controller = AnimatedReorderableController(
-      idGetter: widget.idGetter,
+      keyGetter: widget.keyGetter,
       itemCount: getChildCount(childrenDelegate),
       reorderableGetter: widget.reorderableGetter,
       draggableGetter: widget.draggableGetter,
-      swipeAwayDirectionGetter: widget.swipeAwayDirectionGetter,
+      swipeToRemoveDirectionGetter: widget.swipeToRemoveDirectionGetter,
       onReorder: widget.onReorder,
-      onSwipeAway: widget.onSwipeAway,
+      onSwipeToRemove: widget.onSwipeToRemove,
       motionAnimationDuration: widget.motionAnimationDuration,
       motionAnimationCurve: widget.motionAnimationCurve,
       draggedItemDecorator: widget.draggedItemDecorator,
@@ -228,9 +228,9 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       swipedItemDecorationAnimationDuration:
           widget.swipedItemDecorationAnimationDuration,
       autoScrollerVelocityScalar: widget.autoScrollerVelocityScalar,
-      swipeAwayExtent: widget.swipeAwayExtent,
-      swipeAwayVelocity: widget.swipeAwayVelocity,
-      swipeAwaySpringDescription: widget.swipeAwaySpringDescription,
+      swipeToRemoveExtent: widget.swipeToRemoveExtent,
+      swipeToRemoveVelocity: widget.swipeToRemoveVelocity,
+      swipeToRemoveSpringDescription: widget.swipeToRemoveSpringDescription,
       vsync: this,
     );
 
@@ -295,18 +295,18 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
 class _ListView extends AnimatedReorderable {
   const _ListView({
     super.key,
-    required super.idGetter,
+    required super.keyGetter,
     super.motionAnimationDuration,
     super.motionAnimationCurve,
     super.autoScrollerVelocityScalar,
     super.draggableGetter,
     super.reorderableGetter,
     super.onReorder,
-    super.swipeAwayDirectionGetter,
-    super.swipeAwayExtent,
-    super.swipeAwayVelocity,
-    super.swipeAwaySpringDescription,
-    super.onSwipeAway,
+    super.swipeToRemoveDirectionGetter,
+    super.swipeToRemoveExtent,
+    super.swipeToRemoveVelocity,
+    super.swipeToRemoveSpringDescription,
+    super.onSwipeToRemove,
     super.draggedItemDecorator,
     super.draggedItemDecorationAnimationDuration,
     super.swipedItemDecorator,
@@ -356,18 +356,18 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
 class _GridView extends AnimatedReorderable {
   const _GridView({
     super.key,
-    required super.idGetter,
+    required super.keyGetter,
     super.motionAnimationDuration,
     super.motionAnimationCurve,
     super.autoScrollerVelocityScalar,
     super.draggableGetter,
     super.reorderableGetter,
     super.onReorder,
-    super.swipeAwayDirectionGetter,
-    super.swipeAwayExtent,
-    super.swipeAwayVelocity,
-    super.swipeAwaySpringDescription,
-    super.onSwipeAway,
+    super.swipeToRemoveDirectionGetter,
+    super.swipeToRemoveExtent,
+    super.swipeToRemoveVelocity,
+    super.swipeToRemoveSpringDescription,
+    super.onSwipeToRemove,
     super.draggedItemDecorator,
     super.draggedItemDecorationAnimationDuration,
     super.swipedItemDecorator,

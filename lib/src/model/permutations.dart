@@ -1,35 +1,37 @@
+import 'package:flutter/widgets.dart';
+
 class Permutations {
   final _permutations = <_Permuration>[];
-  final _indexByElementId = <int, int>{};
-  final _elementIdByIndex = <int, int>{};
+  final _indexByItemKey = <Key, int>{};
+  final _itemKeyByIndex = <int, Key>{};
 
   void addPermutation({
-    required int elementId,
+    required Key itemKey,
     required int from,
     required int to,
   }) =>
       _add(_Permuration(
-        elementId: elementId,
+        itemKey: itemKey,
         from: from,
         to: to,
       ));
 
   void _add(_Permuration p) {
-    final curIndexOfElement = indexOf(p.elementId);
-    _elementIdByIndex.remove(curIndexOfElement);
+    final curIndexOfElement = indexOf(p.itemKey);
+    _itemKeyByIndex.remove(curIndexOfElement);
 
-    final unorderedElementId = elementIdAt(p.to);
-    _indexByElementId.remove(unorderedElementId);
+    final unorderedElementId = itemKeyAt(p.to);
+    _indexByItemKey.remove(unorderedElementId);
 
-    _indexByElementId[p.elementId] = p.to;
-    _elementIdByIndex[p.to] = p.elementId;
+    _indexByItemKey[p.itemKey] = p.to;
+    _itemKeyByIndex[p.to] = p.itemKey;
 
     _permutations.add(p);
   }
 
-  int? indexOf(int elementId) => _indexByElementId[elementId];
+  int? indexOf(Key itemKey) => _indexByItemKey[itemKey];
 
-  int? elementIdAt(int index) => _elementIdByIndex[index];
+  Key? itemKeyAt(int index) => _itemKeyByIndex[index];
 
   void apply<T>(List<T> list) {
     final unordered = <int, T>{};
@@ -55,12 +57,12 @@ class Permutations {
 }
 
 class _Permuration {
-  final int elementId;
+  final Key itemKey;
   final int from;
   final int to;
 
   _Permuration({
-    required this.elementId,
+    required this.itemKey,
     required this.from,
     required this.to,
   });

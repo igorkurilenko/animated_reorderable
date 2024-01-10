@@ -1,6 +1,6 @@
-import 'package:example/model.dart';
 import 'package:flutter/material.dart';
 
+import 'model.dart';
 import 'list_view_sample.dart';
 import 'grid_view_sample.dart';
 
@@ -11,7 +11,6 @@ void main() {
 final tabControllerKey = GlobalKey();
 final gridViewSampleKey = GlobalKey<GridViewSampleState>();
 final listViewSampleKey = GlobalKey<ListViewSampleState>();
-
 class AnimatedReorderableDemo extends StatelessWidget {
   const AnimatedReorderableDemo({super.key});
 

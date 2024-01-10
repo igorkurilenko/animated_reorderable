@@ -1,5 +1,5 @@
 name: animated_reorderable
-description: Make ListView or GridView animated and reorderable simultaneously.
+description: A Flutter plugin that upgrades ListView or GridView to be animated and reorderable.
 version: 1.0.0
 homepage: https://github.com/igorkurilenko/animated_reorderable
 

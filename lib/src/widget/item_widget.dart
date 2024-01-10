@@ -10,13 +10,12 @@ typedef ItemGestureRecognizer = void Function(
 
 class ItemWidget extends StatefulWidget {
   const ItemWidget({
-    super.key,
+    required super.key,
     required this.index,
-    required this.id,
     required this.reorderableGetter,
     required this.draggableGetter,
     required this.overlayedGetter,
-    required this.swipeAwayDirectionGetter,
+    required this.swipeToRemoveDirectionGetter,
     required this.builder,
     this.onInit,
     this.didUpdate,
@@ -28,12 +27,11 @@ class ItemWidget extends StatefulWidget {
   });
 
   final int index;
-  final int id;
   final NullableIndexedWidgetBuilder builder;
   final ReorderableGetter reorderableGetter;
   final DraggableGetter draggableGetter;
-  final bool Function(int id) overlayedGetter;
-  final SwipeAwayDirectionGetter? swipeAwayDirectionGetter;
+  final bool Function(Key key) overlayedGetter;
+  final SwipeToRemoveDirectionGetter? swipeToRemoveDirectionGetter;
   final RenderedItemLifecycleCallback? onInit;
   final RenderedItemLifecycleCallback? didUpdate;
   final RenderedItemLifecycleCallback? onDispose;
@@ -48,12 +46,14 @@ class ItemWidget extends StatefulWidget {
 
 class _ItemWidgetState extends State<ItemWidget> {
   int get index => widget.index;
-  int get id => widget.id;
+  Key get key => widget.key!;
   NullableIndexedWidgetBuilder get builder => widget.builder;
   bool get reorderable => widget.reorderableGetter(index);
   bool get draggable => widget.draggableGetter(index);
-  bool get isOverlayed => widget.overlayedGetter(id);
-  bool get swipeable => widget.swipeAwayDirectionGetter?.call(index) != null;
+  bool get isOverlayed => widget.overlayedGetter(key);
+  AxisDirection? get swipeToRemoveDirection =>
+      widget.swipeToRemoveDirectionGetter?.call(index);
+  bool get swipeable => swipeToRemoveDirection != null;
   Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
   Size? get size => findRenderBox()?.size;
 

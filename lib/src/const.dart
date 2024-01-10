@@ -19,9 +19,9 @@ const defaultMotionAnimationCurve = Curves.easeInOut;
 
 const defaultMotionAnimationDuration = duration500ms;
 
-const defaultSwipeAwayExtent = 0.6;
+const defaultSwipeToRemoveExtent = 0.6;
 
-const defaultSwipeAwayVelocity = 700.0;
+const defaultSwipeToRemoveVelocity = 700.0;
 
 const defaultSwipedItemDecorationAnimationDuration = duration500ms;
 

@@ -7,7 +7,7 @@ typedef RecognizerFactory = gestures.MultiDragGestureRecognizer Function(
 
 class OverlayedItem extends Item {
   OverlayedItem({
-    required super.id,
+    required super.key,
     required super.builder,
     required Offset position,
     required BoxConstraints constraints,
@@ -272,7 +272,7 @@ class OverlayedItem extends Item {
   }
 
   @override
-  String toString() => 'OverlayedItem(id: $id, index: $index)';
+  String toString() => 'OverlayedItem(id: $key, index: $index)';
 }
 
 class _OverlayedItemDrag implements gestures.Drag {

@@ -2,11 +2,11 @@ part of model;
 
 class Item extends widgets.ChangeNotifier {
   Item({
-    required this.id,
+    required this.key,
     required ItemBuilder builder,
   }) : _builder = builder;
 
-  final int id;
+  final Key key;
   ItemBuilder _builder;
 
   ItemBuilder get builder => _builder;
@@ -25,7 +25,7 @@ class Item extends widgets.ChangeNotifier {
   }
 
   @override
-  String toString() => 'Item(id: $id)';
+  String toString() => 'Item(id: $key)';
 }
 
 extension ItemAnimations on Item {

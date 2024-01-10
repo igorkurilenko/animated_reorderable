@@ -118,14 +118,14 @@ MultiDragGestureRecognizer createReoderGestureRecognizer(
     DelayedMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
-MultiDragGestureRecognizer createHorizontalSwipeAwayGestureRecognizer(
+MultiDragGestureRecognizer createHorizontalSwipeToRemoveGestureRecognizer(
         BuildContext context) =>
     HorizontalMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
-MultiDragGestureRecognizer createVerticalSwipeAwayGestureRecognizer(
+MultiDragGestureRecognizer createVerticalSwipeToRemoveGestureRecognizer(
         BuildContext context) =>
-    HorizontalMultiDragGestureRecognizer()
+    VerticalMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
 MultiDragGestureRecognizer createImmediateGestureRecognizer(
