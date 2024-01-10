@@ -1,5 +1,13 @@
 The best way to make `ListView` or `GridView` animated and reorderable.
 
+<p>
+  <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_list.gif?raw=true"
+    alt="An animated image of the animated and reorderable ListView" height="400"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_grid.gif?raw=true"
+   alt="An animated image of the animated and reorderable GridView" height="400"/>
+</p>
+
 ## Features
 
 This plugin provides the `AnimatedReorderable` wrapper for `ListView` and `GridView` that incorporates all the features present in standard `AnimatedList`, `AnimatedGrid` and `ReorderableListView`, while introducing the following enhancements:
@@ -95,4 +103,4 @@ class Joke {
 }
 ```
 
-`AnimatedReorderableState` can be used to dynamically insert, remove or move (reorder) items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static of method from an item's input callback. There are showcases in the `/example` folder.
+`AnimatedReorderableState` can be used to dynamically insert, remove or move (reorder) items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static `of` method from an item's input callback. There are showcases in the `/example` folder.
