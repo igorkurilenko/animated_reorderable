@@ -2,10 +2,10 @@ The best way to make `ListView` or `GridView` animated and reorderable.
 
 <p>
   <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_list.gif?raw=true"
-    alt="An animated image of the animated and reorderable ListView" height="400"/>
+    alt="An animated image of the animated and reorderable ListView" height="334"/>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_grid.gif?raw=true"
-   alt="An animated image of the animated and reorderable GridView" height="400"/>
+   alt="An animated image of the animated and reorderable GridView" height="334"/>
 </p>
 
 ## Features
