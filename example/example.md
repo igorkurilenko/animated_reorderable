@@ -1,4 +1,4 @@
-#### [`example/lib/animated_reorderable_list/animated_reorderable_list.0.dart`](https://github.com/igorkurilenko/animated_reorderable/blob/main/example/lib/animated_reorderable_list/animated_reorderable_list.0.dart)
+[Example of `ListView`](https://github.com/igorkurilenko/animated_reorderable/blob/main/example/lib/animated_reorderable_list/animated_reorderable_list.0.dart):
 ```dart
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
@@ -293,7 +293,7 @@ extension _RandomExtension on Random {
       min + nextDouble() * (max - min);
 }
 ```
-#### [`example/lib/animated_reorderable_grid/animated_reorderable_grid.0.dart`](https://github.com/igorkurilenko/animated_reorderable/blob/main/example/lib/animated_reorderable_grid/animated_reorderable_grid.0.dart)
+#### [Example of `GridView`](https://github.com/igorkurilenko/animated_reorderable/blob/main/example/lib/animated_reorderable_grid/animated_reorderable_grid.0.dart):
 ```dart
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
