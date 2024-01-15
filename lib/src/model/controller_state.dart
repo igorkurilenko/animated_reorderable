@@ -69,7 +69,8 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
   bool isOverlayedAt({required int index}) =>
       _overlayedItemByKey.containsKey(_itemKeyByIndex[index] ?? -1);
 
-  OverlayedItem? overlayedItemBy({required Key key}) => _overlayedItemByKey[key];
+  OverlayedItem? overlayedItemBy({required Key key}) =>
+      _overlayedItemByKey[key];
 
   OverlayedItem putOverlayedItem(OverlayedItem x) {
     _overlayedItemByKey.remove(x.key);
@@ -158,8 +159,8 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
 
         permutations.addPermutation(
           itemKey: unorderedItemKey,
-          from: unorderedItemIndex,
-          to: curIndex,
+          srcIndex: unorderedItemIndex,
+          destIndex: curIndex,
         );
 
         unorderedItemKey = curItem.key;

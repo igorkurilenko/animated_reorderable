@@ -1,77 +1,53 @@
+import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
-import 'model.dart';
-import 'list_view_sample.dart';
-import 'grid_view_sample.dart';
-
 void main() {
-  runApp(const AnimatedReorderableDemo());
+  runApp(const Example());
 }
 
-final tabControllerKey = GlobalKey();
-final gridViewSampleKey = GlobalKey<GridViewSampleState>();
-final listViewSampleKey = GlobalKey<ListViewSampleState>();
-class AnimatedReorderableDemo extends StatelessWidget {
-  const AnimatedReorderableDemo({super.key});
+class Example extends MaterialApp {
+  const Example({super.key})
+      : super(
+          home: const Scaffold(
+            body: ListViewExample(),
+          ),
+        );
+}
 
-  Sample? _currentSampleOf(BuildContext context) {
-    final index = DefaultTabController.of(context).index;
-    if (index == 0) return listViewSampleKey.currentState!;
-    if (index == 1) return gridViewSampleKey.currentState!;
-    return null;
-  }
+class ListViewExample extends StatefulWidget {
+  const ListViewExample({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'AnimatedReorderable',
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.grey.shade100,
-            primary: Colors.grey.shade100,
+  State<ListViewExample> createState() => _ListViewExampleState();
+}
+
+class _ListViewExampleState extends State<ListViewExample> {
+  final items = [1, 2, 3, 4, 5];
+
+  @override
+  Widget build(BuildContext context) {
+    // To wrap the ListView, invoke the factory
+    // constructor AnimatedReorderable.list
+    return AnimatedReorderable.list(
+      // 1. Configure the keyGetter using a function that
+      // takes the index of the item and must return its unique key.
+      keyGetter: (index) => ValueKey(items[index]),
+
+      // 2. Define the onReorder callback to synchronize the order
+      // of items. The callback takes permutations that need to be
+      // applied to the collection of items.
+      onReorder: (permutations) => permutations.apply(items),
+
+      // The main wrapped hero of this example: basic ListView
+      listView: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) => Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Item: ${items[index]}'),
           ),
         ),
-        home: DefaultTabController(
-          key: tabControllerKey,
-          length: 2,
-          child: Builder(
-            builder: (context) => Scaffold(
-              appBar: AppBar(
-                title: const Text('AnimatedReorderable'),
-                actions: <Widget>[
-                  IconButton(
-                    icon: const Icon(Icons.add_circle),
-                    onPressed: () => _currentSampleOf(context)?.insert(),
-                    tooltip: 'insert a new item',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.swap_calls),
-                    onPressed: () => _currentSampleOf(context)?.moveRandom(),
-                    tooltip: 'insert a new item',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle),
-                    onPressed: () => _currentSampleOf(context)?.remove(),
-                    tooltip: 'remove the selected item',
-                  ),
-                ],
-                bottom: TabBar(
-                  labelColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  indicatorColor:
-                      Theme.of(context).colorScheme.onPrimaryContainer,
-                  tabs: const [
-                    Tab(text: 'List'),
-                    Tab(text: 'Grid'),
-                  ],
-                ),
-              ),
-              body: TabBarView(children: [
-                ListViewSample(key: listViewSampleKey),
-                GridViewSample(key: gridViewSampleKey),
-              ]),
-            ),
-          ),
-        ),
-      );
+      ),
+    );
+  }
 }

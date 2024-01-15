@@ -2,10 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-bool Function(dynamic) returnTrue = (_) => true;
-bool Function(dynamic) returnFalse = (_) => false;
-dynamic Function(dynamic) returnNull = (_) => null;
-
 void addPostFrame(VoidCallback cb) =>
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) => cb());
 

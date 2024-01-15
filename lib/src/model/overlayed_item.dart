@@ -1,6 +1,17 @@
 part of model;
 
-typedef OverlayedItemCallback = void Function(OverlayedItem item);
+typedef OverlayedItemDragStartCallback = void Function(
+  DragStartDetails details,
+  OverlayedItem item,
+);
+typedef OverlayedItemDragUpdateCallback = void Function(
+  DragUpdateDetails details,
+  OverlayedItem item,
+);
+typedef OverlayedItemDragEndCallback = void Function(
+  DragEndDetails details,
+  OverlayedItem item,
+);
 typedef RecognizerFactory = gestures.MultiDragGestureRecognizer Function(
   widgets.BuildContext context,
 );
@@ -30,7 +41,7 @@ class OverlayedItem extends Item {
   RecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
-  widgets.Offset? _pointerPosition;
+  widgets.Offset? _globalPointerPosition;
   OffsetAnimation? _motionAnimation;
   widgets.Widget? _widget;
   AnimatedItemDecoratorAdapter? _decorator;
@@ -63,6 +74,10 @@ class OverlayedItem extends Item {
     if (notify) notifyListeners();
   }
 
+  Offset? get globalPointerPosition => _globalPointerPosition;
+
+  widgets.Widget? get widget => _widget;
+
   bool get swiped => _swipe != null;
 
   widgets.AxisDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
@@ -73,27 +88,6 @@ class OverlayedItem extends Item {
 
   widgets.Velocity get swipeVelocity =>
       _swipe?.velocity ?? widgets.Velocity.zero;
-
-  Offset? get pointerPosition => _pointerPosition;
-
-  widgets.Widget? get widget => _widget;
-
-  bool swipedToRemove({
-    required double extentToRemove,
-    required double velocityToRemove,
-  }) =>
-      swiped &&
-      switch (swipeToRemoveDirection) {
-        AxisDirection.left => swipeExtent < -extentToRemove ||
-            swipeVelocity.pixelsPerSecond.dx < -velocityToRemove,
-        AxisDirection.right => swipeExtent > extentToRemove ||
-            swipeVelocity.pixelsPerSecond.dx > velocityToRemove,
-        AxisDirection.up => swipeExtent < -extentToRemove ||
-            swipeVelocity.pixelsPerSecond.dy < -velocityToRemove,
-        AxisDirection.down => swipeExtent > extentToRemove ||
-            swipeVelocity.pixelsPerSecond.dy > velocityToRemove,
-        _ => false,
-      };
 
   widgets.Widget? build(widgets.BuildContext context) {
     _widget = builder.build(context, index);
@@ -122,9 +116,9 @@ class OverlayedItem extends Item {
   void recognizeDrag(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
-    OverlayedItemCallback? onDragStart,
-    OverlayedItemCallback? onDragUpdate,
-    OverlayedItemCallback? onDragEnd,
+    OverlayedItemDragStartCallback? onDragStart,
+    OverlayedItemDragUpdateCallback? onDragUpdate,
+    OverlayedItemDragEndCallback? onDragEnd,
   }) {
     _recognizer?.dispose();
     _swipe = null;
@@ -133,9 +127,17 @@ class OverlayedItem extends Item {
     if (recognizerFactory == null) return;
 
     _recognizer = recognizerFactory!.call(context)
-      ..onStart = (pointerPosition) {
-        _pointerPosition = pointerPosition;
-        onDragStart?.call(this);
+      ..onStart = (globalPosition) {
+        _globalPointerPosition = globalPosition;
+        onDragStart?.call(
+          DragStartDetails(
+            sourceTimeStamp: event.timeStamp,
+            globalPosition: globalPosition,
+            localPosition: event.localPosition,
+            kind: event.kind,
+          ),
+          this,
+        );
 
         return _OverlayedItemDrag(
           item: this,
@@ -150,9 +152,9 @@ class OverlayedItem extends Item {
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
     required widgets.AxisDirection swipeDirection,
-    OverlayedItemCallback? onSwipeStart,
-    OverlayedItemCallback? onSwipeUpdate,
-    OverlayedItemCallback? onSwipeEnd,
+    OverlayedItemDragStartCallback? onSwipeStart,
+    OverlayedItemDragUpdateCallback? onSwipeUpdate,
+    OverlayedItemDragEndCallback? onSwipeEnd,
   }) {
     _recognizer?.dispose();
 
@@ -160,9 +162,17 @@ class OverlayedItem extends Item {
     if (recognizerFactory == null) return;
 
     _recognizer = recognizerFactory!.call(context)
-      ..onStart = (pointerPosition) {
-        _pointerPosition = pointerPosition;
-        onSwipeStart?.call(this);
+      ..onStart = (globalPosition) {
+        _globalPointerPosition = globalPosition;
+        onSwipeStart?.call(
+          DragStartDetails(
+            sourceTimeStamp: event.timeStamp,
+            globalPosition: globalPosition,
+            localPosition: event.localPosition,
+            kind: event.kind,
+          ),
+          this,
+        );
 
         return _swipe = _OverlayedItemSwipe(
           item: this,
@@ -283,20 +293,19 @@ class _OverlayedItemDrag implements gestures.Drag {
   });
 
   final OverlayedItem item;
-  OverlayedItemCallback? onDragUpdate;
-  OverlayedItemCallback? onDragEnd;
+  OverlayedItemDragUpdateCallback? onDragUpdate;
+  OverlayedItemDragEndCallback? onDragEnd;
 
   @override
   void update(widgets.DragUpdateDetails details) {
-    item.shift(details.delta);
-    item._pointerPosition = details.globalPosition;
-    onDragUpdate?.call(item);
+    item._globalPointerPosition = details.globalPosition;
+    onDragUpdate?.call(details, item);
   }
 
   @override
   void end(widgets.DragEndDetails details) {
-    item._pointerPosition = null;
-    onDragEnd?.call(item);
+    item._globalPointerPosition = null;
+    onDragEnd?.call(details, item);
   }
 
   @override
@@ -313,8 +322,8 @@ class _OverlayedItemSwipe implements gestures.Drag {
 
   final OverlayedItem item;
   final widgets.AxisDirection swipeDirection;
-  OverlayedItemCallback? onSwipeUpdate;
-  OverlayedItemCallback? onSwipeEnd;
+  OverlayedItemDragUpdateCallback? onSwipeUpdate;
+  OverlayedItemDragEndCallback? onSwipeEnd;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
   widgets.Velocity _velocity = widgets.Velocity.zero;
 
@@ -330,9 +339,17 @@ class _OverlayedItemSwipe implements gestures.Drag {
   void update(widgets.DragUpdateDetails details) {
     final delta = _restrictDirection(_restrictAxis(details.delta));
     _swipeOffset += delta;
-    item.shift(delta);
-    item._pointerPosition = details.globalPosition;
-    onSwipeUpdate?.call(item);
+    item._globalPointerPosition = details.globalPosition;
+    onSwipeUpdate?.call(
+      widgets.DragUpdateDetails(
+        sourceTimeStamp: details.sourceTimeStamp,
+        delta: delta,
+        primaryDelta: delta.dx != 0.0 ? delta.dx : delta.dy,
+        globalPosition: details.globalPosition,
+        localPosition: details.localPosition,
+      ),
+      item,
+    );
   }
 
   widgets.Offset _restrictAxis(widgets.Offset delta) =>
@@ -361,8 +378,8 @@ class _OverlayedItemSwipe implements gestures.Drag {
   @override
   void end(widgets.DragEndDetails details) {
     _velocity = details.velocity;
-    item._pointerPosition = null;
-    onSwipeEnd?.call(item);
+    item._globalPointerPosition = null;
+    onSwipeEnd?.call(details, item);
   }
 
   @override

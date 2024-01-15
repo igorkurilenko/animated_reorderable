@@ -1,4 +1,3 @@
-
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';

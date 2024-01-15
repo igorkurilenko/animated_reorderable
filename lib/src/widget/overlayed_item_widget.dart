@@ -15,12 +15,12 @@ class OverlayedItemWidget extends StatelessWidget {
   });
 
   final OverlayedItem item;
-  final OverlayedItemCallback? onDragStart;
-  final OverlayedItemCallback? onDragUpdate;
-  final OverlayedItemCallback? onDragEnd;
-  final OverlayedItemCallback? onSwipeStart;
-  final OverlayedItemCallback? onSwipeUpdate;
-  final OverlayedItemCallback? onSwipeEnd;
+  final OverlayedItemDragStartCallback? onDragStart;
+  final OverlayedItemDragUpdateCallback? onDragUpdate;
+  final OverlayedItemDragEndCallback? onDragEnd;
+  final OverlayedItemDragStartCallback? onSwipeStart;
+  final OverlayedItemDragUpdateCallback? onSwipeUpdate;
+  final OverlayedItemDragEndCallback? onSwipeEnd;
 
   @override
   Widget build(BuildContext context) => Positioned(

@@ -28,10 +28,10 @@ class ItemWidget extends StatefulWidget {
 
   final int index;
   final NullableIndexedWidgetBuilder builder;
-  final ReorderableGetter reorderableGetter;
-  final DraggableGetter draggableGetter;
+  final BoolGetter reorderableGetter;
+  final BoolGetter draggableGetter;
   final bool Function(Key key) overlayedGetter;
-  final SwipeToRemoveDirectionGetter? swipeToRemoveDirectionGetter;
+  final AxisDirectionGetter? swipeToRemoveDirectionGetter;
   final RenderedItemLifecycleCallback? onInit;
   final RenderedItemLifecycleCallback? didUpdate;
   final RenderedItemLifecycleCallback? onDispose;
