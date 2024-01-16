@@ -2,10 +2,10 @@ A convenient wrapper that makes `ListView` or `GridView` animated and reorderabl
 
 <p>
   <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_list.gif?raw=true"
-    alt="An animated image of the animated and reorderable ListView" height="350"/>
+    alt="An animated image of the animated and reorderable ListView" width="160"/>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_grid.gif?raw=true"
-   alt="An animated image of the animated and reorderable GridView" height="350"/>
+   alt="An animated image of the animated and reorderable GridView" width="160"/>
 </p>
 
 ## Features
@@ -85,4 +85,4 @@ class _ListViewExampleState extends State<ListViewExample> {
 }
 ```
 
-`AnimatedReorderableState` can be used to dynamically insert, remove or reorder items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static `of` method from an item's input callback. There are showcases in the `/example` folder.
+`AnimatedReorderableState` can be used to dynamically insert, remove or reorder items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static `of` method from an item's input callback. There are showcases on the [Example](https://pub.dev/packages/animated_reorderable/example) page.
