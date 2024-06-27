@@ -1,0 +1,16 @@
+# Files and directories to ignore when publishing to pub.dev
+
+# Common files to ignore
+*.lock
+*.log
+*.tmp
+.DS_Store
+
+# Other directories to ignore
+build/
+ios/Flutter/Flutter.framework/
+android/app/build/
+
+# Uncomment the following line to exclude the example folder
+example/
+assets/
