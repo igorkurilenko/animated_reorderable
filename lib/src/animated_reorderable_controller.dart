@@ -447,6 +447,11 @@ class AnimatedReorderableController {
         widgets.WidgetsBinding.instance.platformDispatcher.views.first;
     return screenView.physicalSize / screenView.devicePixelRatio;
   }
+
+  bool isItemRendered(int index) {
+    return _state.renderedItems.firstWhereOrNull((x) => x.index == index) !=
+        null;
+  }
 }
 
 extension RenderedItemLifecycleHandlers on AnimatedReorderableController {

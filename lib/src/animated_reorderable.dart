@@ -537,6 +537,9 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   }) =>
       _controller.reorderItem(index, destIndex: destIndex);
 
+  /// Check if an item is rendered in the viewport or cache extent area of the list or grid.
+  bool isItemRendered(int index) => _controller.isItemRendered(index);
+
   @override
   void dispose() {
     _controller.dispose();
