@@ -1,3 +1,9 @@
+## 1.3.0
+
+### Enhancements
+
+- Make the Permutation class public and Permutations iterable.
+
 ## 1.2.0
 
 ### Features

@@ -28,8 +28,8 @@ import 'package:flutter/widgets.dart';
 /// In this example, the `myList` will be reordered based on the specified permutations.
 ///
 /// The `Permutations` class keeps track of the mappings between original and new indices.
-class Permutations {
-  final _permutations = <_Permuration>[];
+class Permutations extends Iterable<Permutation> {
+  final _permutations = <Permutation>[];
   final _indexByItemKey = <Key, int>{};
   final _itemKeyByIndex = <int, Key>{};
 
@@ -47,13 +47,13 @@ class Permutations {
     required int srcIndex,
     required int destIndex,
   }) =>
-      _add(_Permuration(
+      _add(Permutation(
         itemKey: itemKey,
         from: srcIndex,
         to: destIndex,
       ));
 
-  void _add(_Permuration p) {
+  void _add(Permutation p) {
     final curIndexOfElement = indexOf(p.itemKey);
     _itemKeyByIndex.remove(curIndexOfElement);
 
@@ -101,15 +101,44 @@ class Permutations {
   }
 
   /// Returns `true` if there are no recorded permutations, indicating an empty state.
+  @override
   bool get isEmpty => _permutations.isEmpty;
+
+  /// The number of permutations.
+  @override
+  int get length => _permutations.length;
+
+  /// A new `Iterator` that allows iterating the permutations.
+  @override
+  Iterator<Permutation> get iterator => _permutations.iterator;
 }
 
-class _Permuration {
+/// A class that represents a single permutation (reordering) of an item.
+///
+/// The `Permutation` class holds information about an item being moved
+/// in a list or collection, tracking both its original position and its 
+/// new position after the reordering operation.
+class Permutation {
+  /// A unique key representing the item being moved.
+  ///
+  /// This key is used to uniquely identify the item that is being reordered.
+  /// The key can be any valid Flutter `Key`, typically used for distinguishing
+  /// widgets in the widget tree.
   final Key itemKey;
+
+  /// The original position of the item before the permutation (reordering).
+  ///
+  /// This is the index of the item in the list or collection before it
+  /// was moved. It is a zero-based index.
   final int from;
+
+  /// The new position of the item after the permutation (reordering).
+  ///
+  /// This is the index of the item in the list or collection after it has 
+  /// been moved. It is a zero-based index.
   final int to;
 
-  _Permuration({
+  Permutation({
     required this.itemKey,
     required this.from,
     required this.to,
