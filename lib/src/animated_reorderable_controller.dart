@@ -42,11 +42,11 @@ class AnimatedReorderableController {
   })  : reorderableGetter = reorderableGetter ?? ((_) => true),
         draggableGetter = draggableGetter ?? ((_) => true),
         swipeToRemoveDirectionGetter = onSwipeToRemove != null
-            ? ((index) =>
-                swipeToRemoveDirectionGetter?.call(index) ??
-                (scrollDirection == Axis.vertical
+            ? ((index) => swipeToRemoveDirectionGetter == null
+                ? (scrollDirection == Axis.vertical
                     ? AxisDirection.left
-                    : AxisDirection.down))
+                    : AxisDirection.down)
+                : swipeToRemoveDirectionGetter.call(index))
             : ((_) => null),
         _state = model.ControllerState(itemCount: itemCount);
 

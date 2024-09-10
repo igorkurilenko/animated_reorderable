@@ -317,6 +317,9 @@ abstract class AnimatedReorderable extends StatefulWidget {
   final double swipeToRemoveVelocity;
 
   /// A function that determines the swipe-to-remove direction for an item at a given index.
+  ///
+  /// If the function returns `null`, the `swipeToRemove` feature
+  /// will be disabled for the element at the specified [index].
   final AxisDirectionGetter? swipeToRemoveDirectionGetter;
 
   /// The state from the closest instance of this class that encloses the given
