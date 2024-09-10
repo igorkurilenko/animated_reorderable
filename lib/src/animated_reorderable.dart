@@ -49,18 +49,21 @@ typedef SwipeToRemoveCallback = void Function(int index);
 /// A callback function that is called when dragging of an item starts.
 ///
 /// The [index] parameter of the callback is the index of the dragged item.
+/// Note: If the item is reordered, the [index] will be updated accordingly.
 typedef ItemDragStartCallback = void Function(
     DragStartDetails details, int index);
 
 /// A callback function that is called when dragging of an item is updated.
 ///
 /// The [index] parameter of the callback is the index of the dragged item.
+/// Note: If the item is reordered, the [index] will be updated accordingly.
 typedef ItemDragUpdateCallback = void Function(
     DragUpdateDetails details, int index);
 
 /// A callback function that is called when dragging of an item ends.
 ///
-/// The [index] parameter of the callback is the index of the dragged item.
+/// The [index] parameter of the callback is the index of the item at the time it was dropped.
+/// Note: If the item is reordered, the [index] will reflect the new position where the item was dropped.
 typedef ItemDragEndCallback = void Function(DragEndDetails details, int index);
 
 /// The [AnimatedReorderable] wrapper makes [ListView] or [GridView] animated,

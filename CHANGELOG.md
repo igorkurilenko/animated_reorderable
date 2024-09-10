@@ -1,20 +1,26 @@
+## 1.3.2
+
+### Documentation
+
+- Clarified index updates during item reordering in drag callbacks and specified that in ItemDragEndCallback, the index indicates where the item was dropped.
+
 ## 1.3.1
 
 ### Fixes
 
-- Enable disabling swipeToRemove for specific items.
+- Enabled disabling swipeToRemove for specific items.
 
 ## 1.3.0
 
 ### Enhancements
 
-- Make the Permutation class public and Permutations iterable.
+- Made the Permutation class public and Permutations iterable.
 
 ## 1.2.0
 
 ### Features
 
-- Added a method to check if an item is rendered in the viewport or cache extent area of the collection.
+- Added method to check if an item is rendered in the viewport or cache extent.
 
 ## 1.1.0
 
@@ -24,8 +30,8 @@
 
 ### Enhancements
 
-- Default behavior: Items are now draggable and reorderable by default, simplifying usage.
-- Added callbacks for tracking drag and swipe events, providing more flexibility in event handling.
+- Items are draggable and reorderable by default.
+- Added callbacks for drag and swipe events.
 
 ## 1.0.0 
 
