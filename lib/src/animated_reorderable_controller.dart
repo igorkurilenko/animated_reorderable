@@ -449,9 +449,11 @@ class AnimatedReorderableController {
   }
 
   bool isItemRendered(int index) {
-    return _state.renderedItems.firstWhereOrNull((x) => x.index == index) !=
-        null;
+    return getRenderedItemAt(index) != null;
   }
+
+  RenderedItem? getRenderedItemAt(int index) =>
+      _state.renderedItems.firstWhereOrNull((x) => x.index == index);
 }
 
 extension RenderedItemLifecycleHandlers on AnimatedReorderableController {

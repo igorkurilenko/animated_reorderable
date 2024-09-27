@@ -543,8 +543,54 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   }) =>
       _controller.reorderItem(index, destIndex: destIndex);
 
-  /// Check if an item is rendered in the viewport or cache extent area of the list or grid.
+  /// Checks if the item at the given [index] is currently rendered within the widget tree.
+  ///
+  /// An item is considered rendered if it is either within the visible viewport of the list or grid,
+  /// or within the `cacheExtent` area (pre-rendered items just outside of the visible viewport).
+  ///
+  /// This method does not guarantee that the item is visible on screen but only that it is part of the widget tree.
+  ///
+  /// [index]: The position of the item in the list or grid. Must be a valid index for the current data.
+  ///
+  /// Returns:
+  ///   - `true`: If the item is rendered (either visible or within the cache extent area).
+  ///   - `false`: If the item is not currently rendered (i.e., outside of the widget tree).
+  ///
+  /// Example:
+  /// ```
+  /// bool isRendered = isItemRendered(5);
+  /// if (isRendered) {
+  ///   // The item is rendered in the widget tree, perform further actions
+  /// }
+  /// ```
   bool isItemRendered(int index) => _controller.isItemRendered(index);
+
+  /// Returns the [BuildContext] of a grid item at the given [index],
+  /// if the item is part of the widget tree (i.e., rendered, but not necessarily visible on screen).
+  ///
+  /// This method checks if the item at the specified [index] has been rendered
+  /// (i.e., is within the widget tree, which includes items in the `cacheExtent` area)
+  /// and returns its associated [BuildContext].
+  ///
+  /// If the item is not rendered (for example, it is outside the `cacheExtent`)
+  /// or if the [index] does not correspond to any existing item in the grid,
+  /// the method returns `null`.
+  ///
+  /// [index]: The position of the item in the grid. Must be a valid index for the current grid data.
+  ///
+  /// Returns:
+  ///   - [BuildContext]: The build context of the rendered item if available.
+  ///   - `null`: If the item is not rendered or if the [index] is invalid (i.e., no item exists at the given index).
+  ///
+  /// Example:
+  /// ```
+  /// BuildContext? context = getItemBuildContext(3);
+  /// if (context != null) {
+  ///   // Perform actions with the item's context
+  /// }
+  /// ```
+  BuildContext? getRenderedItemBuildContext(int index) =>
+      _controller.getRenderedItemAt(index)?.context;
 
   @override
   void dispose() {

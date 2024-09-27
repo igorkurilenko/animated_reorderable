@@ -1,3 +1,9 @@
+## 1.3.3
+
+### Features
+
+- Added `getRenderedItemBuildContext` method to retrieve the `BuildContext` of a rendered item.
+
 ## 1.3.2
 
 ### Documentation
