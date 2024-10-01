@@ -62,7 +62,7 @@
 ///   }
 /// }
 /// ```
-library animated_reorderable;
+library;
 
 export 'src/animated_reorderable.dart';
 export 'src/model/permutations.dart';

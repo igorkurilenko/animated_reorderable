@@ -1,4 +1,4 @@
-part of model;
+part of 'model.dart';
 
 class ControllerState<ItemsLayerState extends State<StatefulWidget>,
     OverlayedItemsLayerState extends State<StatefulWidget>> {

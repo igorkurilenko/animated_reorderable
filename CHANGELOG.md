@@ -1,3 +1,9 @@
+## 1.4.1
+
+### Fixes
+
+- Updated `part of` directives to use string-based file paths instead of library names for improved compatibility and compliance with current Dart best practices.
+
 ## 1.4.0
 
 ### Features

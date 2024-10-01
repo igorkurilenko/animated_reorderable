@@ -1,4 +1,4 @@
-part of model;
+part of 'model.dart';
 
 typedef AnimatedItemDecorator = widgets.Widget Function(
   widgets.Widget child,

@@ -1,4 +1,4 @@
-part of model;
+part of 'model.dart';
 
 typedef OverlayedItemDragStartCallback = void Function(
   DragStartDetails details,

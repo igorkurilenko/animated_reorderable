@@ -1,4 +1,4 @@
-part of model;
+part of 'model.dart';
 
 class Item extends widgets.ChangeNotifier {
   Item({

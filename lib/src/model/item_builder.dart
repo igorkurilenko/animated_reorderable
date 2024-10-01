@@ -1,4 +1,4 @@
-part of model;
+part of 'model.dart';
 
 abstract class ItemBuilder {
   factory ItemBuilder.adaptIndexedWidgetBuilder(

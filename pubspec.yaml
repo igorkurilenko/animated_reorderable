@@ -1,10 +1,10 @@
 name: animated_reorderable
 description: The best way to make Flutter's ListView or GridView animated and reorderable.
-version: 1.4.0
+version: 1.4.1
 homepage: https://github.com/igorkurilenko/animated_reorderable
 
 environment:
-  sdk: '>=3.1.5 <4.0.0'
+  sdk: ^3.5.0
   flutter: ">=1.17.0"
 
 dependencies:
@@ -14,6 +14,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
