@@ -1,3 +1,9 @@
+## 1.4.2
+
+### Fixes
+
+- Fix typo in `reorderGestureRecognizerFactory` name.
+
 ## 1.4.1
 
 ### Fixes
@@ -8,7 +14,7 @@
 
 ### Features
 
-- Added `reoderGestureRecognizerFactory` property to allow overriding the default drag gesture recognizer, enabling customizations like modifying the drag delay or supporting specific input devices.
+- Added `reorderGestureRecognizerFactory` property to allow overriding the default drag gesture recognizer, enabling customizations like modifying the drag delay or supporting specific input devices.
 
 ## 1.3.3
 

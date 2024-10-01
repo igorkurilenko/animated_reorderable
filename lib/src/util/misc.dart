@@ -109,7 +109,7 @@ Widget defaultDraggedItemDecorator(
       ),
     );
 
-MultiDragGestureRecognizer createReoderDragGestureRecognizer(
+MultiDragGestureRecognizer createReorderDragGestureRecognizer(
         BuildContext context) =>
     DelayedMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);

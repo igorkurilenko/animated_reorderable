@@ -39,7 +39,7 @@ class AnimatedReorderableController {
     this.onItemSwipeStart,
     this.onItemSwipeUpdate,
     this.onItemSwipeEnd,
-    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
+    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
   })  : reorderableGetter = reorderableGetter ?? ((_) => true),
         draggableGetter = draggableGetter ?? ((_) => true),
         swipeToRemoveDirectionGetter = onSwipeToRemove != null
@@ -49,8 +49,8 @@ class AnimatedReorderableController {
                     : AxisDirection.down)
                 : swipeToRemoveDirectionGetter.call(index))
             : ((_) => null),
-        reoderGestureRecognizerFactory =
-            reoderGestureRecognizerFactory ?? createReoderDragGestureRecognizer,
+        reorderGestureRecognizerFactory =
+            reorderGestureRecognizerFactory ?? createReorderDragGestureRecognizer,
         _state = model.ControllerState(itemCount: itemCount);
 
   widgets.ScrollController? _scrollController;
@@ -82,7 +82,7 @@ class AnimatedReorderableController {
   final ItemDragStartCallback? onItemSwipeStart;
   final ItemDragUpdateCallback? onItemSwipeUpdate;
   final ItemDragEndCallback? onItemSwipeEnd;
-  final MultiDragGestureRecognizerFactory reoderGestureRecognizerFactory;
+  final MultiDragGestureRecognizerFactory reorderGestureRecognizerFactory;
 
   void insertItem(
       int index, widgets.AnimatedItemBuilder builder, Duration duration) {
@@ -755,7 +755,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
       recognizeReorderDrag: (renderedItem, event) {
         createOverlayedItem(
           renderedItem,
-          recognizerFactory: reoderGestureRecognizerFactory,
+          recognizerFactory: reorderGestureRecognizerFactory,
         ).recognizeDrag(
           event,
           context: context,

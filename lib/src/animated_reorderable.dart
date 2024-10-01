@@ -114,7 +114,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragStartCallback? onItemSwipeStart,
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
-    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
+    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required ListView listView,
   }) =>
       _ListView(
@@ -143,7 +143,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
         onItemSwipeStart: onItemSwipeStart,
         onItemSwipeUpdate: onItemSwipeUpdate,
         onItemSwipeEnd: onItemSwipeEnd,
-        reoderGestureRecognizerFactory: reoderGestureRecognizerFactory,
+        reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
         listView: listView,
       );
 
@@ -177,7 +177,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragStartCallback? onItemSwipeStart,
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
-    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
+    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required GridView gridView,
   }) =>
       _GridView(
@@ -206,7 +206,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
         onItemSwipeStart: onItemSwipeStart,
         onItemSwipeUpdate: onItemSwipeUpdate,
         onItemSwipeEnd: onItemSwipeEnd,
-        reoderGestureRecognizerFactory: reoderGestureRecognizerFactory,
+        reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
         gridView: gridView,
       );
 
@@ -236,7 +236,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     this.onItemSwipeStart,
     this.onItemSwipeUpdate,
     this.onItemSwipeEnd,
-    this.reoderGestureRecognizerFactory,
+    this.reorderGestureRecognizerFactory,
   });
 
   /// A function that provides the unique key for each item in the list or grid.
@@ -350,7 +350,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
   ///
   /// Default implementation:
   /// ```dart
-  /// MultiDragGestureRecognizer createReoderDragGestureRecognizer(
+  /// MultiDragGestureRecognizer createReorderDragGestureRecognizer(
   ///   BuildContext context,
   /// ) =>
   ///   DelayedMultiDragGestureRecognizer()
@@ -359,7 +359,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
   ///
   /// Example of customizing the delay duration to 250ms using [DelayedMultiDragGestureRecognizer]:
   /// ```dart
-  /// reoderGestureRecognizerFactory: (BuildContext context) {
+  /// reorderGestureRecognizerFactory: (BuildContext context) {
   ///   final recognizer = DelayedMultiDragGestureRecognizer()
   ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   ///
@@ -372,7 +372,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
   ///
   /// This factory allows for fine-tuned control over the gesture recognition system,
   /// providing flexibility for various user interactions and devices.
-  final MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory;
+  final MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory;
 
   /// The state from the closest instance of this class that encloses the given
   /// context.
@@ -528,7 +528,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       onItemSwipeStart: widget.onItemSwipeStart,
       onItemSwipeUpdate: widget.onItemSwipeUpdate,
       onItemSwipeEnd: widget.onItemSwipeEnd,
-      reoderGestureRecognizerFactory: widget.reoderGestureRecognizerFactory,
+      reorderGestureRecognizerFactory: widget.reorderGestureRecognizerFactory,
       vsync: this,
     );
 
@@ -701,7 +701,7 @@ class _ListView extends AnimatedReorderable {
     super.onItemSwipeStart,
     super.onItemSwipeUpdate,
     super.onItemSwipeEnd,
-    super.reoderGestureRecognizerFactory,
+    super.reorderGestureRecognizerFactory,
     required this.listView,
   });
 
@@ -772,7 +772,7 @@ class _GridView extends AnimatedReorderable {
     super.onItemSwipeStart,
     super.onItemSwipeUpdate,
     super.onItemSwipeEnd,
-    super.reoderGestureRecognizerFactory,
+    super.reorderGestureRecognizerFactory,
     required this.gridView,
   });
 
