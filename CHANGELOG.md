@@ -1,3 +1,9 @@
+## 1.4.0
+
+### Features
+
+- Added `reoderGestureRecognizerFactory` property to allow overriding the default drag gesture recognizer, enabling customizations like modifying the drag delay or supporting specific input devices.
+
 ## 1.3.3
 
 ### Features

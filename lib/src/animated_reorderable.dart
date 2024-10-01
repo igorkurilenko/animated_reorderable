@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_reorderable_controller.dart';
@@ -66,6 +67,12 @@ typedef ItemDragUpdateCallback = void Function(
 /// Note: If the item is reordered, the [index] will reflect the new position where the item was dropped.
 typedef ItemDragEndCallback = void Function(DragEndDetails details, int index);
 
+/// A factory function that creates a [MultiDragGestureRecognizer] 
+/// for handling drag gestures
+typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
+  BuildContext context,
+);
+
 /// The [AnimatedReorderable] wrapper makes [ListView] or [GridView] animated,
 /// adds reordering and swiping capabilities.
 ///
@@ -107,6 +114,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragStartCallback? onItemSwipeStart,
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
+    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
     required ListView listView,
   }) =>
       _ListView(
@@ -135,6 +143,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
         onItemSwipeStart: onItemSwipeStart,
         onItemSwipeUpdate: onItemSwipeUpdate,
         onItemSwipeEnd: onItemSwipeEnd,
+        reoderGestureRecognizerFactory: reoderGestureRecognizerFactory,
         listView: listView,
       );
 
@@ -168,6 +177,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragStartCallback? onItemSwipeStart,
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
+    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
     required GridView gridView,
   }) =>
       _GridView(
@@ -196,6 +206,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
         onItemSwipeStart: onItemSwipeStart,
         onItemSwipeUpdate: onItemSwipeUpdate,
         onItemSwipeEnd: onItemSwipeEnd,
+        reoderGestureRecognizerFactory: reoderGestureRecognizerFactory,
         gridView: gridView,
       );
 
@@ -225,6 +236,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     this.onItemSwipeStart,
     this.onItemSwipeUpdate,
     this.onItemSwipeEnd,
+    this.reoderGestureRecognizerFactory,
   });
 
   /// A function that provides the unique key for each item in the list or grid.
@@ -324,6 +336,43 @@ abstract class AnimatedReorderable extends StatefulWidget {
   /// If the function returns `null`, the `swipeToRemove` feature
   /// will be disabled for the element at the specified [index].
   final AxisDirectionGetter? swipeToRemoveDirectionGetter;
+
+  /// A factory function that creates a [MultiDragGestureRecognizer] for handling
+  /// reordering gestures in the [AnimatedReorderable] widget.
+  ///
+  /// By default, it uses [DelayedMultiDragGestureRecognizer], which introduces a delay
+  /// to detect a long press before initiating the drag. This behavior is useful in cases where
+  /// you want to distinguish between simple taps and drag gestures.
+  ///
+  /// Users can override this factory to:
+  /// - Customize the default delay for initiating drag gestures (e.g., changing the delay duration).
+  /// - Use different types of gesture recognizers (e.g., for specific user interactions or input devices).
+  ///
+  /// Default implementation:
+  /// ```dart
+  /// MultiDragGestureRecognizer createReoderDragGestureRecognizer(
+  ///   BuildContext context,
+  /// ) =>
+  ///   DelayedMultiDragGestureRecognizer()
+  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+  /// ```
+  ///
+  /// Example of customizing the delay duration to 250ms using [DelayedMultiDragGestureRecognizer]:
+  /// ```dart
+  /// reoderGestureRecognizerFactory: (BuildContext context) {
+  ///   final recognizer = DelayedMultiDragGestureRecognizer()
+  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+  ///
+  ///   // Customize the delay duration to 250ms
+  ///   recognizer.delay = const Duration(milliseconds: 250);
+  ///
+  ///   return recognizer;
+  /// }
+  /// ```
+  ///
+  /// This factory allows for fine-tuned control over the gesture recognition system,
+  /// providing flexibility for various user interactions and devices.
+  final MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory;
 
   /// The state from the closest instance of this class that encloses the given
   /// context.
@@ -479,6 +528,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       onItemSwipeStart: widget.onItemSwipeStart,
       onItemSwipeUpdate: widget.onItemSwipeUpdate,
       onItemSwipeEnd: widget.onItemSwipeEnd,
+      reoderGestureRecognizerFactory: widget.reoderGestureRecognizerFactory,
       vsync: this,
     );
 
@@ -651,6 +701,7 @@ class _ListView extends AnimatedReorderable {
     super.onItemSwipeStart,
     super.onItemSwipeUpdate,
     super.onItemSwipeEnd,
+    super.reoderGestureRecognizerFactory,
     required this.listView,
   });
 
@@ -721,6 +772,7 @@ class _GridView extends AnimatedReorderable {
     super.onItemSwipeStart,
     super.onItemSwipeUpdate,
     super.onItemSwipeEnd,
+    super.reoderGestureRecognizerFactory,
     required this.gridView,
   });
 

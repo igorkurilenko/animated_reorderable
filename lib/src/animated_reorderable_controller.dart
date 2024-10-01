@@ -39,6 +39,7 @@ class AnimatedReorderableController {
     this.onItemSwipeStart,
     this.onItemSwipeUpdate,
     this.onItemSwipeEnd,
+    MultiDragGestureRecognizerFactory? reoderGestureRecognizerFactory,
   })  : reorderableGetter = reorderableGetter ?? ((_) => true),
         draggableGetter = draggableGetter ?? ((_) => true),
         swipeToRemoveDirectionGetter = onSwipeToRemove != null
@@ -48,6 +49,8 @@ class AnimatedReorderableController {
                     : AxisDirection.down)
                 : swipeToRemoveDirectionGetter.call(index))
             : ((_) => null),
+        reoderGestureRecognizerFactory =
+            reoderGestureRecognizerFactory ?? createReoderDragGestureRecognizer,
         _state = model.ControllerState(itemCount: itemCount);
 
   widgets.ScrollController? _scrollController;
@@ -79,6 +82,7 @@ class AnimatedReorderableController {
   final ItemDragStartCallback? onItemSwipeStart;
   final ItemDragUpdateCallback? onItemSwipeUpdate;
   final ItemDragEndCallback? onItemSwipeEnd;
+  final MultiDragGestureRecognizerFactory reoderGestureRecognizerFactory;
 
   void insertItem(
       int index, widgets.AnimatedItemBuilder builder, Duration duration) {
@@ -336,7 +340,7 @@ class AnimatedReorderableController {
     bool interactive = true,
     bool outgoing = false,
     int zIndex = defaultZIndex,
-    model.RecognizerFactory? recognizerFactory,
+    MultiDragGestureRecognizerFactory? recognizerFactory,
     model.ItemBuilder? builder,
   }) =>
       model.OverlayedItem(
@@ -748,10 +752,10 @@ extension ChildrenDelegate on AnimatedReorderableController {
       onDispose: handleRenderedItemDispose,
       onDeactivate: handleRenderedItemDeactivate,
       didBuild: handleRenderedItemDidBuild,
-      recognizeDrag: (renderedItem, event) {
+      recognizeReorderDrag: (renderedItem, event) {
         createOverlayedItem(
           renderedItem,
-          recognizerFactory: createReoderGestureRecognizer,
+          recognizerFactory: reoderGestureRecognizerFactory,
         ).recognizeDrag(
           event,
           context: context,
@@ -763,7 +767,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
           onDragEnd: handleItemDragEnd,
         );
       },
-      recognizeSwipe: (renderedItem, event) {
+      recognizeSwipeDrag: (renderedItem, event) {
         createOverlayedItem(
           renderedItem,
           recognizerFactory: switch (renderedItem.swipeToRemoveDirection) {
@@ -772,7 +776,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
               createVerticalSwipeToRemoveGestureRecognizer,
             AxisDirection.left ||
             AxisDirection.right =>
-              createHorizontalSwipeToRemoveGestureRecognizer,
+              createHorizontalSwipeToRemoveDragGestureRecognizer,
             _ => null,
           },
         ).recognizeSwipe(

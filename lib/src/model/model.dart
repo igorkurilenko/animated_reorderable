@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter/gestures.dart' as gestures;
 import 'package:flutter/widgets.dart';
 
+import '../../animated_reorderable.dart';
 import '../const.dart';
 import '../widget/item_widget.dart' show RenderedItem;
 import './permutations.dart';

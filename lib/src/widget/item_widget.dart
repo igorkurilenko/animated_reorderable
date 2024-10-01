@@ -22,8 +22,8 @@ class ItemWidget extends StatefulWidget {
     this.onDispose,
     this.onDeactivate,
     this.didBuild,
-    required this.recognizeDrag,
-    required this.recognizeSwipe,
+    required this.recognizeReorderDrag,
+    required this.recognizeSwipeDrag,
   });
 
   final int index;
@@ -37,8 +37,8 @@ class ItemWidget extends StatefulWidget {
   final RenderedItemLifecycleCallback? onDispose;
   final RenderedItemLifecycleCallback? onDeactivate;
   final RenderedItemLifecycleCallback? didBuild;
-  final ItemGestureRecognizer recognizeDrag;
-  final ItemGestureRecognizer recognizeSwipe;
+  final ItemGestureRecognizer recognizeReorderDrag;
+  final ItemGestureRecognizer recognizeSwipeDrag;
 
   @override
   State<ItemWidget> createState() => _ItemWidgetState();
@@ -105,8 +105,8 @@ class _ItemWidgetState extends State<ItemWidget> {
   }
 
   void _recognizeSwipe(PointerDownEvent event) =>
-      widget.recognizeSwipe(this, event);
+      widget.recognizeSwipeDrag(this, event);
 
   void _recognizeDrag(PointerDownEvent event) =>
-      widget.recognizeDrag(this, event);
+      widget.recognizeReorderDrag(this, event);
 }

@@ -109,12 +109,12 @@ Widget defaultDraggedItemDecorator(
       ),
     );
 
-MultiDragGestureRecognizer createReoderGestureRecognizer(
+MultiDragGestureRecognizer createReoderDragGestureRecognizer(
         BuildContext context) =>
     DelayedMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
-MultiDragGestureRecognizer createHorizontalSwipeToRemoveGestureRecognizer(
+MultiDragGestureRecognizer createHorizontalSwipeToRemoveDragGestureRecognizer(
         BuildContext context) =>
     HorizontalMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);

@@ -12,9 +12,6 @@ typedef OverlayedItemDragEndCallback = void Function(
   DragEndDetails details,
   OverlayedItem item,
 );
-typedef RecognizerFactory = gestures.MultiDragGestureRecognizer Function(
-  widgets.BuildContext context,
-);
 
 class OverlayedItem extends Item {
   OverlayedItem({
@@ -38,7 +35,7 @@ class OverlayedItem extends Item {
   bool _interactive;
   bool outgoing;
   int _zIndex = 0;
-  RecognizerFactory? recognizerFactory;
+  MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
   widgets.Offset? _globalPointerPosition;
