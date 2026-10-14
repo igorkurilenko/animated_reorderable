@@ -10,8 +10,7 @@ abstract class ItemDecorator {
   factory ItemDecorator.adaptAnimatedItemDecorator(
     AnimatedItemDecorator decorator, {
     required widgets.AnimationController controller,
-  }) =>
-      AnimatedItemDecoratorAdapter(decorator, controller: controller);
+  }) => AnimatedItemDecoratorAdapter(decorator, controller: controller);
 
   widgets.Widget? decorate(widgets.Widget? child, int index);
 
@@ -19,10 +18,7 @@ abstract class ItemDecorator {
 }
 
 class AnimatedItemDecoratorAdapter implements ItemDecorator {
-  AnimatedItemDecoratorAdapter(
-    this.decorator, {
-    required this.controller,
-  });
+  AnimatedItemDecoratorAdapter(this.decorator, {required this.controller});
 
   final widgets.AnimationController controller;
   AnimatedItemDecorator decorator;

@@ -19,8 +19,8 @@ extension StateExtension on State {
       findRenderBox()?.getGeometry(offset);
   EdgeInsets mediaQueryScrollablePaddingOf(Axis scrollDirection) =>
       scrollDirection == Axis.vertical
-          ? MediaQuery.paddingOf(context).copyWith(left: 0.0, right: 0.0)
-          : MediaQuery.paddingOf(context).copyWith(top: 0.0, bottom: 0.0);
+      ? MediaQuery.paddingOf(context).copyWith(left: 0.0, right: 0.0)
+      : MediaQuery.paddingOf(context).copyWith(top: 0.0, bottom: 0.0);
   void rebuild([VoidCallback? cb]) {
     if (!mounted) return;
     // ignore: invalid_use_of_protected_member
@@ -97,34 +97,37 @@ Widget defaultDraggedItemDecorator(
   Widget child,
   int index,
   Animation<double> animation,
-) =>
-    ScaleTransition(
-      scale: CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeInOut,
-      ).drive(Tween(begin: 1, end: 1.05)),
-      child: FadeTransition(
-        opacity: animation.drive(Tween(begin: 1, end: 0.7)),
-        child: child,
-      ),
-    );
+) => ScaleTransition(
+  scale: CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeInOut,
+  ).drive(Tween(begin: 1, end: 1.05)),
+  child: FadeTransition(
+    opacity: animation.drive(Tween(begin: 1, end: 0.7)),
+    child: child,
+  ),
+);
 
 MultiDragGestureRecognizer createReorderDragGestureRecognizer(
-        BuildContext context) =>
+  BuildContext context,
+) =>
     DelayedMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
 MultiDragGestureRecognizer createHorizontalSwipeToRemoveDragGestureRecognizer(
-        BuildContext context) =>
+  BuildContext context,
+) =>
     HorizontalMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
 MultiDragGestureRecognizer createVerticalSwipeToRemoveGestureRecognizer(
-        BuildContext context) =>
+  BuildContext context,
+) =>
     VerticalMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
 
 MultiDragGestureRecognizer createImmediateGestureRecognizer(
-        BuildContext context) =>
+  BuildContext context,
+) =>
     ImmediateMultiDragGestureRecognizer()
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);

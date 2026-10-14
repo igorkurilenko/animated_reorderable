@@ -7,19 +7,20 @@ class OverridedSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
     required SliverChildDelegate delegate,
     required NullableIndexedWidgetBuilder overridedChildBuilder,
     required ChildCountGetter overridedChildCountGetter,
-  }) =>
-      OverridedSliverChildBuilderDelegate(
-        getChildBuilder(delegate),
-        overridedBuilder: overridedChildBuilder,
-        overridedChildCountGetter: overridedChildCountGetter,
-        findChildIndexCallback: getChildIndexGetter(delegate),
-        childCount: overridedChildCountGetter(),
-        addAutomaticKeepAlives: getAddAutomaticKeepAlives(delegate),
-        addRepaintBoundaries: getAddRepaintBoundaries(delegate),
-        addSemanticIndexes: getAddSemanticIndexes(delegate),
-        semanticIndexCallback: getSemanticIndexCallback(delegate),
-        semanticIndexOffset: getSemanticIndexOffset(delegate),
-      );
+    ChildIndexGetter? fallbackChildIndexGetter,
+  }) => OverridedSliverChildBuilderDelegate(
+    getChildBuilder(delegate),
+    overridedBuilder: overridedChildBuilder,
+    overridedChildCountGetter: overridedChildCountGetter,
+    findChildIndexCallback:
+        getChildIndexGetter(delegate) ?? fallbackChildIndexGetter,
+    childCount: overridedChildCountGetter(),
+    addAutomaticKeepAlives: getAddAutomaticKeepAlives(delegate),
+    addRepaintBoundaries: getAddRepaintBoundaries(delegate),
+    addSemanticIndexes: getAddSemanticIndexes(delegate),
+    semanticIndexCallback: getSemanticIndexCallback(delegate),
+    semanticIndexOffset: getSemanticIndexOffset(delegate),
+  );
 
   OverridedSliverChildBuilderDelegate(
     super.builder, {
@@ -57,10 +58,10 @@ NullableIndexedWidgetBuilder getChildBuilder(SliverChildDelegate delegate) =>
     };
 
 int? getChildCount(SliverChildDelegate delegate) => switch (delegate) {
-      SliverChildBuilderDelegate(childCount: var c) => c,
-      SliverChildListDelegate(children: var xs) => xs.length,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
-    };
+  SliverChildBuilderDelegate(childCount: var c) => c,
+  SliverChildListDelegate(children: var xs) => xs.length,
+  _ => throw 'Not implemented for ${delegate.runtimeType}',
+};
 
 ChildIndexGetter? getChildIndexGetter(SliverChildDelegate delegate) =>
     switch (delegate) {
@@ -72,37 +73,32 @@ ChildIndexGetter? getChildIndexGetter(SliverChildDelegate delegate) =>
 bool getAddAutomaticKeepAlives(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(addAutomaticKeepAlives: var x) ||
-      SliverChildListDelegate(addAutomaticKeepAlives: var x) =>
-        x,
+      SliverChildListDelegate(addAutomaticKeepAlives: var x) => x,
       _ => throw 'Not implemented for ${delegate.runtimeType}',
     };
 
 bool getAddRepaintBoundaries(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(addRepaintBoundaries: var x) ||
-      SliverChildListDelegate(addRepaintBoundaries: var x) =>
-        x,
+      SliverChildListDelegate(addRepaintBoundaries: var x) => x,
       _ => throw 'Not implemented for ${delegate.runtimeType}',
     };
 
 bool getAddSemanticIndexes(SliverChildDelegate delegate) => switch (delegate) {
-      SliverChildBuilderDelegate(addSemanticIndexes: var x) ||
-      SliverChildListDelegate(addSemanticIndexes: var x) =>
-        x,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
-    };
+  SliverChildBuilderDelegate(addSemanticIndexes: var x) ||
+  SliverChildListDelegate(addSemanticIndexes: var x) => x,
+  _ => throw 'Not implemented for ${delegate.runtimeType}',
+};
 
 SemanticIndexCallback getSemanticIndexCallback(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(semanticIndexCallback: var x) ||
-      SliverChildListDelegate(semanticIndexCallback: var x) =>
-        x,
+      SliverChildListDelegate(semanticIndexCallback: var x) => x,
       _ => throw 'Not implemented for ${delegate.runtimeType}',
     };
 
 int getSemanticIndexOffset(SliverChildDelegate delegate) => switch (delegate) {
-      SliverChildBuilderDelegate(semanticIndexOffset: var x) ||
-      SliverChildListDelegate(semanticIndexOffset: var x) =>
-        x,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
-    };
+  SliverChildBuilderDelegate(semanticIndexOffset: var x) ||
+  SliverChildListDelegate(semanticIndexOffset: var x) => x,
+  _ => throw 'Not implemented for ${delegate.runtimeType}',
+};

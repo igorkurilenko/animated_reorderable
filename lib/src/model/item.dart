@@ -1,12 +1,14 @@
 part of 'model.dart';
 
 class Item extends widgets.ChangeNotifier {
-  Item({
-    required this.key,
-    required ItemBuilder builder,
-  }) : _builder = builder;
+  Item({required this.key, required this._builder, widgets.GlobalKey? childKey})
+    : childKey = childKey ?? widgets.GlobalKey();
 
   final Key key;
+
+  /// Keys the item's subtree, so the subtree keeps its state while it moves
+  /// between the list and the overlay.
+  final widgets.GlobalKey childKey;
   ItemBuilder _builder;
 
   ItemBuilder get builder => _builder;
@@ -36,16 +38,10 @@ extension ItemAnimations on Item {
     double? from = 0,
   }) {
     final originalBuilder = this.builder;
-    final controller = AnimationController(
-      vsync: vsync,
-      duration: duration,
-    );
+    final controller = AnimationController(vsync: vsync, duration: duration);
 
     setBuilder(
-      ItemBuilder.adaptAnimatedItemBuilder(
-        builder,
-        controller: controller,
-      ),
+      ItemBuilder.adaptAnimatedItemBuilder(builder, controller: controller),
       notify: false,
     );
 

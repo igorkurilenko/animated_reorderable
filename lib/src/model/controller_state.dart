@@ -1,7 +1,9 @@
 part of 'model.dart';
 
-class ControllerState<ItemsLayerState extends State<StatefulWidget>,
-    OverlayedItemsLayerState extends State<StatefulWidget>> {
+class ControllerState<
+  ItemsLayerState extends State<StatefulWidget>,
+  OverlayedItemsLayerState extends State<StatefulWidget>
+> {
   ControllerState({this.itemCount});
 
   GlobalKey<ItemsLayerState> _itemsLayerKey = GlobalKey<ItemsLayerState>();
@@ -41,9 +43,8 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
 
   bool isSwiped({required Key key}) => key == swipedItem?.key;
 
-  Iterable<(int, Item)> iterator() => _itemKeyByIndex.entries.map(
-        (e) => (e.key, itemBy(key: e.value)!),
-      );
+  Iterable<(int, Item)> iterator() =>
+      _itemKeyByIndex.entries.map((e) => (e.key, itemBy(key: e.value)!));
 
   Item? itemAt({required int index}) =>
       itemBy(key: _itemKeyByIndex[index] ?? UniqueKey());
@@ -61,6 +62,16 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
 
   bool isRendered({required Key key}) => _renderedItemByKey.containsKey(key);
 
+  /// Finds an item's index by its key, so the list moves an item's element
+  /// along with the item instead of building it again.
+  ChildIndexGetter childIndexGetter() {
+    final indexByKey = {
+      for (final MapEntry(key: index, value: key) in _itemKeyByIndex.entries)
+        key: index,
+    };
+    return (key) => indexByKey[key];
+  }
+
   void setIndex({required Key itemKey, required int index}) =>
       _itemKeyByIndex[index] = itemKey;
 
@@ -73,13 +84,15 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
       _overlayedItemByKey[key];
 
   OverlayedItem putOverlayedItem(OverlayedItem x) {
-    _overlayedItemByKey.remove(x.key);
+    final replaced = _overlayedItemByKey.remove(x.key);
+    if (replaced != null && replaced != x) replaced.dispose();
     return _overlayedItemByKey[x.key] = x;
   }
 
-  OverlayedItem putOverlayedItemIfAbsent(
-          {required Key key, required OverlayedItem Function() ifAbsent}) =>
-      putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
+  OverlayedItem putOverlayedItemIfAbsent({
+    required Key key,
+    required OverlayedItem Function() ifAbsent,
+  }) => putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
 
   OverlayedItem? removeOverlayedItem({required Key key}) =>
       _overlayedItemByKey.remove(key);
@@ -151,7 +164,7 @@ class ControllerState<ItemsLayerState extends State<StatefulWidget>,
     Key unorderedItemKey = curItem.key;
     int unorderedItemIndex = index;
 
-    for (var curIndex = destIndex;; curIndex = nextIndex(curIndex)) {
+    for (var curIndex = destIndex; ; curIndex = nextIndex(curIndex)) {
       curItem = itemAt(index: curIndex) ?? putItem(itemFactory(curIndex));
 
       if (reorderableGetter(curIndex)) {

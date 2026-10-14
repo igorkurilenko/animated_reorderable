@@ -34,20 +34,20 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
 
   @override
   Widget build(BuildContext context) => Stack(
-        key: canvasKey,
-        clipBehavior: widget.clipBehavior,
-        children: [
-          for (var item in controller.overlayedItemsOrderedByZIndex)
-            OverlayedItemWidget(
-              key: ValueKey(item.key),
-              item: item,
-              onDragStart: controller.handleItemDragStart,
-              onDragUpdate: controller.handleItemDragUpdate,
-              onDragEnd: controller.handleItemDragEnd,
-              onSwipeStart: controller.handleItemSwipeStart,
-              onSwipeUpdate: controller.handleItemSwipeUpdate,
-              onSwipeEnd: controller.handleItemSwipeEnd,
-            ),
-        ],
-      );
+    key: canvasKey,
+    clipBehavior: widget.clipBehavior,
+    children: [
+      for (var item in controller.overlayedItemsOrderedByZIndex)
+        OverlayedItemWidget(
+          key: ValueKey(item.key),
+          item: item,
+          onDragStart: controller.handleItemDragStart,
+          onDragUpdate: controller.handleItemDragUpdate,
+          onDragEnd: controller.handleItemDragEnd,
+          onSwipeStart: controller.handleItemSwipeStart,
+          onSwipeUpdate: controller.handleItemSwipeUpdate,
+          onSwipeEnd: controller.handleItemSwipeEnd,
+        ),
+    ],
+  );
 }

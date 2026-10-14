@@ -21,10 +21,7 @@ abstract class SliverGridDelegateDecorator implements SliverGridDelegate {
 }
 
 class SliverGridLayoutNotifier extends SliverGridDelegateDecorator {
-  SliverGridLayoutNotifier({
-    required super.gridDelegate,
-    this.onLayout,
-  });
+  SliverGridLayoutNotifier({required super.gridDelegate, this.onLayout});
 
   final LayoutCallback? onLayout;
 

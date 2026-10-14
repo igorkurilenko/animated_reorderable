@@ -16,17 +16,18 @@ class MeasureUtil {
     if (renderBox == null) return Size.zero;
 
     final PipelineOwner pipelineOwner = PipelineOwner();
-    final _MeasurementView rootView = pipelineOwner.rootNode =
-        _MeasurementView(constraints ?? renderBox.constraints);
+    final _MeasurementView rootView = pipelineOwner.rootNode = _MeasurementView(
+      constraints ?? renderBox.constraints,
+    );
     final BuildOwner buildOwner = BuildOwner(focusManager: FocusManager());
     final RenderObjectToWidgetElement<RenderBox> element =
         RenderObjectToWidgetAdapter<RenderBox>(
-      container: rootView,
-      child: Directionality(
-        textDirection: Directionality.of(context),
-        child: builder(context),
-      ),
-    ).attachToRenderTree(buildOwner);
+          container: rootView,
+          child: Directionality(
+            textDirection: Directionality.of(context),
+            child: builder(context),
+          ),
+        ).attachToRenderTree(buildOwner);
 
     try {
       rootView.scheduleInitialLayout();
@@ -34,9 +35,7 @@ class MeasureUtil {
       return rootView.size;
     } finally {
       element.update(
-        RenderObjectToWidgetAdapter<RenderBox>(
-          container: rootView,
-        ),
+        RenderObjectToWidgetAdapter<RenderBox>(container: rootView),
       );
       buildOwner.finalizeTree();
     }
