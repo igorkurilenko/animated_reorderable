@@ -3,8 +3,8 @@ part of 'model.dart';
 class Item extends widgets.ChangeNotifier {
   Item({
     required this.key,
-    required ItemBuilder builder,
-  }) : _builder = builder;
+    required this._builder,
+  });
 
   final Key key;
   ItemBuilder _builder;

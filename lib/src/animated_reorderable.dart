@@ -736,14 +736,18 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
         padding: widget.listView.padding,
         itemExtent: widget.listView.itemExtent,
         prototypeItem: widget.listView.prototypeItem,
+        itemExtentBuilder: widget.listView.itemExtentBuilder,
         childrenDelegate:
             _controller.overrideChildrenDelegate(_childrenDelegate),
+        // ignore: deprecated_member_use
         cacheExtent: widget.listView.cacheExtent,
+        scrollCacheExtent: widget.listView.scrollCacheExtent,
         semanticChildCount: widget.listView.semanticChildCount,
         dragStartBehavior: widget.listView.dragStartBehavior,
         keyboardDismissBehavior: widget.listView.keyboardDismissBehavior,
         restorationId: widget.listView.restorationId,
         clipBehavior: _clipBehavior,
+        hitTestBehavior: widget.listView.hitTestBehavior,
       );
 }
 
@@ -811,11 +815,14 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
         ),
         childrenDelegate:
             _controller.overrideChildrenDelegate(_childrenDelegate),
+        // ignore: deprecated_member_use
         cacheExtent: widget.gridView.cacheExtent,
+        scrollCacheExtent: widget.gridView.scrollCacheExtent,
         semanticChildCount: widget.gridView.semanticChildCount,
         dragStartBehavior: widget.gridView.dragStartBehavior,
         keyboardDismissBehavior: widget.gridView.keyboardDismissBehavior,
         restorationId: widget.gridView.restorationId,
         clipBehavior: _clipBehavior,
+        hitTestBehavior: widget.gridView.hitTestBehavior,
       );
 }

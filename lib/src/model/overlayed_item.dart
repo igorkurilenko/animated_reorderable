@@ -17,24 +17,21 @@ class OverlayedItem extends Item {
   OverlayedItem({
     required super.key,
     required super.builder,
-    required Offset position,
-    required BoxConstraints constraints,
+    required this._position,
+    required this._constraints,
     required this.index,
-    bool interactive = true,
+    this._interactive = true,
     this.outgoing = false,
-    int zIndex = defaultZIndex,
+    this._zIndex = defaultZIndex,
     this.recognizerFactory,
-  })  : _position = position,
-        _constraints = constraints,
-        _interactive = interactive,
-        _zIndex = zIndex;
+  });
 
   int index;
   widgets.Offset _position;
   widgets.BoxConstraints _constraints;
   bool _interactive;
   bool outgoing;
-  int _zIndex = 0;
+  int _zIndex;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;

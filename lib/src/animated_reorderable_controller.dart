@@ -474,7 +474,7 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
   void handleRenderedItemDeactivate(RenderedItem item) =>
       unregisterRenderedItem(item);
 
-  void handleRenderedItemDidBuild(item) {
+  void handleRenderedItemDidBuild(RenderedItem item) {
     if (isDragged(item)) return;
     if (isSwiped(item)) return;
 
