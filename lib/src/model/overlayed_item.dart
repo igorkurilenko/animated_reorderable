@@ -17,6 +17,7 @@ class OverlayedItem extends Item {
   OverlayedItem({
     required super.key,
     required super.builder,
+    super.childKey,
     required this._position,
     required this._constraints,
     required this.index,
@@ -84,7 +85,10 @@ class OverlayedItem extends Item {
       _swipe?.velocity ?? widgets.Velocity.zero;
 
   widgets.Widget? build(widgets.BuildContext context) {
-    _widget = builder.build(context, index);
+    final child = builder.build(context, index);
+    _widget = child != null
+        ? widgets.KeyedSubtree(key: childKey, child: child)
+        : null;
     return _decorator?.decorate(_widget, index) ?? _widget;
   }
 

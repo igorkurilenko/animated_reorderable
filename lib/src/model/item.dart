@@ -1,9 +1,14 @@
 part of 'model.dart';
 
 class Item extends widgets.ChangeNotifier {
-  Item({required this.key, required this._builder});
+  Item({required this.key, required this._builder, widgets.GlobalKey? childKey})
+    : childKey = childKey ?? widgets.GlobalKey();
 
   final Key key;
+
+  /// Keys the item's subtree, so the subtree keeps its state while it moves
+  /// between the list and the overlay.
+  final widgets.GlobalKey childKey;
   ItemBuilder _builder;
 
   ItemBuilder get builder => _builder;

@@ -16,7 +16,8 @@ class ItemWidget extends StatefulWidget {
     required this.index,
     required this.reorderableGetter,
     required this.draggableGetter,
-    required this.overlayedGetter,
+    required this.overlayedSizeGetter,
+    required this.childKey,
     required this.swipeToRemoveDirectionGetter,
     required this.builder,
     this.onInit,
@@ -32,7 +33,10 @@ class ItemWidget extends StatefulWidget {
   final NullableIndexedWidgetBuilder builder;
   final BoolGetter reorderableGetter;
   final BoolGetter draggableGetter;
-  final bool Function(Key key) overlayedGetter;
+
+  /// The size of the item while the overlay shows it, or null.
+  final Size? Function(Key key) overlayedSizeGetter;
+  final GlobalKey childKey;
   final AxisDirectionGetter? swipeToRemoveDirectionGetter;
   final RenderedItemLifecycleCallback? onInit;
   final RenderedItemLifecycleCallback? didUpdate;
@@ -52,7 +56,8 @@ class _ItemWidgetState extends State<ItemWidget> {
   NullableIndexedWidgetBuilder get builder => widget.builder;
   bool get reorderable => widget.reorderableGetter(index);
   bool get draggable => widget.draggableGetter(index);
-  bool get isOverlayed => widget.overlayedGetter(key);
+  Size? get overlayedSize => widget.overlayedSizeGetter(key);
+  bool get isOverlayed => overlayedSize != null;
   AxisDirection? get swipeToRemoveDirection =>
       widget.swipeToRemoveDirectionGetter?.call(index);
   bool get swipeable => swipeToRemoveDirection != null;
@@ -94,14 +99,19 @@ class _ItemWidgetState extends State<ItemWidget> {
   Widget build(BuildContext context) {
     addPostFrame(() => widget.didBuild?.call(this));
 
-    return Opacity(
-      opacity: isOverlayed ? 0 : 1,
+    // While the overlay shows the item, its subtree lives there and a
+    // placeholder keeps its place in the list.
+    final overlayedSize = this.overlayedSize;
+    if (overlayedSize != null) return SizedBox.fromSize(size: overlayedSize);
+
+    final child = widget.builder(context, index);
+    return Listener(
+      onPointerDown: swipeable ? _recognizeSwipe : null,
       child: Listener(
-        onPointerDown: swipeable && !isOverlayed ? _recognizeSwipe : null,
-        child: Listener(
-          onPointerDown: draggable && !isOverlayed ? _recognizeDrag : null,
-          child: widget.builder(context, index),
-        ),
+        onPointerDown: draggable ? _recognizeDrag : null,
+        child: child != null
+            ? KeyedSubtree(key: widget.childKey, child: child)
+            : null,
       ),
     );
   }

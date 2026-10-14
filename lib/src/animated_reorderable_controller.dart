@@ -168,8 +168,11 @@ class AnimatedReorderableController {
       if (renderedItem != null) {
         _state.putOverlayedItemIfAbsent(
             key: renderedItem.key,
-            ifAbsent: () =>
-                createOverlayedItem(renderedItem, builder: removedItem.builder),
+            ifAbsent: () => createOverlayedItem(
+              renderedItem,
+              builder: removedItem.builder,
+              childKey: removedItem.childKey,
+            ),
           )
           ..outgoing = true
           ..setInteractive(false, notify: false)
@@ -244,6 +247,7 @@ class AnimatedReorderableController {
                 position: fakeGeometry.topLeft,
                 constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
                 builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtIndex),
+                childKey: itemAtIndex.childKey,
                 interactive: false,
               ),
             )
@@ -267,6 +271,7 @@ class AnimatedReorderableController {
                 builder: model.ItemBuilder.adaptOtherItemBuilder(
                   itemAtDestIndex,
                 ),
+                childKey: itemAtDestIndex.childKey,
                 interactive: false,
               ),
             )
@@ -349,21 +354,24 @@ class AnimatedReorderableController {
     int zIndex = defaultZIndex,
     MultiDragGestureRecognizerFactory? recognizerFactory,
     model.ItemBuilder? builder,
-  }) => model.OverlayedItem(
-    index: index ?? renderedItem.index,
-    key: renderedItem.key,
-    position: overlayedItemsLayer!.globalToLocal(renderedItem.globalPosition!)!,
-    constraints: widgets.BoxConstraints.tight(renderedItem.size!),
-    zIndex: zIndex,
-    interactive: interactive,
-    outgoing: outgoing,
-    builder:
-        builder ??
-        model.ItemBuilder.adaptOtherItemBuilder(
-          _state.itemBy(key: renderedItem.key)!,
-        ),
-    recognizerFactory: recognizerFactory,
-  )..addListener(overlayedItemsLayer!.rebuild);
+    widgets.GlobalKey? childKey,
+  }) {
+    final item = _state.itemBy(key: renderedItem.key);
+    return model.OverlayedItem(
+      index: index ?? renderedItem.index,
+      key: renderedItem.key,
+      position: overlayedItemsLayer!.globalToLocal(
+        renderedItem.globalPosition!,
+      )!,
+      constraints: widgets.BoxConstraints.tight(renderedItem.size!),
+      zIndex: zIndex,
+      interactive: interactive,
+      outgoing: outgoing,
+      builder: builder ?? model.ItemBuilder.adaptOtherItemBuilder(item!),
+      childKey: childKey ?? item!.childKey,
+      recognizerFactory: recognizerFactory,
+    )..addListener(overlayedItemsLayer!.rebuild);
+  }
 
   void registerRenderedItem(RenderedItem item) => _state.putRenderedItem(item);
 
@@ -756,7 +764,9 @@ extension ChildrenDelegate on AnimatedReorderableController {
       reorderableGetter: reorderableGetter,
       draggableGetter: draggableGetter,
       swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-      overlayedGetter: (key) => _state.isOverlayed(key: key),
+      overlayedSizeGetter: (key) =>
+          _state.overlayedItemBy(key: key)?.constraints.biggest,
+      childKey: item.childKey,
       builder: item.builder.build,
       onInit: handleRenderedItemInit,
       didUpdate: handleRenderedItemDidUpdate,
