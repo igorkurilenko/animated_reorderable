@@ -1,3 +1,19 @@
+## 1.5.0
+
+### Fixes
+
+- Keep item state while items move. Items were built a second time in the overlay during an insert, remove, reorder, drag or swipe, so their state was created again ([#4](https://github.com/igorkurilenko/animated_reorderable/issues/4)).
+  Now each item moves between the list and the overlay instead, so while it moves, it lives outside the scroll view: `Scrollable.of` and `PrimaryScrollController` don't find the list's scroll view during those 500 ms.
+- Dispose the animations of items that stop moving. Every move leaked tickers, and disposing the list while an item moved could fail with "disposed with an active Ticker" ([#5](https://github.com/igorkurilenko/animated_reorderable/issues/5)).
+- Move item elements along with their items: unless the wrapped delegate has a `findChildIndexCallback`, the list now finds items by key.
+- Use the latest `keyGetter`, item builder, callbacks and scroll controller after a rebuild, instead of the ones from the first build.
+
+### Maintenance
+
+- Require Dart 3.13 and Flutter 3.47.
+- Forward `scrollCacheExtent`, `itemExtentBuilder` and `hitTestBehavior` to the wrapped list or grid.
+- Update the example to the current Flutter templates.
+
 ## 1.4.2
 
 ### Fixes
