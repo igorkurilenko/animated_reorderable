@@ -74,7 +74,8 @@ class ControllerState<
       _overlayedItemByKey[key];
 
   OverlayedItem putOverlayedItem(OverlayedItem x) {
-    _overlayedItemByKey.remove(x.key);
+    final replaced = _overlayedItemByKey.remove(x.key);
+    if (replaced != null && replaced != x) replaced.dispose();
     return _overlayedItemByKey[x.key] = x;
   }
 

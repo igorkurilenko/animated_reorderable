@@ -45,8 +45,9 @@ class OtherItemBuilderAdapter implements ItemBuilder {
   widgets.Widget? build(widgets.BuildContext context, int index) =>
       item.builder.build(context, index);
 
+  /// The adapted [item] owns its builder and disposes it.
   @override
-  void dispose() => item.builder.dispose();
+  void dispose() {}
 }
 
 abstract class AnimatedItemBuilder implements ItemBuilder {

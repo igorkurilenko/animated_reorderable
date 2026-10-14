@@ -229,7 +229,8 @@ class AnimatedReorderableController {
           ..setInteractive(false, notify: false);
       }
 
-      if (!_state.isRendered(key: itemAtIndex.key)) {
+      if (!_state.isRendered(key: itemAtIndex.key) &&
+          !_state.isOverlayed(key: itemAtIndex.key)) {
         final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: index,
           anyRenderedItemIndex: _state.renderedItems.first.index,
@@ -249,7 +250,8 @@ class AnimatedReorderableController {
             .addListener(overlayedItemsLayer!.rebuild);
       }
 
-      if (!_state.isRendered(key: itemAtDestIndex.key)) {
+      if (!_state.isRendered(key: itemAtDestIndex.key) &&
+          !_state.isOverlayed(key: itemAtDestIndex.key)) {
         final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: destIndex,
           anyRenderedItemIndex: _state.renderedItems.first.index,
@@ -405,11 +407,15 @@ class AnimatedReorderableController {
   }
 
   void unoverlay(model.OverlayedItem item) {
-    if (!_state.isOverlayed(key: item.key)) return;
+    if (_state.overlayedItemBy(key: item.key) != item) return;
+    if (item.outgoing) return;
     overlayedItemsLayer?.rebuild(
       () => _state.removeOverlayedItem(key: item.key),
     );
     _state.renderedItemBy(key: item.key)?.rebuild();
+    addPostFrame(() {
+      if (_state.overlayedItemBy(key: item.key) != item) item.dispose();
+    });
   }
 
   widgets.Rect getFakeAnchorGeometryOfNotRenderedItem({

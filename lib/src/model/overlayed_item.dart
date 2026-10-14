@@ -263,6 +263,8 @@ class OverlayedItem extends Item {
     _swipe = null;
     _motionAnimation?.dispose();
     _motionAnimation = null;
+    _decorator?.dispose();
+    _decorator = null;
     super.dispose();
   }
 
