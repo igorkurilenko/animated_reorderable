@@ -24,32 +24,32 @@ class OverlayedItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Positioned(
-        left: item.position.dx,
-        top: item.position.dy,
-        child: IgnorePointer(
-          ignoring: !item.interactive,
-          child: Listener(
-            onPointerDown: (event) => item.swiped
-                ? item.recognizeSwipe(
-                    event,
-                    context: context,
-                    swipeDirection: item.swipeToRemoveDirection!,
-                    onSwipeStart: onSwipeStart,
-                    onSwipeUpdate: onSwipeUpdate,
-                    onSwipeEnd: onSwipeEnd,
-                  )
-                : item.recognizeDrag(
-                    event,
-                    context: context,
-                    onDragStart: onDragStart,
-                    onDragUpdate: onDragUpdate,
-                    onDragEnd: onDragEnd,
-                  ),
-            child: ConstrainedBox(
-              constraints: item.constraints,
-              child: item.build(context),
-            ),
-          ),
+    left: item.position.dx,
+    top: item.position.dy,
+    child: IgnorePointer(
+      ignoring: !item.interactive,
+      child: Listener(
+        onPointerDown: (event) => item.swiped
+            ? item.recognizeSwipe(
+                event,
+                context: context,
+                swipeDirection: item.swipeToRemoveDirection!,
+                onSwipeStart: onSwipeStart,
+                onSwipeUpdate: onSwipeUpdate,
+                onSwipeEnd: onSwipeEnd,
+              )
+            : item.recognizeDrag(
+                event,
+                context: context,
+                onDragStart: onDragStart,
+                onDragUpdate: onDragUpdate,
+                onDragEnd: onDragEnd,
+              ),
+        child: ConstrainedBox(
+          constraints: item.constraints,
+          child: item.build(context),
         ),
-      );
+      ),
+    ),
+  );
 }

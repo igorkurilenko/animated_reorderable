@@ -6,7 +6,9 @@ import '../util/misc.dart';
 typedef RenderedItem = _ItemWidgetState;
 typedef RenderedItemLifecycleCallback = void Function(RenderedItem item);
 typedef ItemGestureRecognizer = void Function(
-    RenderedItem item, PointerDownEvent event);
+  RenderedItem item,
+  PointerDownEvent event,
+);
 
 class ItemWidget extends StatefulWidget {
   const ItemWidget({

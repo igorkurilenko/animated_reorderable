@@ -1,10 +1,7 @@
 part of 'model.dart';
 
 class Item extends widgets.ChangeNotifier {
-  Item({
-    required this.key,
-    required this._builder,
-  });
+  Item({required this.key, required this._builder});
 
   final Key key;
   ItemBuilder _builder;
@@ -36,16 +33,10 @@ extension ItemAnimations on Item {
     double? from = 0,
   }) {
     final originalBuilder = this.builder;
-    final controller = AnimationController(
-      vsync: vsync,
-      duration: duration,
-    );
+    final controller = AnimationController(vsync: vsync, duration: duration);
 
     setBuilder(
-      ItemBuilder.adaptAnimatedItemBuilder(
-        builder,
-        controller: controller,
-      ),
+      ItemBuilder.adaptAnimatedItemBuilder(builder, controller: controller),
       notify: false,
     );
 

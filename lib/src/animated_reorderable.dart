@@ -52,14 +52,18 @@ typedef SwipeToRemoveCallback = void Function(int index);
 /// The [index] parameter of the callback is the index of the dragged item.
 /// Note: If the item is reordered, the [index] will be updated accordingly.
 typedef ItemDragStartCallback = void Function(
-    DragStartDetails details, int index);
+  DragStartDetails details,
+  int index,
+);
 
 /// A callback function that is called when dragging of an item is updated.
 ///
 /// The [index] parameter of the callback is the index of the dragged item.
 /// Note: If the item is reordered, the [index] will be updated accordingly.
 typedef ItemDragUpdateCallback = void Function(
-    DragUpdateDetails details, int index);
+  DragUpdateDetails details,
+  int index,
+);
 
 /// A callback function that is called when dragging of an item ends.
 ///
@@ -67,7 +71,7 @@ typedef ItemDragUpdateCallback = void Function(
 /// Note: If the item is reordered, the [index] will reflect the new position where the item was dropped.
 typedef ItemDragEndCallback = void Function(DragEndDetails details, int index);
 
-/// A factory function that creates a [MultiDragGestureRecognizer] 
+/// A factory function that creates a [MultiDragGestureRecognizer]
 /// for handling drag gestures
 typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
   BuildContext context,
@@ -116,36 +120,35 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragEndCallback? onItemSwipeEnd,
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required ListView listView,
-  }) =>
-      _ListView(
-        key: key,
-        keyGetter: keyGetter,
-        motionAnimationDuration: motionAnimationDuration,
-        motionAnimationCurve: motionAnimationCurve,
-        autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-        draggableGetter: draggableGetter,
-        reorderableGetter: reorderableGetter,
-        onReorder: onReorder,
-        swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-        swipeToRemoveExtent: swipeToRemoveExtent,
-        swipeToRemoveVelocity: swipeToRemoveVelocity,
-        swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-        onSwipeToRemove: onSwipeToRemove,
-        draggedItemDecorator: draggedItemDecorator,
-        draggedItemDecorationAnimationDuration:
-            draggedItemDecorationAnimationDuration,
-        swipedItemDecorator: swipedItemDecorator,
-        swipedItemDecorationAnimationDuration:
-            swipedItemDecorationAnimationDuration,
-        onItemDragStart: onItemDragStart,
-        onItemDragUpdate: onItemDragUpdate,
-        onItemDragEnd: onItemDragEnd,
-        onItemSwipeStart: onItemSwipeStart,
-        onItemSwipeUpdate: onItemSwipeUpdate,
-        onItemSwipeEnd: onItemSwipeEnd,
-        reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
-        listView: listView,
-      );
+  }) => _ListView(
+    key: key,
+    keyGetter: keyGetter,
+    motionAnimationDuration: motionAnimationDuration,
+    motionAnimationCurve: motionAnimationCurve,
+    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+    draggableGetter: draggableGetter,
+    reorderableGetter: reorderableGetter,
+    onReorder: onReorder,
+    swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
+    swipeToRemoveExtent: swipeToRemoveExtent,
+    swipeToRemoveVelocity: swipeToRemoveVelocity,
+    swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+    onSwipeToRemove: onSwipeToRemove,
+    draggedItemDecorator: draggedItemDecorator,
+    draggedItemDecorationAnimationDuration:
+        draggedItemDecorationAnimationDuration,
+    swipedItemDecorator: swipedItemDecorator,
+    swipedItemDecorationAnimationDuration:
+        swipedItemDecorationAnimationDuration,
+    onItemDragStart: onItemDragStart,
+    onItemDragUpdate: onItemDragUpdate,
+    onItemDragEnd: onItemDragEnd,
+    onItemSwipeStart: onItemSwipeStart,
+    onItemSwipeUpdate: onItemSwipeUpdate,
+    onItemSwipeEnd: onItemSwipeEnd,
+    reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
+    listView: listView,
+  );
 
   /// Creates an [AnimatedReorderable] for a [GridView].
   factory AnimatedReorderable.grid({
@@ -179,36 +182,35 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragEndCallback? onItemSwipeEnd,
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required GridView gridView,
-  }) =>
-      _GridView(
-        key: key,
-        keyGetter: keyGetter,
-        motionAnimationDuration: motionAnimationDuration,
-        motionAnimationCurve: motionAnimationCurve,
-        autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-        draggableGetter: draggableGetter,
-        reorderableGetter: reorderableGetter,
-        onReorder: onReorder,
-        swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-        swipeToRemoveExtent: swipeToRemoveExtent,
-        swipeToRemoveVelocity: swipeToRemoveVelocity,
-        swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-        onSwipeToRemove: onSwipeToRemove,
-        draggedItemDecorator: draggedItemDecorator,
-        draggedItemDecorationAnimationDuration:
-            draggedItemDecorationAnimationDuration,
-        swipedItemDecorator: swipedItemDecorator,
-        swipedItemDecorationAnimationDuration:
-            swipedItemDecorationAnimationDuration,
-        onItemDragStart: onItemDragStart,
-        onItemDragUpdate: onItemDragUpdate,
-        onItemDragEnd: onItemDragEnd,
-        onItemSwipeStart: onItemSwipeStart,
-        onItemSwipeUpdate: onItemSwipeUpdate,
-        onItemSwipeEnd: onItemSwipeEnd,
-        reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
-        gridView: gridView,
-      );
+  }) => _GridView(
+    key: key,
+    keyGetter: keyGetter,
+    motionAnimationDuration: motionAnimationDuration,
+    motionAnimationCurve: motionAnimationCurve,
+    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+    draggableGetter: draggableGetter,
+    reorderableGetter: reorderableGetter,
+    onReorder: onReorder,
+    swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
+    swipeToRemoveExtent: swipeToRemoveExtent,
+    swipeToRemoveVelocity: swipeToRemoveVelocity,
+    swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+    onSwipeToRemove: onSwipeToRemove,
+    draggedItemDecorator: draggedItemDecorator,
+    draggedItemDecorationAnimationDuration:
+        draggedItemDecorationAnimationDuration,
+    swipedItemDecorator: swipedItemDecorator,
+    swipedItemDecorationAnimationDuration:
+        swipedItemDecorationAnimationDuration,
+    onItemDragStart: onItemDragStart,
+    onItemDragUpdate: onItemDragUpdate,
+    onItemDragEnd: onItemDragEnd,
+    onItemSwipeStart: onItemSwipeStart,
+    onItemSwipeUpdate: onItemSwipeUpdate,
+    onItemSwipeEnd: onItemSwipeEnd,
+    reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
+    gridView: gridView,
+  );
 
   const AnimatedReorderable({
     super.key,
@@ -393,13 +395,15 @@ abstract class AnimatedReorderable extends StatefulWidget {
   ///  * [maybeOf], a similar function that will return null if no
   ///    [AnimatedReorderable] ancestor is found.
   static AnimatedReorderableState of(BuildContext context) {
-    final AnimatedReorderableState? result =
-        AnimatedReorderable.maybeOf(context);
+    final AnimatedReorderableState? result = AnimatedReorderable.maybeOf(
+      context,
+    );
     assert(() {
       if (result == null) {
         throw FlutterError.fromParts(<DiagnosticsNode>[
           ErrorSummary(
-              'AnimatedReorderable.of() called with a context that does not contain an AnimatedReorderable.'),
+            'AnimatedReorderable.of() called with a context that does not contain an AnimatedReorderable.',
+          ),
           ErrorDescription(
             'No AnimatedReorderable ancestor could be found starting from the context that was passed to AnimatedReorderable.of().',
           ),
@@ -486,7 +490,8 @@ abstract class AnimatedReorderable extends StatefulWidget {
 /// [AnimatedReorderable] item input handlers can also refer to their [AnimatedReorderableState]
 /// with the static [AnimatedReorderable.of] method.
 abstract class AnimatedReorderableState<T extends AnimatedReorderable>
-    extends State<T> with TickerProviderStateMixin {
+    extends State<T>
+    with TickerProviderStateMixin {
   late final AnimatedReorderableController _controller;
 
   ScrollController? get _scrollController;
@@ -545,8 +550,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     int index,
     AnimatedItemBuilder builder, {
     Duration duration = defaultInsertItemAnimationDuration,
-  }) =>
-      _controller.insertItem(index, builder, duration);
+  }) => _controller.insertItem(index, builder, duration);
 
   /// Remove the item at `index` and start an animation that will be passed to
   /// `builder` when the item is visible.
@@ -569,8 +573,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     AnimatedRemovedItemBuilder builder, {
     Duration duration = defaultRemoveItemAnimationDuration,
     int? zIndex,
-  }) =>
-      _controller.removeItem(index, builder, duration, zIndex: zIndex);
+  }) => _controller.removeItem(index, builder, duration, zIndex: zIndex);
 
   /// Reorders the item at the specified [index] to a new position in the list or grid.
   ///
@@ -587,10 +590,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   /// Parameters:
   /// - `index`: The original position of the item to be reordered.
   /// - `destIndex`: The new position to which the item will be moved.
-  void reorderItem(
-    int index, {
-    required int destIndex,
-  }) =>
+  void reorderItem(int index, {required int destIndex}) =>
       _controller.reorderItem(index, destIndex: destIndex);
 
   /// Checks if the item at the given [index] is currently rendered within the widget tree.
@@ -650,28 +650,28 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          _controller.handleConstraintsChange(constraints);
-          return Stack(
-            children: [
-              Align(
-                alignment: Alignment.center,
-                child: ItemsLayer(
-                  key: _controller.itemsLayerKey,
-                  controller: _controller,
-                  collectionViewBuilder: buildCollectionView,
-                  didBuild: _controller.handleDidBuildItemsLayer,
-                ),
-              ),
-              OverlayedItemsLayer(
-                key: _controller.overlayedItemsLayerKey,
-                controller: _controller,
-                clipBehavior: _clipBehavior,
-              ),
-            ],
-          );
-        },
+    builder: (context, constraints) {
+      _controller.handleConstraintsChange(constraints);
+      return Stack(
+        children: [
+          Align(
+            alignment: Alignment.center,
+            child: ItemsLayer(
+              key: _controller.itemsLayerKey,
+              controller: _controller,
+              collectionViewBuilder: buildCollectionView,
+              didBuild: _controller.handleDidBuildItemsLayer,
+            ),
+          ),
+          OverlayedItemsLayer(
+            key: _controller.overlayedItemsLayerKey,
+            controller: _controller,
+            clipBehavior: _clipBehavior,
+          ),
+        ],
       );
+    },
+  );
 
   Widget buildCollectionView(BuildContext context);
 }
@@ -726,29 +726,28 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
 
   @override
   Widget buildCollectionView(BuildContext context) => ListView.custom(
-        key: widget.listView.key,
-        scrollDirection: _scrollDirection,
-        reverse: widget.listView.reverse,
-        controller: _controller.scrollController,
-        primary: widget.listView.primary,
-        physics: widget.listView.physics,
-        shrinkWrap: widget.listView.shrinkWrap,
-        padding: widget.listView.padding,
-        itemExtent: widget.listView.itemExtent,
-        prototypeItem: widget.listView.prototypeItem,
-        itemExtentBuilder: widget.listView.itemExtentBuilder,
-        childrenDelegate:
-            _controller.overrideChildrenDelegate(_childrenDelegate),
-        // ignore: deprecated_member_use
-        cacheExtent: widget.listView.cacheExtent,
-        scrollCacheExtent: widget.listView.scrollCacheExtent,
-        semanticChildCount: widget.listView.semanticChildCount,
-        dragStartBehavior: widget.listView.dragStartBehavior,
-        keyboardDismissBehavior: widget.listView.keyboardDismissBehavior,
-        restorationId: widget.listView.restorationId,
-        clipBehavior: _clipBehavior,
-        hitTestBehavior: widget.listView.hitTestBehavior,
-      );
+    key: widget.listView.key,
+    scrollDirection: _scrollDirection,
+    reverse: widget.listView.reverse,
+    controller: _controller.scrollController,
+    primary: widget.listView.primary,
+    physics: widget.listView.physics,
+    shrinkWrap: widget.listView.shrinkWrap,
+    padding: widget.listView.padding,
+    itemExtent: widget.listView.itemExtent,
+    prototypeItem: widget.listView.prototypeItem,
+    itemExtentBuilder: widget.listView.itemExtentBuilder,
+    childrenDelegate: _controller.overrideChildrenDelegate(_childrenDelegate),
+    // ignore: deprecated_member_use
+    cacheExtent: widget.listView.cacheExtent,
+    scrollCacheExtent: widget.listView.scrollCacheExtent,
+    semanticChildCount: widget.listView.semanticChildCount,
+    dragStartBehavior: widget.listView.dragStartBehavior,
+    keyboardDismissBehavior: widget.listView.keyboardDismissBehavior,
+    restorationId: widget.listView.restorationId,
+    clipBehavior: _clipBehavior,
+    hitTestBehavior: widget.listView.hitTestBehavior,
+  );
 }
 
 class _GridView extends AnimatedReorderable {
@@ -801,28 +800,27 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
 
   @override
   Widget buildCollectionView(BuildContext context) => GridView.custom(
-        key: widget.gridView.key,
-        scrollDirection: _scrollDirection,
-        reverse: widget.gridView.reverse,
-        controller: _controller.scrollController,
-        primary: widget.gridView.primary,
-        physics: widget.gridView.physics,
-        shrinkWrap: widget.gridView.shrinkWrap,
-        padding: widget.gridView.padding,
-        gridDelegate: SliverGridLayoutNotifier(
-          gridDelegate: widget.gridView.gridDelegate,
-          onLayout: _controller.handleSliverGridLayoutChange,
-        ),
-        childrenDelegate:
-            _controller.overrideChildrenDelegate(_childrenDelegate),
-        // ignore: deprecated_member_use
-        cacheExtent: widget.gridView.cacheExtent,
-        scrollCacheExtent: widget.gridView.scrollCacheExtent,
-        semanticChildCount: widget.gridView.semanticChildCount,
-        dragStartBehavior: widget.gridView.dragStartBehavior,
-        keyboardDismissBehavior: widget.gridView.keyboardDismissBehavior,
-        restorationId: widget.gridView.restorationId,
-        clipBehavior: _clipBehavior,
-        hitTestBehavior: widget.gridView.hitTestBehavior,
-      );
+    key: widget.gridView.key,
+    scrollDirection: _scrollDirection,
+    reverse: widget.gridView.reverse,
+    controller: _controller.scrollController,
+    primary: widget.gridView.primary,
+    physics: widget.gridView.physics,
+    shrinkWrap: widget.gridView.shrinkWrap,
+    padding: widget.gridView.padding,
+    gridDelegate: SliverGridLayoutNotifier(
+      gridDelegate: widget.gridView.gridDelegate,
+      onLayout: _controller.handleSliverGridLayoutChange,
+    ),
+    childrenDelegate: _controller.overrideChildrenDelegate(_childrenDelegate),
+    // ignore: deprecated_member_use
+    cacheExtent: widget.gridView.cacheExtent,
+    scrollCacheExtent: widget.gridView.scrollCacheExtent,
+    semanticChildCount: widget.gridView.semanticChildCount,
+    dragStartBehavior: widget.gridView.dragStartBehavior,
+    keyboardDismissBehavior: widget.gridView.keyboardDismissBehavior,
+    restorationId: widget.gridView.restorationId,
+    clipBehavior: _clipBehavior,
+    hitTestBehavior: widget.gridView.hitTestBehavior,
+  );
 }

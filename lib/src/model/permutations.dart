@@ -46,12 +46,7 @@ class Permutations extends Iterable<Permutation> {
     required Key itemKey,
     required int srcIndex,
     required int destIndex,
-  }) =>
-      _add(Permutation(
-        itemKey: itemKey,
-        from: srcIndex,
-        to: destIndex,
-      ));
+  }) => _add(Permutation(itemKey: itemKey, from: srcIndex, to: destIndex));
 
   void _add(Permutation p) {
     final curIndexOfElement = indexOf(p.itemKey);
@@ -116,7 +111,7 @@ class Permutations extends Iterable<Permutation> {
 /// A class that represents a single permutation (reordering) of an item.
 ///
 /// The `Permutation` class holds information about an item being moved
-/// in a list or collection, tracking both its original position and its 
+/// in a list or collection, tracking both its original position and its
 /// new position after the reordering operation.
 class Permutation {
   /// A unique key representing the item being moved.
@@ -134,13 +129,9 @@ class Permutation {
 
   /// The new position of the item after the permutation (reordering).
   ///
-  /// This is the index of the item in the list or collection after it has 
+  /// This is the index of the item in the list or collection after it has
   /// been moved. It is a zero-based index.
   final int to;
 
-  Permutation({
-    required this.itemKey,
-    required this.from,
-    required this.to,
-  });
+  Permutation({required this.itemKey, required this.from, required this.to});
 }

@@ -187,12 +187,8 @@ class OverlayedItem extends Item {
     if (position == this.position) return Future.value();
 
     _motionAnimation ??= OffsetAnimation(
-      controller: AnimationController(
-        vsync: vsync,
-        duration: duration,
-      )..addListener(
-          () => setPosition(_motionAnimation!.value),
-        ),
+      controller: AnimationController(vsync: vsync, duration: duration)
+        ..addListener(() => setPosition(_motionAnimation!.value)),
     );
     _motionAnimation!.controller.duration = duration;
     _motionAnimation!.begin = this.position;
@@ -213,9 +209,7 @@ class OverlayedItem extends Item {
 
     _motionAnimation ??= OffsetAnimation(
       controller: AnimationController(vsync: vsync)
-        ..addListener(
-          () => setPosition(_motionAnimation!.value),
-        ),
+        ..addListener(() => setPosition(_motionAnimation!.value)),
     );
     _motionAnimation!.begin = this.position;
     _motionAnimation!.end = position;
@@ -245,10 +239,7 @@ class OverlayedItem extends Item {
     } else {
       _decorator = AnimatedItemDecoratorAdapter(
         decorator,
-        controller: AnimationController(
-          duration: duration,
-          vsync: vsync,
-        ),
+        controller: AnimationController(duration: duration, vsync: vsync),
       );
     }
 
@@ -256,14 +247,14 @@ class OverlayedItem extends Item {
   }
 
   Future animateUndecoration() => switch (_decorator) {
-        (AnimatedItemDecoratorAdapter d) => d.reverseAnimation(),
-        _ => Future.value(),
-      };
+    (AnimatedItemDecoratorAdapter d) => d.reverseAnimation(),
+    _ => Future.value(),
+  };
 
   double stopDecorationAnimation() => switch (_decorator) {
-        (AnimatedItemDecoratorAdapter d) => d.stopDecoration(),
-        _ => 0.0,
-      };
+    (AnimatedItemDecoratorAdapter d) => d.stopDecoration(),
+    _ => 0.0,
+  };
 
   @override
   void dispose() {
@@ -280,11 +271,7 @@ class OverlayedItem extends Item {
 }
 
 class _OverlayedItemDrag implements gestures.Drag {
-  _OverlayedItemDrag({
-    required this.item,
-    this.onDragUpdate,
-    this.onDragEnd,
-  });
+  _OverlayedItemDrag({required this.item, this.onDragUpdate, this.onDragEnd});
 
   final OverlayedItem item;
   OverlayedItemDragUpdateCallback? onDragUpdate;
@@ -349,11 +336,9 @@ class _OverlayedItemSwipe implements gestures.Drag {
   widgets.Offset _restrictAxis(widgets.Offset delta) =>
       switch (swipeDirection) {
         widgets.AxisDirection.left ||
-        widgets.AxisDirection.right =>
-          widgets.Offset(delta.dx, 0),
+        widgets.AxisDirection.right => widgets.Offset(delta.dx, 0),
         widgets.AxisDirection.down ||
-        widgets.AxisDirection.up =>
-          widgets.Offset(0, delta.dy),
+        widgets.AxisDirection.up => widgets.Offset(0, delta.dy),
       };
 
   widgets.Offset _restrictDirection(widgets.Offset delta) =>

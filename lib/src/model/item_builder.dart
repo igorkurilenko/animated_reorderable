@@ -2,20 +2,18 @@ part of 'model.dart';
 
 abstract class ItemBuilder {
   factory ItemBuilder.adaptIndexedWidgetBuilder(
-          widgets.NullableIndexedWidgetBuilder builder) =>
-      NullableIndexedWidgetBuilderAdapter(builder);
+    widgets.NullableIndexedWidgetBuilder builder,
+  ) => NullableIndexedWidgetBuilderAdapter(builder);
 
   factory ItemBuilder.adaptAnimatedItemBuilder(
     widgets.AnimatedItemBuilder builder, {
     required widgets.AnimationController controller,
-  }) =>
-      AnimatedItemBuilderAdapter(builder, controller: controller);
+  }) => AnimatedItemBuilderAdapter(builder, controller: controller);
 
   factory ItemBuilder.adaptAnimatedRemovedItemBuilder(
     widgets.AnimatedRemovedItemBuilder builder, {
     required widgets.AnimationController controller,
-  }) =>
-      AnimatedRemovedItemBuilderAdapter(builder, controller: controller);
+  }) => AnimatedRemovedItemBuilderAdapter(builder, controller: controller);
 
   factory ItemBuilder.adaptOtherItemBuilder(Item item) =>
       OtherItemBuilderAdapter(item: item);
@@ -94,8 +92,8 @@ class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
 
 extension ItemBuilderExt on ItemBuilder {
   AnimatedItemBuilder? get asAnimated => switch (this) {
-        (OtherItemBuilderAdapter b) => b.item.builder.asAnimated,
-        (AnimatedItemBuilder b) => b,
-        _ => null,
-      };
+    (OtherItemBuilderAdapter b) => b.item.builder.asAnimated,
+    (AnimatedItemBuilder b) => b,
+    _ => null,
+  };
 }

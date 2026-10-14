@@ -20,8 +20,7 @@ class _AnimatedReorderableGridSampleState
   final _animatedReorderableKey = GlobalKey<AnimatedReorderableState>();
   late final ListModel<Item> _list;
   Item? _selectedItem;
-  late int
-      _nextItemId; // The next item id inserted when the user presses the '+' button.
+  late int _nextItemId; // The next item id inserted when the user presses the '+' button.
 
   @override
   void initState() {
@@ -37,14 +36,14 @@ class _AnimatedReorderableGridSampleState
 
   // Used to build list items.
   Widget _buildItem(Item item) => CardItem(
-        item: item,
-        selected: _selectedItem == item,
-        onTap: () {
-          setState(() {
-            _selectedItem = _selectedItem == item ? null : item;
-          });
-        },
-      );
+    item: item,
+    selected: _selectedItem == item,
+    onTap: () {
+      setState(() {
+        _selectedItem = _selectedItem == item ? null : item;
+      });
+    },
+  );
 
   // Used to build list items that have been inserted.
   ///
@@ -55,14 +54,10 @@ class _AnimatedReorderableGridSampleState
     BuildContext context,
     int index,
     Animation<double> animation,
-  ) =>
-      ScaleTransition(
-        scale: animation,
-        child: FadeTransition(
-          opacity: animation,
-          child: _buildItem(_list[index]),
-        ),
-      );
+  ) => ScaleTransition(
+    scale: animation,
+    child: FadeTransition(opacity: animation, child: _buildItem(_list[index])),
+  );
 
   /// The builder function used to build list items that have been removed.
   ///
@@ -75,19 +70,16 @@ class _AnimatedReorderableGridSampleState
     Item item,
     BuildContext context,
     Animation<double> animation,
-  ) =>
-      ScaleTransition(
-        scale: animation,
-        child: FadeTransition(
-          opacity: animation,
-          child: _buildItem(item),
-        ),
-      );
+  ) => ScaleTransition(
+    scale: animation,
+    child: FadeTransition(opacity: animation, child: _buildItem(item)),
+  );
 
   // Insert the "next item" into the list model.
   void _insert() {
-    final int index =
-        _selectedItem == null ? _list.length : _list.indexOf(_selectedItem!);
+    final int index = _selectedItem == null
+        ? _list.length
+        : _list.indexOf(_selectedItem!);
     _list.insert(index, Item(_nextItemId++));
   }
 
@@ -125,55 +117,58 @@ class _AnimatedReorderableGridSampleState
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(useMaterial3: true),
-        home: Scaffold(
-          appBar: AppBar(
-            title: const Text('AnimatedReorderable'),
-            actions: <Widget>[
-              IconButton(
-                icon: const Icon(Icons.add_circle),
-                onPressed: _insert,
-                tooltip: 'insert a new item',
-              ),
-              IconButton(
-                icon: const Icon(Icons.swap_calls),
-                onPressed: _reorder,
-                tooltip: 'reorder randomly',
-              ),
-              IconButton(
-                icon: const Icon(Icons.remove_circle),
-                onPressed: _remove,
-                tooltip: 'remove the selected or last item',
-              ),
-            ],
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(useMaterial3: true),
+    home: Scaffold(
+      appBar: AppBar(
+        title: const Text('AnimatedReorderable'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.add_circle),
+            onPressed: _insert,
+            tooltip: 'insert a new item',
           ),
-          body: AnimatedReorderable.grid(
-            key: _animatedReorderableKey,
-            keyGetter: (index) => ValueKey(_list[index]),
-            onReorder: (permutations) => _list.onReorder(permutations),
-            onSwipeToRemove: (index) {
-              final item = _list.removeAt(index);
-              if (item == _selectedItem) {
-                setState(() => _selectedItem = null);
-              }
-            },
-            gridView: GridView.builder(
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 1 / 1.618,
-              ),
-              itemCount: _list.length,
-              itemBuilder: ((context, index) => _buildItem(_list[index])),
-            ),
+          IconButton(
+            icon: const Icon(Icons.swap_calls),
+            onPressed: _reorder,
+            tooltip: 'reorder randomly',
           ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle),
+            onPressed: _remove,
+            tooltip: 'remove the selected or last item',
+          ),
+        ],
+      ),
+      body: AnimatedReorderable.grid(
+        key: _animatedReorderableKey,
+        keyGetter: (index) => ValueKey(_list[index]),
+        onReorder: (permutations) => _list.onReorder(permutations),
+        onSwipeToRemove: (index) {
+          final item = _list.removeAt(index);
+          if (item == _selectedItem) {
+            setState(() => _selectedItem = null);
+          }
+        },
+        gridView: GridView.builder(
+          shrinkWrap: true,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 1 / 1.618,
+          ),
+          itemCount: _list.length,
+          itemBuilder: ((context, index) => _buildItem(_list[index])),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 typedef RemovedItemBuilder<T> = Widget Function(
-    T item, BuildContext context, Animation<double> animation);
+  T item,
+  BuildContext context,
+  Animation<double> animation,
+);
 
 /// Keeps a Dart [List] in sync with an [AnimatedReorderable].
 ///
@@ -251,9 +246,7 @@ class CardItem extends StatelessWidget {
         onTap: onTap,
         child: Card(
           color: Colors.primaries[item.id % Colors.primaries.length],
-          child: Center(
-            child: Text('$item', style: textStyle),
-          ),
+          child: Center(child: Text('$item', style: textStyle)),
         ),
       ),
     );
