@@ -14,76 +14,59 @@ import 'widget/overlayed_items_layer.dart';
 
 class AnimatedReorderableController {
   AnimatedReorderableController({
-    required this.keyGetter,
+    required this.widget,
     required this.scrollDirection,
     int? itemCount,
-    BoolGetter? reorderableGetter,
-    BoolGetter? draggableGetter,
-    AxisDirectionGetter? swipeToRemoveDirectionGetter,
-    this.onReorder,
-    this.onSwipeToRemove,
     required this.vsync,
-    required this.motionAnimationDuration,
-    required this.motionAnimationCurve,
-    this.draggedItemDecorator,
-    required this.draggedItemDecorationAnimationDuration,
-    this.swipedItemDecorator,
-    required this.swipedItemDecorationAnimationDuration,
-    required this.autoScrollerVelocityScalar,
-    required this.swipeToRemoveExtent,
-    required this.swipeToRemoveVelocity,
-    required this.swipeToRemoveSpringDescription,
-    this.onItemDragStart,
-    this.onItemDragUpdate,
-    this.onItemDragEnd,
-    this.onItemSwipeStart,
-    this.onItemSwipeUpdate,
-    this.onItemSwipeEnd,
-    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
-  }) : reorderableGetter = reorderableGetter ?? ((_) => true),
-       draggableGetter = draggableGetter ?? ((_) => true),
-       swipeToRemoveDirectionGetter = onSwipeToRemove != null
-           ? ((index) => swipeToRemoveDirectionGetter == null
-                 ? (scrollDirection == Axis.vertical
-                       ? AxisDirection.left
-                       : AxisDirection.down)
-                 : swipeToRemoveDirectionGetter.call(index))
-           : ((_) => null),
-       reorderGestureRecognizerFactory =
-           reorderGestureRecognizerFactory ??
-           createReorderDragGestureRecognizer,
-       _state = model.ControllerState(itemCount: itemCount);
+  }) : _state = model.ControllerState(itemCount: itemCount);
+
+  /// The current configuration. The state replaces it on every rebuild, so
+  /// the getters below always read the latest builders and callbacks.
+  AnimatedReorderable widget;
+  Axis scrollDirection;
+  final widgets.TickerProvider vsync;
 
   widgets.ScrollController? _scrollController;
   widgets.EdgeDraggingAutoScroller? _autoScroller;
   late OverridedSliverChildBuilderDelegate _childrenDelegate;
   final model.ControllerState<ItemsLayerState, OverlayedItemsLayerState> _state;
 
-  final KeyGetter keyGetter;
-  final Axis scrollDirection;
-  final BoolGetter reorderableGetter;
-  final BoolGetter draggableGetter;
-  final AxisDirectionGetter swipeToRemoveDirectionGetter;
-  final double autoScrollerVelocityScalar;
-  final double swipeToRemoveExtent;
-  final double swipeToRemoveVelocity;
-  final widgets.SpringDescription swipeToRemoveSpringDescription;
-  final ReorderCallback? onReorder;
-  final SwipeToRemoveCallback? onSwipeToRemove;
-  final widgets.TickerProvider vsync;
-  final Duration motionAnimationDuration;
-  final widgets.Curve motionAnimationCurve;
-  final model.AnimatedItemDecorator? draggedItemDecorator;
-  final Duration draggedItemDecorationAnimationDuration;
-  final model.AnimatedItemDecorator? swipedItemDecorator;
-  final Duration swipedItemDecorationAnimationDuration;
-  final ItemDragStartCallback? onItemDragStart;
-  final ItemDragUpdateCallback? onItemDragUpdate;
-  final ItemDragEndCallback? onItemDragEnd;
-  final ItemDragStartCallback? onItemSwipeStart;
-  final ItemDragUpdateCallback? onItemSwipeUpdate;
-  final ItemDragEndCallback? onItemSwipeEnd;
-  final MultiDragGestureRecognizerFactory reorderGestureRecognizerFactory;
+  KeyGetter get keyGetter => widget.keyGetter;
+  BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
+  BoolGetter get draggableGetter => widget.draggableGetter ?? (_) => true;
+  AxisDirectionGetter get swipeToRemoveDirectionGetter =>
+      widget.onSwipeToRemove == null
+      ? (_) => null
+      : widget.swipeToRemoveDirectionGetter ??
+            (_) => scrollDirection == Axis.vertical
+                ? AxisDirection.left
+                : AxisDirection.down;
+  double get autoScrollerVelocityScalar => widget.autoScrollerVelocityScalar;
+  double get swipeToRemoveExtent => widget.swipeToRemoveExtent;
+  double get swipeToRemoveVelocity => widget.swipeToRemoveVelocity;
+  widgets.SpringDescription get swipeToRemoveSpringDescription =>
+      widget.swipeToRemoveSpringDescription;
+  ReorderCallback? get onReorder => widget.onReorder;
+  SwipeToRemoveCallback? get onSwipeToRemove => widget.onSwipeToRemove;
+  Duration get motionAnimationDuration => widget.motionAnimationDuration;
+  widgets.Curve get motionAnimationCurve => widget.motionAnimationCurve;
+  model.AnimatedItemDecorator? get draggedItemDecorator =>
+      widget.draggedItemDecorator;
+  Duration get draggedItemDecorationAnimationDuration =>
+      widget.draggedItemDecorationAnimationDuration;
+  model.AnimatedItemDecorator? get swipedItemDecorator =>
+      widget.swipedItemDecorator;
+  Duration get swipedItemDecorationAnimationDuration =>
+      widget.swipedItemDecorationAnimationDuration;
+  ItemDragStartCallback? get onItemDragStart => widget.onItemDragStart;
+  ItemDragUpdateCallback? get onItemDragUpdate => widget.onItemDragUpdate;
+  ItemDragEndCallback? get onItemDragEnd => widget.onItemDragEnd;
+  ItemDragStartCallback? get onItemSwipeStart => widget.onItemSwipeStart;
+  ItemDragUpdateCallback? get onItemSwipeUpdate => widget.onItemSwipeUpdate;
+  ItemDragEndCallback? get onItemSwipeEnd => widget.onItemSwipeEnd;
+  MultiDragGestureRecognizerFactory get reorderGestureRecognizerFactory =>
+      widget.reorderGestureRecognizerFactory ??
+      createReorderDragGestureRecognizer;
 
   void insertItem(
     int index,
@@ -282,7 +265,10 @@ class AnimatedReorderableController {
     itemsLayer!.rebuild(() => onReorder!.call(permutations));
   }
 
-  void dispose() => _state.dispose();
+  void dispose() {
+    _scrollController?.removeListener(handleScroll);
+    _state.dispose();
+  }
 
   Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
       _state.overlayedItems.toList()
@@ -342,7 +328,7 @@ class AnimatedReorderableController {
   model.Item createItem(int index) => model.Item(
     key: keyGetter(index),
     builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
-      childrenDelegate.originalBuilder,
+      (context, index) => childrenDelegate.originalBuilder(context, index),
     ),
   );
 

@@ -56,6 +56,50 @@ void main() {
     });
   });
 
+  group('configuration', () {
+    testWidgets('builds items with the latest item builder', (tester) async {
+      await tester.pumpWidget(_labels(const ['a', 'b']));
+      await tester.pumpWidget(_labels(const ['A', 'B']));
+
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('a'), findsNothing);
+    });
+
+    testWidgets('keys new items with the latest key getter', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(_labels(const ['b', 'c'], key: key));
+      const labels = ['a', 'b', 'c'];
+      await tester.pumpWidget(_labels(labels, key: key));
+
+      key.currentState!.insertItem(
+        0,
+        (context, index, animation) => Text(labels[index]),
+      );
+      await tester.pumpAndSettle();
+
+      for (final label in labels) {
+        expect(find.text(label), findsOneWidget);
+      }
+    });
+
+    testWidgets('calls the latest onReorder', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      final calls = <String>[];
+      Widget build(String name) => _labels(
+        const ['a', 'b', 'c'],
+        key: key,
+        onReorder: (_) => calls.add(name),
+      );
+      await tester.pumpWidget(build('first'));
+      await tester.pumpWidget(build('second'));
+
+      key.currentState!.reorderItem(0, destIndex: 1);
+      await tester.pumpAndSettle();
+
+      expect(calls, ['second']);
+    });
+  });
+
   testWidgets('moves item elements along with their items', (tester) async {
     final list = _TestList(5);
     await tester.pumpWidget(list.build());
@@ -163,6 +207,26 @@ void main() {
     });
   });
 }
+
+/// A list of [labels] keyed by label, rebuilt from scratch like immutable
+/// state would be.
+Widget _labels(
+  List<String> labels, {
+  Key? key,
+  void Function(Permutations permutations)? onReorder,
+}) => MaterialApp(
+  home: Scaffold(
+    body: AnimatedReorderable.list(
+      key: key,
+      keyGetter: (index) => ValueKey(labels[index]),
+      onReorder: onReorder,
+      listView: ListView.builder(
+        itemCount: labels.length,
+        itemBuilder: (context, index) => Text(labels[index]),
+      ),
+    ),
+  ),
+);
 
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {

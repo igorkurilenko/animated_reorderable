@@ -493,6 +493,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     extends State<T>
     with TickerProviderStateMixin {
   late final AnimatedReorderableController _controller;
+  ScrollController? _ownScrollController;
 
   ScrollController? get _scrollController;
 
@@ -507,38 +508,27 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     super.initState();
 
     _controller = AnimatedReorderableController(
-      keyGetter: widget.keyGetter,
+      widget: widget,
       scrollDirection: _scrollDirection,
       itemCount: getChildCount(_childrenDelegate),
-      reorderableGetter: widget.reorderableGetter,
-      draggableGetter: widget.draggableGetter,
-      swipeToRemoveDirectionGetter: widget.swipeToRemoveDirectionGetter,
-      onReorder: widget.onReorder,
-      onSwipeToRemove: widget.onSwipeToRemove,
-      motionAnimationDuration: widget.motionAnimationDuration,
-      motionAnimationCurve: widget.motionAnimationCurve,
-      draggedItemDecorator: widget.draggedItemDecorator,
-      draggedItemDecorationAnimationDuration:
-          widget.draggedItemDecorationAnimationDuration,
-      swipedItemDecorator: widget.swipedItemDecorator,
-      swipedItemDecorationAnimationDuration:
-          widget.swipedItemDecorationAnimationDuration,
-      autoScrollerVelocityScalar: widget.autoScrollerVelocityScalar,
-      swipeToRemoveExtent: widget.swipeToRemoveExtent,
-      swipeToRemoveVelocity: widget.swipeToRemoveVelocity,
-      swipeToRemoveSpringDescription: widget.swipeToRemoveSpringDescription,
-      onItemDragStart: widget.onItemDragStart,
-      onItemDragUpdate: widget.onItemDragUpdate,
-      onItemDragEnd: widget.onItemDragEnd,
-      onItemSwipeStart: widget.onItemSwipeStart,
-      onItemSwipeUpdate: widget.onItemSwipeUpdate,
-      onItemSwipeEnd: widget.onItemSwipeEnd,
-      reorderGestureRecognizerFactory: widget.reorderGestureRecognizerFactory,
       vsync: this,
     );
 
-    _controller.scrollController = _scrollController ?? ScrollController();
+    _controller.scrollController = _effectiveScrollController;
   }
+
+  @override
+  void didUpdateWidget(covariant T oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    _controller
+      ..widget = widget
+      ..scrollDirection = _scrollDirection
+      ..scrollController = _effectiveScrollController;
+  }
+
+  ScrollController get _effectiveScrollController =>
+      _scrollController ?? (_ownScrollController ??= ScrollController());
 
   /// Insert an item at `index` and start an animation that will be passed
   /// to `builder`.
@@ -645,6 +635,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   @override
   void dispose() {
     _controller.dispose();
+    _ownScrollController?.dispose();
     super.dispose();
   }
 
