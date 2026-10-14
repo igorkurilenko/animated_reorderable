@@ -753,6 +753,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
     delegate: delegate,
     overridedChildBuilder: buildItemWidget,
     overridedChildCountGetter: () => _state.itemCount,
+    fallbackChildIndexGetter: _state.childIndexGetter(),
   );
 
   widgets.Widget buildItemWidget(widgets.BuildContext context, int index) {

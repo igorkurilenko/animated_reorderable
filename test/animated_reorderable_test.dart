@@ -56,6 +56,17 @@ void main() {
     });
   });
 
+  testWidgets('moves item elements along with their items', (tester) async {
+    final list = _TestList(5);
+    await tester.pumpWidget(list.build());
+    final element = list.state.getRenderedItemBuildContext(0);
+
+    list.insert(0, 5);
+    await tester.pumpAndSettle();
+
+    expect(list.state.getRenderedItemBuildContext(1), same(element));
+  });
+
   group('item state', () {
     testWidgets('survives a reorder', (tester) async {
       final list = _TestList(5);

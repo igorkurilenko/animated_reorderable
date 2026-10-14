@@ -7,11 +7,13 @@ class OverridedSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
     required SliverChildDelegate delegate,
     required NullableIndexedWidgetBuilder overridedChildBuilder,
     required ChildCountGetter overridedChildCountGetter,
+    ChildIndexGetter? fallbackChildIndexGetter,
   }) => OverridedSliverChildBuilderDelegate(
     getChildBuilder(delegate),
     overridedBuilder: overridedChildBuilder,
     overridedChildCountGetter: overridedChildCountGetter,
-    findChildIndexCallback: getChildIndexGetter(delegate),
+    findChildIndexCallback:
+        getChildIndexGetter(delegate) ?? fallbackChildIndexGetter,
     childCount: overridedChildCountGetter(),
     addAutomaticKeepAlives: getAddAutomaticKeepAlives(delegate),
     addRepaintBoundaries: getAddRepaintBoundaries(delegate),

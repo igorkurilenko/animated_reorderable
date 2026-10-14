@@ -62,6 +62,16 @@ class ControllerState<
 
   bool isRendered({required Key key}) => _renderedItemByKey.containsKey(key);
 
+  /// Finds an item's index by its key, so the list moves an item's element
+  /// along with the item instead of building it again.
+  ChildIndexGetter childIndexGetter() {
+    final indexByKey = {
+      for (final MapEntry(key: index, value: key) in _itemKeyByIndex.entries)
+        key: index,
+    };
+    return (key) => indexByKey[key];
+  }
+
   void setIndex({required Key itemKey, required int index}) =>
       _itemKeyByIndex[index] = itemKey;
 
