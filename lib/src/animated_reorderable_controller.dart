@@ -425,7 +425,7 @@ class AnimatedReorderableController {
         measureItemWidgetAt(index: notRenderedItemIndex);
 
     final screenGeometry = Offset.zero & getScreenSize();
-    final fakePosition = switch (scrollController!.axisDirection) {
+    final fakePosition = switch (scrollPosition!.axisDirection) {
       AxisDirection.down =>
         notRenderedItemIndex < anyRenderedItemIndex
             ? screenGeometry.topCenter -
@@ -452,7 +452,7 @@ class AnimatedReorderableController {
   }
 
   Size measureItemWidgetAt({required int index}) => MeasureUtil.measureWidget(
-    context: _scrollController!.scrollableState!.context,
+    context: scrollPosition!.context.storageContext,
     builder: (context) => _childrenDelegate.originalBuilder(context, index)!,
     constraints: scrollDirection == Axis.vertical
         ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
@@ -690,7 +690,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
 extension ScrollHandler on AnimatedReorderableController {
   void handleScroll() {
-    final delta = markScrollOffset(scrollOffset);
+    final delta = markScrollOffset();
 
     if (_state.shiftItemsOnScroll) {
       for (var x
@@ -705,9 +705,8 @@ extension ScrollHandler on AnimatedReorderableController {
 
 extension ConstraintsChangeHandler on AnimatedReorderableController {
   void handleConstraintsChange(BoxConstraints constraints) {
-    if (_state.constraints != null &&
-        scrollController != null &&
-        scrollController!.hasClients) {
+    final scrollPosition = this.scrollPosition;
+    if (_state.constraints != null && scrollPosition != null) {
       final scaleFactor = scrollDirection == Axis.vertical
           ? constraints.maxWidth / _state.constraints!.maxWidth
           : constraints.maxHeight / _state.constraints!.maxHeight;
@@ -717,7 +716,7 @@ extension ConstraintsChangeHandler on AnimatedReorderableController {
       }
 
       _state.shiftItemsOnScroll = false;
-      scrollController!.scaleScrollPosition(scaleFactor);
+      scrollPosition.jumpTo(scrollPosition.pixels * scaleFactor);
       _state.shiftItemsOnScroll = true;
     }
 
@@ -807,20 +806,32 @@ extension Scrolling on AnimatedReorderableController {
     if (_scrollController == value) return;
     addPostFrame(() {
       setupAutoscroller();
-      markScrollOffset(scrollOffset);
+      markScrollOffset();
     });
     _scrollController?.removeListener(handleScroll);
     (_scrollController = value)?.addListener(handleScroll);
   }
 
-  Offset get scrollOffset => scrollController!.scrollOffset!;
+  /// The position of the wrapped view's own [widgets.Scrollable]. The scroll
+  /// controller can be shared, like the [widgets.PrimaryScrollController],
+  /// so it can have other positions too.
+  widgets.ScrollPosition? get scrollPosition {
+    final itemsLayer = this.itemsLayer;
+    if (itemsLayer == null) return null;
+    return _scrollController?.positions.firstWhereOrNull(
+      (position) =>
+          position.context.storageContext
+              .findAncestorStateOfType<ItemsLayerState>() ==
+          itemsLayer,
+    );
+  }
 
   void setupAutoscroller() {
-    if (_scrollController == null) return;
-    if (!_scrollController!.hasClients) return;
+    final scrollPosition = this.scrollPosition;
+    if (scrollPosition == null) return;
 
     _autoScroller = widgets.EdgeDraggingAutoScroller(
-      _scrollController!.position.context as widgets.ScrollableState,
+      scrollPosition.context as widgets.ScrollableState,
       velocityScalar: autoScrollerVelocityScalar,
       onScrollViewScrolled: () => reorderAndAutoScrollIfNecessary(),
     );
@@ -841,16 +852,17 @@ extension Scrolling on AnimatedReorderableController {
   void stopAutoScroll({bool forceStopAnimation = false}) {
     _autoScroller?.stopAutoScroll();
 
-    if (forceStopAnimation) {
-      final pixels = scrollController!.position.pixels;
-      scrollController!.position.jumpTo(pixels);
+    final scrollPosition = this.scrollPosition;
+    if (forceStopAnimation && scrollPosition != null) {
+      scrollPosition.jumpTo(scrollPosition.pixels);
     }
   }
 
-  Offset markScrollOffset(Offset scrollOffset) {
-    if (_scrollController == null) return Offset.zero;
-    if (!_scrollController!.hasClients) return Offset.zero;
+  Offset markScrollOffset() {
+    final scrollPosition = this.scrollPosition;
+    if (scrollPosition == null) return Offset.zero;
 
+    final scrollOffset = scrollPosition.toRelativeOffset();
     final delta = scrollOffset - _state.scrollOffset;
     _state.scrollOffset = scrollOffset;
     return delta;

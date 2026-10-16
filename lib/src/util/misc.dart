@@ -54,21 +54,6 @@ extension AxisDirectionExtension on AxisDirection {
   bool get reverse => this == AxisDirection.up || this == AxisDirection.left;
 }
 
-extension ScrollControllerExtension on ScrollController {
-  ScrollableState? get scrollableState =>
-      hasClients ? position.context as ScrollableState : null;
-  RenderBox? findScrollableRenderBox() => scrollableState?.findRenderBox();
-  Offset? get scrollablePosition =>
-      findScrollableRenderBox()?.localToGlobal(Offset.zero);
-  Offset? get scrollOffset => position.toRelativeOffset();
-  bool get reverse => position.reverse;
-  bool get vertical => position.vertical;
-  AxisDirection get axisDirection => position.axisDirection;
-  Axis get axis => position.axis;
-  void scaleScrollPosition(double scaleFactor) =>
-      jumpTo(position.pixels * scaleFactor);
-}
-
 extension RectExtension on Rect {
   Offset get position => topLeft;
 }

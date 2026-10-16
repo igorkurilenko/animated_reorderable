@@ -146,6 +146,71 @@ void main() {
     });
   });
 
+  group('scroll controller', () {
+    testWidgets('wraps a primary list view', (tester) async {
+      await tester.pumpWidget(_scrollable(primary: true));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('uses the primary scroll controller by default', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_scrollable());
+      final primary = PrimaryScrollController.of(
+        tester.element(find.byType(Scrollable)),
+      );
+
+      expect(primary.hasClients, isTrue);
+      primary.jumpTo(10 * _extent);
+      await tester.pump();
+      expect(find.text('0'), findsNothing);
+    });
+
+    testWidgets('shares the primary scroll controller with another list', (
+      tester,
+    ) async {
+      final left = _TestList(10);
+      final right = _TestList(10);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Row(
+              children: [
+                Expanded(child: left.buildList()),
+                Expanded(child: right.buildList()),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      left.state.reorderItem(0, destIndex: 2);
+      await tester.pumpAndSettle();
+      await tester.drag(find.text('3').last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(left.items, [1, 2, 0, 3, 4, 5, 6, 7, 8, 9]);
+      // Only the right list scrolled its first items away.
+      expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('keeps the list view controller', (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(_scrollable(controller: controller));
+
+      expect(controller.hasClients, isTrue);
+      expect(
+        PrimaryScrollController.of(tester.element(find.byType(Scrollable)))
+            .hasClients,
+        isFalse,
+      );
+    });
+  });
+
   testWidgets('moves item elements along with their items', (tester) async {
     final list = _TestList(5);
     await tester.pumpWidget(list.build());
@@ -274,6 +339,24 @@ Widget _labels(
   ),
 );
 
+/// A long list of numbers that scrolls with [controller] or as [primary]
+/// says.
+Widget _scrollable({ScrollController? controller, bool? primary}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: AnimatedReorderable.list(
+          keyGetter: (index) => ValueKey(index),
+          listView: ListView.builder(
+            controller: controller,
+            primary: primary,
+            itemCount: 50,
+            itemBuilder: (context, index) =>
+                SizedBox(height: _extent, child: Text('$index')),
+          ),
+        ),
+      ),
+    );
+
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {
   _TestList(
@@ -292,34 +375,32 @@ class _TestList {
 
   AnimatedReorderableState get state => key.currentState!;
 
-  Widget build() => MaterialApp(
-    home: Scaffold(
-      body: grid
-          ? AnimatedReorderable.grid(
-              key: key,
-              keyGetter: (index) => ValueKey(items[index]),
-              onReorder: (permutations) => permutations.apply(items),
-              gridView: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, index) => _item(items[index]),
-              ),
-            )
-          : AnimatedReorderable.list(
-              key: key,
-              keyGetter: (index) => ValueKey(items[index]),
-              onReorder: (permutations) => permutations.apply(items),
-              onSwipeToRemove: removeAt,
-              swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-              listView: ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) => _item(items[index]),
-              ),
+  Widget build() => MaterialApp(home: Scaffold(body: buildList()));
+
+  Widget buildList() => grid
+      ? AnimatedReorderable.grid(
+          key: key,
+          keyGetter: (index) => ValueKey(items[index]),
+          onReorder: (permutations) => permutations.apply(items),
+          gridView: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
             ),
-    ),
-  );
+            itemCount: items.length,
+            itemBuilder: (context, index) => _item(items[index]),
+          ),
+        )
+      : AnimatedReorderable.list(
+          key: key,
+          keyGetter: (index) => ValueKey(items[index]),
+          onReorder: (permutations) => permutations.apply(items),
+          onSwipeToRemove: removeAt,
+          swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+          listView: ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) => _item(items[index]),
+          ),
+        );
 
   void insert(int index, int id) {
     items.insert(index, id);

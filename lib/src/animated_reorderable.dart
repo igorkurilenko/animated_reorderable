@@ -497,6 +497,8 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
 
   ScrollController? get _scrollController;
 
+  bool? get _primary;
+
   SliverChildDelegate get _childrenDelegate;
 
   Clip get _clipBehavior;
@@ -513,6 +515,11 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       itemCount: getChildCount(_childrenDelegate),
       vsync: this,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
     _controller.scrollController = _effectiveScrollController;
   }
@@ -527,8 +534,19 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       ..scrollController = _effectiveScrollController;
   }
 
-  ScrollController get _effectiveScrollController =>
-      _scrollController ?? (_ownScrollController ??= ScrollController());
+  /// The wrapped view's controller or, if the view is primary, the
+  /// [PrimaryScrollController], decided the way [ScrollView] decides it.
+  /// The view is then built with that controller and `primary: false`.
+  ScrollController get _effectiveScrollController {
+    final primary =
+        _primary ??
+        (_scrollController == null &&
+            PrimaryScrollController.shouldInherit(context, _scrollDirection));
+    final scrollController = primary
+        ? PrimaryScrollController.maybeOf(context)
+        : _scrollController;
+    return scrollController ?? (_ownScrollController ??= ScrollController());
+  }
 
   /// Insert an item at `index` and start an animation that will be passed
   /// to `builder`.
@@ -707,6 +725,9 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
   ScrollController? get _scrollController => widget.listView.controller;
 
   @override
+  bool? get _primary => widget.listView.primary;
+
+  @override
   SliverChildDelegate get _childrenDelegate => widget.listView.childrenDelegate;
 
   @override
@@ -721,7 +742,7 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
     scrollDirection: _scrollDirection,
     reverse: widget.listView.reverse,
     controller: _controller.scrollController,
-    primary: widget.listView.primary,
+    primary: false,
     physics: widget.listView.physics,
     shrinkWrap: widget.listView.shrinkWrap,
     padding: widget.listView.padding,
@@ -781,6 +802,9 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
   ScrollController? get _scrollController => widget.gridView.controller;
 
   @override
+  bool? get _primary => widget.gridView.primary;
+
+  @override
   SliverChildDelegate get _childrenDelegate => widget.gridView.childrenDelegate;
 
   @override
@@ -795,7 +819,7 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
     scrollDirection: _scrollDirection,
     reverse: widget.gridView.reverse,
     controller: _controller.scrollController,
-    primary: widget.gridView.primary,
+    primary: false,
     physics: widget.gridView.physics,
     shrinkWrap: widget.gridView.shrinkWrap,
     padding: widget.gridView.padding,
