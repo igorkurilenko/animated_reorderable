@@ -5,6 +5,7 @@ import 'animated_reorderable_controller.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
 import 'model/permutations.dart';
+import 'util/anchored_scroll_physics.dart';
 import 'util/overrided_sliver_child_builder_delegate.dart';
 import 'util/sliver_grid_delegate_decorator.dart';
 import 'util/misc.dart';
@@ -831,7 +832,10 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
     reverse: widget.gridView.reverse,
     controller: _controller.scrollController,
     primary: false,
-    physics: widget.gridView.physics,
+    physics: AnchoredScrollPhysics(
+      anchor: _controller.anchoredScrollOffset,
+      parent: widget.gridView.physics,
+    ),
     shrinkWrap: widget.gridView.shrinkWrap,
     padding: widget.gridView.padding,
     gridDelegate: SliverGridLayoutNotifier(

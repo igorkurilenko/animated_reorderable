@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
@@ -691,47 +693,93 @@ extension ScrollHandler on AnimatedReorderableController {
   void handleScroll() {
     final delta = markScrollOffset();
 
-    if (_state.shiftItemsOnScroll) {
-      for (var x
-          in _state.overlayedItems
-              .where((x) => !_state.isDragged(key: x.key))
-              .where((x) => !_state.isSwiped(key: x.key))) {
-        x.shift(-delta);
-      }
+    for (var x
+        in _state.overlayedItems
+            .where((x) => !_state.isDragged(key: x.key))
+            .where((x) => !_state.isSwiped(key: x.key))) {
+      x.shift(-delta);
     }
   }
 }
 
 extension ConstraintsChangeHandler on AnimatedReorderableController {
   void handleConstraintsChange(BoxConstraints constraints) {
-    final scrollPosition = this.scrollPosition;
-    if (_state.constraints != null && scrollPosition != null) {
-      final scaleFactor = scrollDirection == Axis.vertical
-          ? constraints.maxWidth / _state.constraints!.maxWidth
-          : constraints.maxHeight / _state.constraints!.maxHeight;
+    final oldConstraints = _state.constraints;
+    _state.constraints = constraints;
+    if (oldConstraints == null) return;
 
-      // Every rebuild comes here too. Jumping would stop a fling.
-      if (scaleFactor == 1) {
-        _state.constraints = constraints;
-        return;
-      }
+    final scaleFactor = scrollDirection == Axis.vertical
+        ? constraints.maxWidth / oldConstraints.maxWidth
+        : constraints.maxHeight / oldConstraints.maxHeight;
+    // Every rebuild comes here too.
+    if (scaleFactor == 1) return;
 
-      for (var x in _state.overlayedItems) {
-        x.scale(scaleFactor);
-      }
-
-      _state.shiftItemsOnScroll = false;
-      scrollPosition.jumpTo(scrollPosition.pixels * scaleFactor);
-      _state.shiftItemsOnScroll = true;
+    for (var x in _state.overlayedItems) {
+      x.scale(scaleFactor);
     }
 
-    _state.constraints = constraints;
+    anchorFirstVisibleGridItem();
   }
 }
 
 extension SliverGridLayoutChangeHandler on AnimatedReorderableController {
-  void handleSliverGridLayoutChange(SliverGridLayout layout) =>
-      _state.gridLayout = layout;
+  void handleSliverGridLayoutChange(
+    SliverGridLayout layout,
+    SliverConstraints constraints,
+  ) {
+    _state.gridLayout = layout;
+    _state.gridPrecedingScrollExtent = constraints.precedingScrollExtent;
+  }
+}
+
+/// A grid's layout changes with its cross axis, so a grid keeps its first
+/// visible item in place when the cross axis resizes. A list needs nothing:
+/// its items keep their scroll offsets, as in a plain [widgets.ListView].
+extension GridScrollAnchoring on AnimatedReorderableController {
+  /// Remembers the first visible item before the grid lays out again.
+  void anchorFirstVisibleGridItem() {
+    final layout = _state.gridLayout;
+    final itemCount = _state.itemCount ?? 0;
+    final scrollPosition = this.scrollPosition;
+    if (layout == null || itemCount == 0) return;
+    if (scrollPosition == null || !scrollPosition.hasPixels) return;
+
+    final scrollOffset =
+        scrollPosition.pixels - _state.gridPrecedingScrollExtent;
+    final index = math.min(
+      layout.getMinChildIndexForScrollOffset(math.max(0.0, scrollOffset)),
+      itemCount - 1,
+    );
+    final geometry = layout.getGeometryForChildIndex(index);
+    _state.scrollAnchor = (
+      index: index,
+      leadingEdge: geometry.scrollOffset - scrollOffset,
+      extent: geometry.mainAxisExtent,
+    );
+    addPostFrame(() => _state.scrollAnchor = null);
+
+    // Makes the viewport ask its physics for a correction even if the
+    // grid's scroll extent stays the same.
+    scrollPosition.correctBy(0.0);
+  }
+
+  /// The scroll offset that keeps the anchored item in place in the grid's
+  /// new layout. The grid has laid out by the time its viewport asks.
+  double? anchoredScrollOffset(widgets.ScrollMetrics position) {
+    final anchor = _state.scrollAnchor;
+    final layout = _state.gridLayout;
+    if (anchor == null || layout == null) return null;
+    _state.scrollAnchor = null;
+
+    final geometry = layout.getGeometryForChildIndex(anchor.index);
+    // An item partly scrolled away keeps the same part of it hidden.
+    final leadingEdge = anchor.leadingEdge < 0 && anchor.extent > 0
+        ? anchor.leadingEdge * geometry.mainAxisExtent / anchor.extent
+        : anchor.leadingEdge;
+    return _state.gridPrecedingScrollExtent +
+        geometry.scrollOffset -
+        leadingEdge;
+  }
 }
 
 extension ChildrenDelegate on AnimatedReorderableController {

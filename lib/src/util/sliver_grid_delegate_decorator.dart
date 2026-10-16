@@ -1,6 +1,9 @@
 import 'package:flutter/rendering.dart';
 
-typedef LayoutCallback = void Function(SliverGridLayout layout);
+typedef LayoutCallback = void Function(
+  SliverGridLayout layout,
+  SliverConstraints constraints,
+);
 
 abstract class SliverGridDelegateDecorator implements SliverGridDelegate {
   final SliverGridDelegate gridDelegate;
@@ -28,7 +31,7 @@ class SliverGridLayoutNotifier extends SliverGridDelegateDecorator {
   @override
   SliverGridLayout getLayout(SliverConstraints constraints) {
     final layout = super.getLayout(constraints);
-    onLayout?.call(layout);
+    onLayout?.call(layout, constraints);
     return layout;
   }
 }

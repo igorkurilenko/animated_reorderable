@@ -20,8 +20,15 @@ class ControllerState<
   int? itemCount;
   BoxConstraints? constraints;
   SliverGridLayout? gridLayout;
+
+  /// The scroll extent before the grid, like its padding.
+  double gridPrecedingScrollExtent = 0.0;
+
+  /// The first visible item of the grid before its cross axis resized:
+  /// its index, its leading edge relative to the viewport's and its main
+  /// axis extent.
+  ({int index, double leadingEdge, double extent})? scrollAnchor;
   Offset scrollOffset = Offset.zero;
-  bool shiftItemsOnScroll = true;
 
   GlobalKey<ItemsLayerState> get itemsLayerKey => _itemsLayerKey;
 
@@ -204,8 +211,9 @@ class ControllerState<
     itemCount = null;
     constraints = null;
     scrollOffset = Offset.zero;
-    shiftItemsOnScroll = true;
     gridLayout = null;
+    gridPrecedingScrollExtent = 0.0;
+    scrollAnchor = null;
   }
 
   void dispose() {

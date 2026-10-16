@@ -271,6 +271,63 @@ void main() {
     expect(_scrollPosition(tester).pixels, greaterThan(pixels));
   });
 
+  group('resize', () {
+    testWidgets('keeps the first visible item of a list in place', (
+      tester,
+    ) async {
+      final list = _TestList(60);
+      await tester.pumpWidget(list.build());
+      _scrollPosition(tester).jumpTo(20 * _extent + 30);
+      await tester.pump();
+
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+
+      expect(_scrollPosition(tester).pixels, 20 * _extent + 30);
+      expect(tester.getTopLeft(find.text('20')).dy, -30);
+    });
+
+    testWidgets('keeps the first visible item of a grid in place', (
+      tester,
+    ) async {
+      final grid = _TestList(
+        200,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+          mainAxisExtent: _extent,
+        ),
+      );
+      await tester.pumpWidget(grid.build());
+      // Four columns, so item 80 starts row 20.
+      _scrollPosition(tester).jumpTo(20 * _extent + 30);
+      await tester.pump();
+
+      // Two columns, so item 80 starts row 40.
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+
+      expect(_scrollPosition(tester).pixels, 40 * _extent + 30);
+      expect(tester.getTopLeft(find.text('80')).dy, -30);
+    });
+
+    testWidgets('scales the hidden part of a grid item that scales', (
+      tester,
+    ) async {
+      // Three columns of squares, which scale with the width.
+      final grid = _TestList(60, grid: true);
+      await tester.pumpWidget(grid.build());
+      const side = 800 / 3;
+      _scrollPosition(tester).jumpTo(5 * side + 100);
+      await tester.pump();
+
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+
+      expect(tester.getTopLeft(find.text('15')).dy, moreOrLessEquals(-50));
+    });
+  });
+
   testWidgets('moves item elements along with their items', (tester) async {
     final list = _TestList(5);
     await tester.pumpWidget(list.build());
@@ -420,16 +477,26 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
 ScrollPosition _scrollPosition(WidgetTester tester) =>
     tester.state<ScrollableState>(find.byType(Scrollable)).position;
 
+/// Resizes the test view to [size] in logical pixels until the test ends.
+void _resize(WidgetTester tester, Size size) {
+  tester.view.physicalSize = size * tester.view.devicePixelRatio;
+  addTearDown(tester.view.resetPhysicalSize);
+}
+
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {
   _TestList(
     int count, {
     this.grid = false,
+    this.gridDelegate = const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 3,
+    ),
     this.swipeToRemoveSpringDescription = _defaultSpring,
   }) : items = List.generate(count, (i) => i);
 
   final List<int> items;
   final bool grid;
+  final SliverGridDelegate gridDelegate;
   final SpringDescription swipeToRemoveSpringDescription;
   final key = GlobalKey<AnimatedReorderableState>();
 
@@ -446,9 +513,7 @@ class _TestList {
           keyGetter: (index) => ValueKey(items[index]),
           onReorder: (permutations) => permutations.apply(items),
           gridView: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-            ),
+            gridDelegate: gridDelegate,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),
           ),
