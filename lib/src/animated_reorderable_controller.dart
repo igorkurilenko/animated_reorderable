@@ -542,6 +542,8 @@ extension OverlayedItemSizeChangeHandler on AnimatedReorderableController {
 
 extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
   void handleDidBuildItemsLayer() {
+    fitOutgoingItemsToLayout();
+
     for (var overlayedItem
         in _state.overlayedItems
             .where(isNotRendered)
@@ -561,6 +563,20 @@ extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
             curve: motionAnimationCurve,
           )
           .whenComplete(() => unoverlay(overlayedItem));
+    }
+  }
+
+  /// A removed item has no slot any more. It fades out in place, as wide
+  /// as the list's slots (or as big as the grid's) after a resize.
+  void fitOutgoingItemsToLayout() {
+    for (var item in _state.overlayedItems.where((x) => x.outgoing)) {
+      final slot =
+          getRenderedItemAt(item.index) ?? _state.renderedItems.firstOrNull;
+      final constraints = slot?.constraints;
+      if (constraints == null) continue;
+      item.setConstraints(
+        constraints.tighten(width: item.size.width, height: item.size.height),
+      );
     }
   }
 }

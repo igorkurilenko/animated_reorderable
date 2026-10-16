@@ -368,6 +368,25 @@ void main() {
       await tester.pumpAndSettle();
       expect(rectOf(0), const Rect.fromLTWH(0, 3 * 75, 400, 75));
     });
+
+    testWidgets('fits removed items to the list in place', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      list.removeAt(4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(
+        tester.getRect(
+          find.ancestor(of: find.text('4'), matching: find.byType(_Item)),
+        ),
+        const Rect.fromLTWH(0, 4 * _extent, 400, _extent),
+      );
+    });
   });
 
   testWidgets('moves item elements along with their items', (tester) async {
