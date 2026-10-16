@@ -1,4 +1,5 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,26 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('disposes the animations of the default drag decoration', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      final curvedAnimations = _undisposed('CurvedAnimation');
+
+      final drag = await tester.startGesture(tester.getCenter(find.text('0')));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      for (var i = 0; i < 10; i++) {
+        await drag.moveBy(const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await drag.up();
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+
+      expect(curvedAnimations, isEmpty);
     });
   });
 
@@ -312,6 +333,22 @@ class _ItemState extends State<_Item> {
   @override
   Widget build(BuildContext context) =>
       SizedBox(height: _extent, child: Text('${widget.id}'));
+}
+
+/// The objects of [className] created from now on that are not disposed yet.
+Set<Object> _undisposed(String className) {
+  final undisposed = Set<Object>.identity();
+  void listener(ObjectEvent event) {
+    if (event is ObjectCreated && event.className == className) {
+      undisposed.add(event.object);
+    } else if (event is ObjectDisposed) {
+      undisposed.remove(event.object);
+    }
+  }
+
+  FlutterMemoryAllocations.instance.addListener(listener);
+  addTearDown(() => FlutterMemoryAllocations.instance.removeListener(listener));
+  return undisposed;
 }
 
 int _trackedTickers(WidgetTester tester) {

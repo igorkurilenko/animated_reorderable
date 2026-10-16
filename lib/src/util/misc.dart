@@ -98,10 +98,9 @@ Widget defaultDraggedItemDecorator(
   int index,
   Animation<double> animation,
 ) => ScaleTransition(
-  scale: CurvedAnimation(
-    parent: animation,
-    curve: Curves.easeInOut,
-  ).drive(Tween(begin: 1, end: 1.05)),
+  scale: animation
+      .drive(CurveTween(curve: Curves.easeInOut))
+      .drive(Tween(begin: 1.0, end: 1.05)),
   child: FadeTransition(
     opacity: animation.drive(Tween(begin: 1, end: 0.7)),
     child: child,
