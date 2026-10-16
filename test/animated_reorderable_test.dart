@@ -381,11 +381,61 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
 
       expect(
-        tester.getRect(
-          find.ancestor(of: find.text('4'), matching: find.byType(_Item)),
-        ),
+        tester.getRect(_itemWithId(4)),
         const Rect.fromLTWH(0, 4 * _extent, 400, _extent),
       );
+    });
+
+    testWidgets('keeps a dragged item under the pointer', (tester) async {
+      // Three columns of squares, which scale with the width.
+      final grid = _TestList(9, grid: true);
+      await tester.pumpWidget(grid.build());
+      final drag = await tester.startGesture(tester.getCenter(_itemWithId(4)));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      for (var i = 0; i < 2; i++) {
+        await drag.moveBy(const Offset(0, 20));
+        await tester.pump();
+      }
+      final pointer = tester.getCenter(_itemWithId(4));
+
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final center = tester.getCenter(_itemWithId(4));
+      expect(center.dx, moreOrLessEquals(pointer.dx));
+      expect(center.dy, moreOrLessEquals(pointer.dy));
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('keeps a swiped item in its slot', (tester) async {
+      final grid = _TestList(
+        9,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+          mainAxisExtent: _extent,
+        ),
+      );
+      await tester.pumpWidget(grid.build());
+      // Four columns, so item 5 is in the second row.
+      final swipe = await tester.startGesture(tester.getCenter(_itemWithId(5)));
+      for (var i = 0; i < 5; i++) {
+        await swipe.moveBy(const Offset(-20, 0));
+        await tester.pump();
+      }
+
+      // Two columns, so item 5 moves to the right of the third row.
+      _resize(tester, const Size(400, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      final center = tester.getCenter(_itemWithId(5));
+      expect(center.dx, moreOrLessEquals(300 - 100));
+      expect(center.dy, moreOrLessEquals(2.5 * _extent));
+      await swipe.up();
+      await tester.pumpAndSettle();
     });
   });
 
@@ -535,6 +585,9 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
       ),
     );
 
+Finder _itemWithId(int id) =>
+    find.byWidgetPredicate((widget) => widget is _Item && widget.id == id);
+
 ScrollPosition _scrollPosition(WidgetTester tester) =>
     tester.state<ScrollableState>(find.byType(Scrollable)).position;
 
@@ -573,6 +626,7 @@ class _TestList {
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
           onReorder: (permutations) => permutations.apply(items),
+          onSwipeToRemove: removeAt,
           gridView: GridView.builder(
             gridDelegate: gridDelegate,
             itemCount: items.length,

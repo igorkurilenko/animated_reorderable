@@ -505,15 +505,28 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
 
     // They change when the list resizes.
     final constraints = item.constraints;
-    if (constraints != null) overlayedItem.setConstraints(constraints);
+    if (constraints != null && constraints != overlayedItem.constraints) {
+      overlayedItem.setConstraints(constraints);
+      if (isDragged(item)) {
+        // Its new size, unless its main axis extent changes too.
+        final size = constraints.constrain(overlayedItem.size);
+        keepUnderPointer(overlayedItem, size: size);
+        overlayedItem.size = size;
+      }
+    }
 
     if (isDragged(item)) return;
-    if (isSwiped(item)) return;
 
     final globalPosition = item.globalPosition;
     if (globalPosition == null) return;
 
     final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition)!;
+
+    if (isSwiped(item)) {
+      // It stays in its slot, swiped as far.
+      overlayedItem.setPosition(anchorPosition + overlayedItem.swipeOffset);
+      return;
+    }
 
     if (overlayedItem.anchorPosition != anchorPosition) {
       overlayedItem
@@ -534,9 +547,28 @@ extension OverlayedItemSizeChangeHandler on AnimatedReorderableController {
   /// The list's placeholder follows the item's size in the overlay.
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) {
     if (item.size == size) return;
+    if (_state.isDragged(key: item.key)) keepUnderPointer(item, size: size);
     item.size = size;
     if (_state.overlayedItemBy(key: item.key) != item) return;
     _state.renderedItemBy(key: item.key)?.rebuild();
+  }
+}
+
+extension DraggedItemPlacement on AnimatedReorderableController {
+  /// Keeps the pointer over the same point of a dragged item, relative to
+  /// its size, when the item is about to change its [size].
+  void keepUnderPointer(model.OverlayedItem item, {required Size size}) {
+    final globalPointerPosition = item.globalPointerPosition;
+    if (globalPointerPosition == null || item.size.isEmpty) return;
+    final pointer = overlayedItemsLayer!.globalToLocal(globalPointerPosition)!;
+    final grip = pointer - item.position;
+    item.setPosition(
+      pointer -
+          Offset(
+            grip.dx * size.width / item.size.width,
+            grip.dy * size.height / item.size.height,
+          ),
+    );
   }
 }
 
