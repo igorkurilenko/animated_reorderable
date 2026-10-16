@@ -668,6 +668,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
         },
         velocity: details.velocity,
         screenSize: screenSize,
+        springDescription: swipeToRemoveSpringDescription,
         vsync: vsync,
       );
     } else {
@@ -679,6 +680,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
           )!,
           velocity: details.velocity,
           screenSize: screenSize,
+          springDescription: swipeToRemoveSpringDescription,
           vsync: vsync,
         ),
       ]).whenComplete(() => unoverlay(item));

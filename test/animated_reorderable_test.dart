@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
 
+/// The package's default fling spring.
+const _defaultSpring = SpringDescription(mass: 1, stiffness: 500, damping: 75);
+
 void main() {
   group('disposal', () {
     testWidgets('disposes animations once items stop moving', (tester) async {
@@ -101,6 +104,28 @@ void main() {
       for (final label in labels) {
         expect(find.text(label), findsOneWidget);
       }
+    });
+
+    testWidgets('flings removed items with swipeToRemoveSpringDescription', (
+      tester,
+    ) async {
+      Future<double> flungOffset(SpringDescription spring) async {
+        final list = _TestList(5, swipeToRemoveSpringDescription: spring);
+        await tester.pumpWidget(list.build());
+        await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        final offset = tester.getTopLeft(find.text('1')).dx;
+        await tester.pumpAndSettle();
+        return offset;
+      }
+
+      final stiff = await flungOffset(_defaultSpring);
+      final soft = await flungOffset(
+        const SpringDescription(mass: 1, stiffness: 10, damping: 10),
+      );
+
+      expect(soft, greaterThan(stiff + 50));
     });
 
     testWidgets('calls the latest onReorder', (tester) async {
@@ -251,11 +276,15 @@ Widget _labels(
 
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {
-  _TestList(int count, {this.grid = false})
-    : items = List.generate(count, (i) => i);
+  _TestList(
+    int count, {
+    this.grid = false,
+    this.swipeToRemoveSpringDescription = _defaultSpring,
+  }) : items = List.generate(count, (i) => i);
 
   final List<int> items;
   final bool grid;
+  final SpringDescription swipeToRemoveSpringDescription;
   final key = GlobalKey<AnimatedReorderableState>();
 
   /// How many times each item's state was created.
@@ -283,6 +312,7 @@ class _TestList {
               keyGetter: (index) => ValueKey(items[index]),
               onReorder: (permutations) => permutations.apply(items),
               onSwipeToRemove: removeAt,
+              swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => _item(items[index]),
