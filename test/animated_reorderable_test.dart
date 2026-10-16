@@ -241,9 +241,7 @@ void main() {
   ) async {
     final list = _TestList(10);
     await tester.pumpWidget(list.build());
-    final position = tester
-        .state<ScrollableState>(find.byType(Scrollable))
-        .position;
+    final position = _scrollPosition(tester);
     position.jumpTo(position.maxScrollExtent);
     await tester.pumpAndSettle();
 
@@ -257,6 +255,20 @@ void main() {
     await tester.pump();
 
     expect(tester.getTopLeft(find.text('9')).dy - top, moreOrLessEquals(50));
+  });
+
+  testWidgets('keeps a fling going when the list rebuilds', (tester) async {
+    final list = _TestList(60);
+    await tester.pumpWidget(list.build());
+    await tester.fling(find.text('3'), const Offset(0, -200), 2000);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final pixels = _scrollPosition(tester).pixels;
+
+    await tester.pumpWidget(list.build());
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(_scrollPosition(tester).pixels, greaterThan(pixels));
   });
 
   testWidgets('moves item elements along with their items', (tester) async {
@@ -404,6 +416,9 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
         ),
       ),
     );
+
+ScrollPosition _scrollPosition(WidgetTester tester) =>
+    tester.state<ScrollableState>(find.byType(Scrollable)).position;
 
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {

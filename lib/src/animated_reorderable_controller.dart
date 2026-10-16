@@ -710,6 +710,12 @@ extension ConstraintsChangeHandler on AnimatedReorderableController {
           ? constraints.maxWidth / _state.constraints!.maxWidth
           : constraints.maxHeight / _state.constraints!.maxHeight;
 
+      // Every rebuild comes here too. Jumping would stop a fling.
+      if (scaleFactor == 1) {
+        _state.constraints = constraints;
+        return;
+      }
+
       for (var x in _state.overlayedItems) {
         x.scale(scaleFactor);
       }
