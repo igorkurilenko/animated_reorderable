@@ -424,28 +424,26 @@ class AnimatedReorderableController {
         ) ??
         measureItemWidgetAt(index: notRenderedItemIndex);
 
-    final screenGeometry = Offset.zero & getScreenSize();
+    // Just outside the overlay, which covers the list. It is the space the
+    // overlayed items are positioned in, unlike the screen.
+    final bounds = Offset.zero & overlayedItemsLayer!.size!;
     final fakePosition = switch (scrollPosition!.axisDirection) {
       AxisDirection.down =>
         notRenderedItemIndex < anyRenderedItemIndex
-            ? screenGeometry.topCenter -
-                  Offset(itemSize.width / 2, itemSize.height)
-            : screenGeometry.bottomCenter - Offset(itemSize.width / 2, 0),
+            ? bounds.topCenter - Offset(itemSize.width / 2, itemSize.height)
+            : bounds.bottomCenter - Offset(itemSize.width / 2, 0),
       AxisDirection.right =>
         notRenderedItemIndex < anyRenderedItemIndex
-            ? screenGeometry.centerLeft -
-                  Offset(itemSize.width, itemSize.height / 2)
-            : screenGeometry.centerRight - Offset(0, itemSize.height / 2),
+            ? bounds.centerLeft - Offset(itemSize.width, itemSize.height / 2)
+            : bounds.centerRight - Offset(0, itemSize.height / 2),
       AxisDirection.up =>
         notRenderedItemIndex < anyRenderedItemIndex
-            ? screenGeometry.bottomCenter - Offset(itemSize.width / 2, 0)
-            : screenGeometry.topCenter -
-                  Offset(itemSize.width / 2, itemSize.height),
+            ? bounds.bottomCenter - Offset(itemSize.width / 2, 0)
+            : bounds.topCenter - Offset(itemSize.width / 2, itemSize.height),
       AxisDirection.left =>
         notRenderedItemIndex < anyRenderedItemIndex
-            ? screenGeometry.centerRight - Offset(0, itemSize.height / 2)
-            : screenGeometry.centerLeft -
-                  Offset(itemSize.width, itemSize.height / 2),
+            ? bounds.centerRight - Offset(0, itemSize.height / 2)
+            : bounds.centerLeft - Offset(itemSize.width, itemSize.height / 2),
     };
 
     return fakePosition & itemSize;
@@ -649,6 +647,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
     final undecorateFuture = item.animateUndecoration();
     final screenSize = getScreenSize();
+    final bounds = overlayedItemsLayer!.size!;
 
     if (didSwipeToRemove(item, velocity: details.velocity)) {
       onSwipeToRemove!.call(item.index);
@@ -659,12 +658,12 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
             -item.constraints.maxWidth,
             item.position.dy,
           ),
-          AxisDirection.right => Offset(screenSize.width, item.position.dy),
+          AxisDirection.right => Offset(bounds.width, item.position.dy),
           AxisDirection.up => Offset(
             item.position.dx,
             -item.constraints.maxHeight,
           ),
-          AxisDirection.down => Offset(item.position.dx, screenSize.height),
+          AxisDirection.down => Offset(item.position.dx, bounds.height),
         },
         velocity: details.velocity,
         screenSize: screenSize,

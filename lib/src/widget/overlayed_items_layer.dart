@@ -29,6 +29,8 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
   Offset? localToGlobal(Offset point) =>
       canvasKey.currentContext?.findRenderBox()?.localToGlobal(point);
 
+  Size? get size => canvasKey.currentContext?.findRenderBox()?.size;
+
   Rect? computeCanvasGeometry([Offset offset = Offset.zero]) =>
       canvasKey.currentContext?.computeGeometry(offset);
 

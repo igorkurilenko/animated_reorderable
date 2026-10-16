@@ -211,6 +211,31 @@ void main() {
     });
   });
 
+  testWidgets('moves items off-screen along the list', (tester) async {
+    final list = _TestList(50);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.only(left: 300),
+            child: list.buildList(),
+          ),
+        ),
+      ),
+    );
+
+    list.state.reorderItem(0, destIndex: 40);
+    final lefts = <double>[];
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 80));
+      final item = find.text('0');
+      if (item.evaluate().isNotEmpty) lefts.add(tester.getTopLeft(item).dx);
+    }
+
+    expect(lefts, isNotEmpty);
+    expect(lefts, everyElement(300));
+  });
+
   testWidgets('moves item elements along with their items', (tester) async {
     final list = _TestList(5);
     await tester.pumpWidget(list.build());
