@@ -665,11 +665,22 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
         children: [
           Align(
             alignment: Alignment.center,
-            child: ItemsLayer(
-              key: _controller.itemsLayerKey,
-              controller: _controller,
-              collectionViewBuilder: buildCollectionView,
-              didBuild: _controller.handleDidBuildItemsLayer,
+            // A layout-time correction, like a clamp after the content
+            // shrank, moves the scroll offset without notifying listeners.
+            // Only re-mark the baseline: overlayed items are re-targeted from
+            // live positions after the build, so shifting them would count
+            // the correction twice. On ordinary scrolls this is a no-op.
+            child: NotificationListener<ScrollMetricsNotification>(
+              onNotification: (notification) {
+                if (notification.depth == 0) _controller.markScrollOffset();
+                return false;
+              },
+              child: ItemsLayer(
+                key: _controller.itemsLayerKey,
+                controller: _controller,
+                collectionViewBuilder: buildCollectionView,
+                didBuild: _controller.handleDidBuildItemsLayer,
+              ),
             ),
           ),
           OverlayedItemsLayer(

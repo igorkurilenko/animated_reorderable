@@ -236,6 +236,29 @@ void main() {
     expect(lefts, everyElement(300));
   });
 
+  testWidgets('moves removed items with the scroll after a clamp', (
+    tester,
+  ) async {
+    final list = _TestList(10);
+    await tester.pumpWidget(list.build());
+    final position = tester
+        .state<ScrollableState>(find.byType(Scrollable))
+        .position;
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+
+    // The list shrinks under its offset, which clamps it without notifying
+    // the scroll controller's listeners.
+    list.removeAt(9);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    final top = tester.getTopLeft(find.text('9')).dy;
+    position.jumpTo(position.pixels - 50);
+    await tester.pump();
+
+    expect(tester.getTopLeft(find.text('9')).dy - top, moreOrLessEquals(50));
+  });
+
   testWidgets('moves item elements along with their items', (tester) async {
     final list = _TestList(5);
     await tester.pumpWidget(list.build());
