@@ -20,6 +20,7 @@ class OverlayedItem extends Item {
     super.childKey,
     required this._position,
     required this._constraints,
+    required this.size,
     required this.index,
     this._interactive = true,
     this.outgoing = false,
@@ -30,6 +31,10 @@ class OverlayedItem extends Item {
   int index;
   widgets.Offset _position;
   widgets.BoxConstraints _constraints;
+
+  /// The size of the item itself, without its decoration, as the overlay
+  /// lays it out. The list's placeholder takes this size.
+  widgets.Size size;
   bool _interactive;
   bool outgoing;
   int _zIndex;
@@ -84,24 +89,21 @@ class OverlayedItem extends Item {
   widgets.Velocity get swipeVelocity =>
       _swipe?.velocity ?? widgets.Velocity.zero;
 
-  widgets.Widget? build(widgets.BuildContext context) {
+  /// Builds the item inside its decoration. [wrap] goes between the two.
+  widgets.Widget? build(
+    widgets.BuildContext context, {
+    widgets.Widget Function(widgets.Widget item)? wrap,
+  }) {
     final child = builder.build(context, index);
-    _widget = child != null
-        ? widgets.KeyedSubtree(key: childKey, child: child)
-        : null;
+    if (child == null) return _widget = null;
+    final item = widgets.KeyedSubtree(key: childKey, child: child);
+    _widget = wrap?.call(item) ?? item;
     return _decorator?.decorate(_widget, index) ?? _widget;
   }
 
   void shift(Offset delta, {bool notify = true}) {
     _motionAnimation?.shift(delta);
     setPosition(position + delta, notify: notify);
-  }
-
-  void scale(double scaleFactor, {bool notify = true}) {
-    _motionAnimation?.scale(scaleFactor);
-    if (scaleFactor == 1) return;
-    setPosition(position * scaleFactor, notify: false);
-    setConstraints(constraints * scaleFactor, notify: notify);
   }
 
   int get zIndex => _zIndex;
@@ -319,8 +321,8 @@ class _OverlayedItemSwipe implements gestures.Drag {
   widgets.Offset get swipeOffset => _swipeOffset;
 
   double get swipeExtent => _swipeOffset.dx != 0
-      ? _swipeOffset.dx / item.constraints.maxWidth
-      : _swipeOffset.dy / item.constraints.maxHeight;
+      ? _swipeOffset.dx / item.size.width
+      : _swipeOffset.dy / item.size.height;
 
   @override
   void update(widgets.DragUpdateDetails details) {

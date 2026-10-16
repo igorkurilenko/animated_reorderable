@@ -326,6 +326,48 @@ void main() {
 
       expect(tester.getTopLeft(find.text('15')).dy, moreOrLessEquals(-50));
     });
+
+    testWidgets('lays out moving items as the list would', (tester) async {
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              onReorder: (permutations) => permutations.apply(items),
+              listView: ListView.builder(
+                itemCount: items.length,
+                // Taller when narrow, as wrapping text would be.
+                itemBuilder: (context, index) => LayoutBuilder(
+                  builder: (context, constraints) => SizedBox(
+                    height: constraints.maxWidth < 600 ? 75 : 50,
+                    child: Text('${items[index]}'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      Rect rectOf(int id) => tester.getRect(
+        find.ancestor(of: find.text('$id'), matching: find.byType(SizedBox)),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      _resize(tester, const Size(400, 600));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(rectOf(0).size, const Size(400, 75));
+      expect(rectOf(5).top, 5 * 75);
+      await tester.pumpAndSettle();
+      expect(rectOf(0), const Rect.fromLTWH(0, 3 * 75, 400, 75));
+    });
   });
 
   testWidgets('moves item elements along with their items', (tester) async {

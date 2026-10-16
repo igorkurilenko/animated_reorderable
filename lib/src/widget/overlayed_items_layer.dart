@@ -49,6 +49,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
           onSwipeStart: controller.handleItemSwipeStart,
           onSwipeUpdate: controller.handleItemSwipeUpdate,
           onSwipeEnd: controller.handleItemSwipeEnd,
+          onSizeChange: controller.handleOverlayedItemSizeChange,
         ),
     ],
   );

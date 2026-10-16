@@ -64,6 +64,14 @@ class _ItemWidgetState extends State<ItemWidget> {
   Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
   Size? get size => findRenderBox()?.size;
 
+  /// The constraints the list lays the item out with.
+  BoxConstraints? get constraints {
+    final renderBox = findRenderBox();
+    return renderBox != null && renderBox.hasSize
+        ? renderBox.constraints
+        : null;
+  }
+
   @override
   void initState() {
     super.initState();

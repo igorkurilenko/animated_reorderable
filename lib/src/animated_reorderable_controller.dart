@@ -151,15 +151,21 @@ class AnimatedReorderableController {
       }
 
       if (renderedItem != null) {
-        _state.putOverlayedItemIfAbsent(
-            key: renderedItem.key,
-            ifAbsent: () => createOverlayedItem(
-              renderedItem,
-              builder: removedItem.builder,
-              childKey: removedItem.childKey,
-            ),
-          )
+        final outgoingItem = _state.putOverlayedItemIfAbsent(
+          key: renderedItem.key,
+          ifAbsent: () => createOverlayedItem(
+            renderedItem,
+            builder: removedItem.builder,
+            childKey: removedItem.childKey,
+          ),
+        );
+        outgoingItem
           ..outgoing = true
+          // It keeps its size while the removed item builder animates it.
+          ..setConstraints(
+            widgets.BoxConstraints.tight(outgoingItem.size),
+            notify: false,
+          )
           ..setInteractive(false, notify: false)
           ..setZIndex(zIndex ?? outgoingItemZIndex, notify: false)
           ..animateRemovedItemBuilder(
@@ -231,6 +237,7 @@ class AnimatedReorderableController {
                 key: itemAtIndex.key,
                 position: fakeGeometry.topLeft,
                 constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
+                size: fakeGeometry.size,
                 builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtIndex),
                 childKey: itemAtIndex.childKey,
                 interactive: false,
@@ -253,6 +260,7 @@ class AnimatedReorderableController {
                 key: itemAtDestIndex.key,
                 position: fakeGeometry.topLeft,
                 constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
+                size: fakeGeometry.size,
                 builder: model.ItemBuilder.adaptOtherItemBuilder(
                   itemAtDestIndex,
                 ),
@@ -351,7 +359,11 @@ class AnimatedReorderableController {
       position: overlayedItemsLayer!.globalToLocal(
         renderedItem.globalPosition!,
       )!,
-      constraints: widgets.BoxConstraints.tight(renderedItem.size!),
+      // The item lays out in the overlay as it would in the list.
+      constraints:
+          renderedItem.constraints ??
+          widgets.BoxConstraints.tight(renderedItem.size!),
+      size: renderedItem.size!,
       zIndex: zIndex,
       interactive: interactive,
       outgoing: outgoing,
@@ -488,14 +500,18 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
       unregisterRenderedItem(item);
 
   void handleRenderedItemDidBuild(RenderedItem item) {
+    final overlayedItem = _state.overlayedItemBy(key: item.key);
+    if (overlayedItem == null || overlayedItem.outgoing) return;
+
+    // They change when the list resizes.
+    final constraints = item.constraints;
+    if (constraints != null) overlayedItem.setConstraints(constraints);
+
     if (isDragged(item)) return;
     if (isSwiped(item)) return;
 
     final globalPosition = item.globalPosition;
     if (globalPosition == null) return;
-
-    final overlayedItem = _state.overlayedItemBy(key: item.key);
-    if (overlayedItem == null) return;
 
     final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition)!;
 
@@ -514,6 +530,16 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
   }
 }
 
+extension OverlayedItemSizeChangeHandler on AnimatedReorderableController {
+  /// The list's placeholder follows the item's size in the overlay.
+  void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) {
+    if (item.size == size) return;
+    item.size = size;
+    if (_state.overlayedItemBy(key: item.key) != item) return;
+    _state.renderedItemBy(key: item.key)?.rebuild();
+  }
+}
+
 extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
   void handleDidBuildItemsLayer() {
     for (var overlayedItem
@@ -524,7 +550,7 @@ extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
       final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
         notRenderedItemIndex: overlayedItem.index,
         anyRenderedItemIndex: _state.renderedItems.first.index,
-        itemSize: overlayedItem.constraints.biggest,
+        itemSize: overlayedItem.size,
       );
 
       overlayedItem
@@ -656,15 +682,9 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
       item.animateFlingTo(
         switch (item.swipeToRemoveDirection!) {
-          AxisDirection.left => Offset(
-            -item.constraints.maxWidth,
-            item.position.dy,
-          ),
+          AxisDirection.left => Offset(-item.size.width, item.position.dy),
           AxisDirection.right => Offset(bounds.width, item.position.dy),
-          AxisDirection.up => Offset(
-            item.position.dx,
-            -item.constraints.maxHeight,
-          ),
+          AxisDirection.up => Offset(item.position.dx, -item.size.height),
           AxisDirection.down => Offset(item.position.dx, bounds.height),
         },
         velocity: details.velocity,
@@ -713,10 +733,6 @@ extension ConstraintsChangeHandler on AnimatedReorderableController {
         : constraints.maxHeight / oldConstraints.maxHeight;
     // Every rebuild comes here too.
     if (scaleFactor == 1) return;
-
-    for (var x in _state.overlayedItems) {
-      x.scale(scaleFactor);
-    }
 
     anchorFirstVisibleGridItem();
   }
@@ -805,8 +821,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
       reorderableGetter: reorderableGetter,
       draggableGetter: draggableGetter,
       swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-      overlayedSizeGetter: (key) =>
-          _state.overlayedItemBy(key: key)?.constraints.biggest,
+      overlayedSizeGetter: (key) => _state.overlayedItemBy(key: key)?.size,
       childKey: item.childKey,
       builder: item.builder.build,
       onInit: handleRenderedItemInit,
@@ -892,9 +907,8 @@ extension Scrolling on AnimatedReorderableController {
 
   void autoScrollIfNecessary() {
     if (_state.draggedItem == null) return;
-    if (!_state.draggedItem!.constraints.isTight) return;
 
-    final size = _state.draggedItem!.constraints.biggest;
+    final size = _state.draggedItem!.size;
     final position = overlayedItemsLayer!.localToGlobal(
       _state.draggedItem!.position,
     )!;

@@ -1,6 +1,12 @@
 import 'package:flutter/widgets.dart';
 
 import '../model/model.dart';
+import 'size_reporter.dart';
+
+typedef OverlayedItemSizeCallback = void Function(
+  Size size,
+  OverlayedItem item,
+);
 
 class OverlayedItemWidget extends StatelessWidget {
   const OverlayedItemWidget({
@@ -12,6 +18,7 @@ class OverlayedItemWidget extends StatelessWidget {
     this.onSwipeStart,
     this.onSwipeUpdate,
     this.onSwipeEnd,
+    this.onSizeChange,
   });
 
   final OverlayedItem item;
@@ -21,6 +28,7 @@ class OverlayedItemWidget extends StatelessWidget {
   final OverlayedItemDragStartCallback? onSwipeStart;
   final OverlayedItemDragUpdateCallback? onSwipeUpdate;
   final OverlayedItemDragEndCallback? onSwipeEnd;
+  final OverlayedItemSizeCallback? onSizeChange;
 
   @override
   Widget build(BuildContext context) => Positioned(
@@ -47,7 +55,13 @@ class OverlayedItemWidget extends StatelessWidget {
               ),
         child: ConstrainedBox(
           constraints: item.constraints,
-          child: item.build(context),
+          child: item.build(
+            context,
+            wrap: (item) => SizeReporter(
+              onSizeChange: (size) => onSizeChange?.call(size, this.item),
+              child: item,
+            ),
+          ),
         ),
       ),
     ),
