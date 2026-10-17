@@ -56,26 +56,26 @@ class OverlayedItem extends widgets.ChangeNotifier {
   widgets.AnimationStatus? get motionAnimationStatus =>
       _motionAnimation?.controller.status;
 
-  void setPosition(widgets.Offset value, {bool notify = true}) {
+  void setPosition(widgets.Offset value) {
     if (_position == value) return;
     _position = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
   widgets.BoxConstraints get constraints => _constraints;
 
-  void setConstraints(widgets.BoxConstraints value, {bool notify = true}) {
+  void setConstraints(widgets.BoxConstraints value) {
     if (_constraints == value) return;
     _constraints = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
   bool get interactive => _interactive;
 
-  void setInteractive(bool value, {bool notify = true}) {
+  void setInteractive(bool value) {
     if (interactive == value) return;
     _interactive = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
   Offset? get globalPointerPosition => _globalPointerPosition;
@@ -100,9 +100,9 @@ class OverlayedItem extends widgets.ChangeNotifier {
     return _decorator?.decorate(wrapped, index) ?? wrapped;
   }
 
-  void shift(Offset delta, {bool notify = true}) {
+  void shift(Offset delta) {
     _motionAnimation?.shift(delta);
-    setPosition(position + delta, notify: notify);
+    setPosition(position + delta);
   }
 
   void recognizeDrag(

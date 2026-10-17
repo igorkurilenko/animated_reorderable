@@ -1,7 +1,7 @@
 part of 'model.dart';
 
-class Item extends widgets.ChangeNotifier {
-  Item({required this.key, required this._builder, widgets.GlobalKey? childKey})
+class Item {
+  Item({required this.key, required this.builder, widgets.GlobalKey? childKey})
     : childKey = childKey ?? widgets.GlobalKey();
 
   final Key key;
@@ -9,26 +9,15 @@ class Item extends widgets.ChangeNotifier {
   /// Keys the item's subtree, so the subtree keeps its state while it moves
   /// between the list and the overlay.
   final widgets.GlobalKey childKey;
-  ItemBuilder _builder;
+  ItemBuilder builder;
 
   /// The size of the item's placeholder in the list while the overlay
   /// shows the item, or null while the list shows the item itself.
   final placeholderSize = widgets.ValueNotifier<widgets.Size?>(null);
 
-  ItemBuilder get builder => _builder;
-
-  T setBuilder<T extends ItemBuilder>(T value, {bool notify = true}) {
-    if (_builder == value) return value;
-    _builder = value;
-    if (notify) notifyListeners();
-    return value;
-  }
-
-  @override
   void dispose() {
     builder.dispose();
     placeholderSize.dispose();
-    super.dispose();
   }
 
   @override
@@ -45,13 +34,13 @@ extension ItemAnimations on Item {
     final originalBuilder = this.builder;
     final controller = AnimationController(vsync: vsync, duration: duration);
 
-    setBuilder(
-      ItemBuilder.adaptAnimatedItemBuilder(builder, controller: controller),
-      notify: false,
+    this.builder = ItemBuilder.adaptAnimatedItemBuilder(
+      builder,
+      controller: controller,
     );
 
     return controller.forward(from: from).whenComplete(() {
-      setBuilder(originalBuilder);
+      this.builder = originalBuilder;
       controller.dispose();
     });
   }
@@ -65,12 +54,9 @@ extension ItemAnimations on Item {
     final from = replaced.asAnimated?.stopAnimation() ?? 1.0;
     final controller = AnimationController(vsync: vsync, duration: duration);
 
-    setBuilder(
-      ItemBuilder.adaptAnimatedRemovedItemBuilder(
-        builder,
-        controller: controller,
-      ),
-      notify: false,
+    this.builder = ItemBuilder.adaptAnimatedRemovedItemBuilder(
+      builder,
+      controller: controller,
     );
     // A removed item is not built with its other builders again.
     replaced.dispose();

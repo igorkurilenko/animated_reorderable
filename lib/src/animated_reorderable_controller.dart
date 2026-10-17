@@ -129,11 +129,8 @@ class AnimatedReorderableController implements ItemHost {
     _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
     outgoingItem
       // It keeps its size while the removed item builder animates it.
-      ..setConstraints(
-        widgets.BoxConstraints.tight(outgoingItem.size),
-        notify: false,
-      )
-      ..setInteractive(false, notify: false);
+      ..setConstraints(widgets.BoxConstraints.tight(outgoingItem.size))
+      ..setInteractive(false);
     removedItem
         .animateRemovedItemBuilder(
           builder: builder,
@@ -313,7 +310,7 @@ class AnimatedReorderableController implements ItemHost {
           _state.putOverlayedItem(
             createOverlayedItem(renderedItem)..index = newIndex(renderedItem),
           );
-      overlayedItem.setInteractive(false, notify: false);
+      overlayedItem.setInteractive(false);
     }
   }
 
