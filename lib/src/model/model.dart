@@ -19,3 +19,4 @@ part 'item_builder.dart';
 part 'item_decorator.dart';
 part 'controller_state.dart';
 part 'rendered_item.dart';
+part 'change_signal.dart';

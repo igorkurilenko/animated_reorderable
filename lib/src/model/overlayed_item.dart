@@ -24,7 +24,7 @@ class OverlayedItem extends Item {
     required this.index,
     this._interactive = true,
     this.outgoing = false,
-    this._zIndex = defaultZIndex,
+    this.zIndex = defaultZIndex,
     this.recognizerFactory,
   });
 
@@ -37,7 +37,7 @@ class OverlayedItem extends Item {
   widgets.Size size;
   bool _interactive;
   bool outgoing;
-  int _zIndex;
+  int zIndex;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
@@ -98,13 +98,6 @@ class OverlayedItem extends Item {
   void shift(Offset delta, {bool notify = true}) {
     _motionAnimation?.shift(delta);
     setPosition(position + delta, notify: notify);
-  }
-
-  int get zIndex => _zIndex;
-  void setZIndex(int value, {bool notify = true}) {
-    if (_zIndex == value) return;
-    _zIndex = value;
-    if (notify) notifyListeners();
   }
 
   void recognizeDrag(
@@ -254,6 +247,7 @@ class OverlayedItem extends Item {
         controller: AnimationController(duration: duration, vsync: vsync),
       );
     }
+    notifyListeners();
 
     return _decorator!.forwardAnimation();
   }

@@ -27,10 +27,12 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
   void initState() {
     super.initState();
     controller.attachOverlayedItemsLayer(this);
+    controller.overlayChanges.addListener(_rebuild);
   }
 
   @override
   void dispose() {
+    controller.overlayChanges.removeListener(_rebuild);
     controller.detachOverlayedItemsLayer(this);
     super.dispose();
   }
@@ -42,6 +44,8 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
       canvasKey.currentContext?.findRenderBox()?.localToGlobal(point);
 
   Size? get size => canvasKey.currentContext?.findRenderBox()?.size;
+
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) => Stack(

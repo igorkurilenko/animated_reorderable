@@ -93,14 +93,10 @@ class AnimatedReorderableController implements ItemHost {
       vsync: vsync,
     );
 
-    overlayedItemsLayer!.rebuild(
-      () => overlayRenderedItems(
-        except: insertedItem.key,
-        newIndex: (x) => x.index >= index ? x.index + 1 : x.index,
-      ),
+    overlayRenderedItems(
+      except: insertedItem.key,
+      newIndex: (x) => x.index >= index ? x.index + 1 : x.index,
     );
-
-    itemsLayer!.rebuild();
   }
 
   void removeItem(
@@ -119,44 +115,37 @@ class AnimatedReorderableController implements ItemHost {
       removedItem.dispose();
     }
 
-    overlayedItemsLayer!.rebuild(() {
-      overlayRenderedItems(
-        except: removedItem.key,
-        newIndex: (x) => x.index > index ? x.index - 1 : x.index,
-      );
+    overlayRenderedItems(
+      except: removedItem.key,
+      newIndex: (x) => x.index > index ? x.index - 1 : x.index,
+    );
 
-      if (renderedItem != null) {
-        final outgoingItem = _state.putOverlayedItemIfAbsent(
-          key: renderedItem.key,
-          ifAbsent: () => createOverlayedItem(
-            renderedItem,
-            builder: removedItem.builder,
-            childKey: removedItem.childKey,
-          ),
-        );
-        outgoingItem
-          ..outgoing = true
-          // It keeps its size while the removed item builder animates it.
-          ..setConstraints(
-            widgets.BoxConstraints.tight(outgoingItem.size),
-            notify: false,
-          )
-          ..setInteractive(false, notify: false)
-          ..setZIndex(zIndex ?? outgoingItemZIndex, notify: false)
-          ..animateRemovedItemBuilder(
-            builder: builder,
-            duration: duration,
-            vsync: vsync,
-          ).whenComplete(
-            () => overlayedItemsLayer!.rebuild(() {
-              _state.removeOverlayedItem(key: removedItem.key)?.dispose();
-              removedItem.dispose();
-            }),
-          );
-      }
-    });
-
-    itemsLayer!.rebuild();
+    if (renderedItem == null) return;
+    final outgoingItem = _state.putOverlayedItemIfAbsent(
+      key: renderedItem.key,
+      ifAbsent: () => createOverlayedItem(
+        renderedItem,
+        builder: removedItem.builder,
+        childKey: removedItem.childKey,
+      ),
+    );
+    _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
+    outgoingItem
+      ..outgoing = true
+      // It keeps its size while the removed item builder animates it.
+      ..setConstraints(
+        widgets.BoxConstraints.tight(outgoingItem.size),
+        notify: false,
+      )
+      ..setInteractive(false, notify: false)
+      ..animateRemovedItemBuilder(
+        builder: builder,
+        duration: duration,
+        vsync: vsync,
+      ).whenComplete(() {
+        _state.removeOverlayedItem(key: removedItem.key)?.dispose();
+        removedItem.dispose();
+      });
   }
 
   void reorderItem(int index, {required int destIndex}) {
@@ -182,24 +171,21 @@ class AnimatedReorderableController implements ItemHost {
       itemFactory: createItem,
     );
 
-    overlayedItemsLayer!.rebuild(() {
-      overlayRenderedItems(
-        newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
-      );
+    overlayRenderedItems(
+      newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
+    );
+    overlayNotRenderedItem(
+      itemAtIndex,
+      index: index,
+      newIndex: permutations.indexOf(itemAtIndex.key)!,
+    );
+    overlayNotRenderedItem(
+      itemAtDestIndex,
+      index: destIndex,
+      newIndex: permutations.indexOf(itemAtDestIndex.key)!,
+    );
 
-      overlayNotRenderedItem(
-        itemAtIndex,
-        index: index,
-        newIndex: permutations.indexOf(itemAtIndex.key)!,
-      );
-      overlayNotRenderedItem(
-        itemAtDestIndex,
-        index: destIndex,
-        newIndex: permutations.indexOf(itemAtDestIndex.key)!,
-      );
-    });
-
-    itemsLayer!.rebuild(() => onReorder!.call(permutations));
+    onReorder!.call(permutations);
   }
 
   /// The item count, which a list or grid needs for its items to change.
@@ -236,6 +222,13 @@ class AnimatedReorderableController implements ItemHost {
   bool isRendered(model.OverlayedItem item) => _state.isRendered(key: item.key);
 
   bool isNotRendered(model.OverlayedItem item) => !isRendered(item);
+
+  /// What the items layer builds from changes with these.
+  widgets.Listenable get itemsChanges => _state.itemsChanges;
+
+  /// What the overlayed items layer builds from changes with these, and
+  /// with the overlayed items themselves.
+  widgets.Listenable get overlayChanges => _state.overlayChanges;
 
   ItemsLayerState? get itemsLayer => _itemsLayer;
 
@@ -305,7 +298,7 @@ class AnimatedReorderableController implements ItemHost {
       builder: builder ?? model.ItemBuilder.proxy(item!),
       childKey: childKey ?? item!.childKey,
       recognizerFactory: recognizerFactory,
-    )..addListener(overlayedItemsLayer!.rebuild);
+    );
   }
 
   /// Overlays the rendered items, except [except] and the held ones, so
@@ -344,20 +337,18 @@ class AnimatedReorderableController implements ItemHost {
       anyRenderedItem: _state.renderedItems.first,
     );
 
-    _state
-        .putOverlayedItem(
-          model.OverlayedItem(
-            index: newIndex,
-            key: item.key,
-            position: fakeGeometry.topLeft,
-            constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
-            size: fakeGeometry.size,
-            builder: model.ItemBuilder.proxy(item),
-            childKey: item.childKey,
-            interactive: false,
-          ),
-        )
-        .addListener(overlayedItemsLayer!.rebuild);
+    _state.putOverlayedItem(
+      model.OverlayedItem(
+        index: newIndex,
+        key: item.key,
+        position: fakeGeometry.topLeft,
+        constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
+        size: fakeGeometry.size,
+        builder: model.ItemBuilder.proxy(item),
+        childKey: item.childKey,
+        interactive: false,
+      ),
+    );
   }
 
   void registerRenderedItem(model.RenderedItem item) =>
@@ -405,9 +396,7 @@ class AnimatedReorderableController implements ItemHost {
   void unoverlay(model.OverlayedItem item) {
     if (_state.overlayedItemBy(key: item.key) != item) return;
     if (item.outgoing) return;
-    overlayedItemsLayer?.rebuild(
-      () => _state.removeOverlayedItem(key: item.key),
-    );
+    _state.removeOverlayedItem(key: item.key);
     _state.renderedItemBy(key: item.key)?.rebuild();
     addPostFrame(() {
       if (_state.overlayedItemBy(key: item.key) != item) item.dispose();
@@ -712,14 +701,10 @@ extension HeldItemMotion on AnimatedReorderableController {
     required Duration decorationDuration,
   }) {
     if (!_state.isOverlayed(key: item.key)) {
-      overlayedItemsLayer?.rebuild(
-        () =>
-            _state.putOverlayedItem(item)..setZIndex(maxZIndex, notify: false),
-      );
+      _state.putOverlayedItem(item);
       _state.renderedItemBy(key: item.key)?.rebuild();
-    } else {
-      item.setZIndex(maxZIndex);
     }
+    _state.setZIndex(item, maxZIndex);
 
     item.animateDecoration(
       decorator: decorator,

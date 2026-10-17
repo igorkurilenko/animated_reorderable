@@ -3,6 +3,13 @@ part of 'model.dart';
 class ControllerState {
   ControllerState({this.itemCount});
 
+  /// Notifies when an item is inserted, removed or moved.
+  final itemsChanges = ChangeSignal();
+
+  /// Notifies when an item enters or leaves the overlay, or moves above or
+  /// under the other overlayed items.
+  final overlayChanges = ChangeSignal();
+
   final _itemByKey = <Key, Item>{};
   final _itemKeyByIndex = SplayTreeMap<int, Key>();
   final _overlayedItemByKey = <Key, OverlayedItem>{};
@@ -71,7 +78,9 @@ class ControllerState {
   OverlayedItem putOverlayedItem(OverlayedItem x) {
     final replaced = _overlayedItemByKey.remove(x.key);
     if (replaced != null && replaced != x) replaced.dispose();
-    return _overlayedItemByKey[x.key] = x;
+    _overlayedItemByKey[x.key] = x;
+    overlayChanges.notify();
+    return x;
   }
 
   OverlayedItem putOverlayedItemIfAbsent({
@@ -79,8 +88,17 @@ class ControllerState {
     required OverlayedItem Function() ifAbsent,
   }) => putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
 
-  OverlayedItem? removeOverlayedItem({required Key key}) =>
-      _overlayedItemByKey.remove(key);
+  OverlayedItem? removeOverlayedItem({required Key key}) {
+    final removed = _overlayedItemByKey.remove(key);
+    if (removed != null) overlayChanges.notify();
+    return removed;
+  }
+
+  void setZIndex(OverlayedItem item, int zIndex) {
+    if (item.zIndex == zIndex) return;
+    item.zIndex = zIndex;
+    overlayChanges.notify();
+  }
 
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
@@ -106,6 +124,7 @@ class ControllerState {
     _itemKeyByIndex[index] = item.key;
 
     itemCount = itemCount! + 1;
+    itemsChanges.notify();
 
     return item;
   }
@@ -129,6 +148,7 @@ class ControllerState {
         overlayedItem.index--;
       }
     }
+    itemsChanges.notify();
 
     return _itemByKey.remove(key);
   }
@@ -172,6 +192,7 @@ class ControllerState {
       overlayedItem.index =
           permutations.indexOf(overlayedItem.key) ?? overlayedItem.index;
     }
+    itemsChanges.notify();
 
     return permutations;
   }
@@ -189,5 +210,7 @@ class ControllerState {
     _renderedItemByKey.clear();
     draggedItem = null;
     swipedItem = null;
+    itemsChanges.dispose();
+    overlayChanges.dispose();
   }
 }

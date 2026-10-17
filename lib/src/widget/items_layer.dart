@@ -23,13 +23,17 @@ class ItemsLayerState extends State<ItemsLayer> {
   void initState() {
     super.initState();
     controller.attachItemsLayer(this);
+    controller.itemsChanges.addListener(_rebuild);
   }
 
   @override
   void dispose() {
+    controller.itemsChanges.removeListener(_rebuild);
     controller.detachItemsLayer(this);
     super.dispose();
   }
+
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) {

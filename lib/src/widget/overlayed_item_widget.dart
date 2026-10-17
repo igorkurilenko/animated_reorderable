@@ -30,8 +30,12 @@ class OverlayedItemWidget extends StatelessWidget {
   final OverlayedItemDragEndCallback? onSwipeEnd;
   final OverlayedItemSizeCallback? onSizeChange;
 
+  /// It builds again when its item changes, without the other items.
   @override
-  Widget build(BuildContext context) => Positioned(
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: item, builder: _build);
+
+  Widget _build(BuildContext context, Widget? child) => Positioned(
     left: item.position.dx,
     top: item.position.dy,
     child: IgnorePointer(
