@@ -34,7 +34,6 @@ These still work, and go in 2.0:
 
 - Item widgets use the latest settings rather than the ones they were built with.
 - A dragged item's placeholder follows the item's size.
-- Inserting, removing or reordering before the widget is mounted, or after it's gone, does nothing instead of failing an assertion.
 - `Permutation` compares by value.
 - The deprecated `AnimatedReorderable` constructor is no longer `const`.
 
