@@ -207,8 +207,7 @@ Item _item(int id) => Item(
 );
 
 OverlayedItem _overlayed(int id, {required int index}) => OverlayedItem(
-  key: ValueKey(id),
-  builder: ItemBuilder.adaptIndexedWidgetBuilder((_, _) => null),
+  item: _item(id),
   position: Offset.zero,
   constraints: const BoxConstraints(),
   size: Size.zero,

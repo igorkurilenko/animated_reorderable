@@ -13,11 +13,10 @@ typedef OverlayedItemDragEndCallback = void Function(
   OverlayedItem item,
 );
 
-class OverlayedItem extends Item {
+/// An item while the overlay shows it, above the list.
+class OverlayedItem extends widgets.ChangeNotifier {
   OverlayedItem({
-    required super.key,
-    required super.builder,
-    super.childKey,
+    required this.item,
     required this._position,
     required this._constraints,
     required this.size,
@@ -28,6 +27,9 @@ class OverlayedItem extends Item {
     this.recognizerFactory,
   });
 
+  /// The item the overlay shows. It builds the item's subtree, which keeps
+  /// its state as it moves between the list and the overlay.
+  final Item item;
   int index;
   widgets.Offset _position;
   widgets.BoxConstraints _constraints;
@@ -36,6 +38,9 @@ class OverlayedItem extends Item {
   /// lays it out. The list's placeholder takes this size.
   widgets.Size size;
   bool _interactive;
+
+  /// Whether the item was removed from the list. The list no longer owns
+  /// an outgoing item, so the overlay disposes it.
   bool outgoing;
   int zIndex;
   MultiDragGestureRecognizerFactory? recognizerFactory;
@@ -44,6 +49,8 @@ class OverlayedItem extends Item {
   widgets.Offset? _globalPointerPosition;
   OffsetAnimation? _motionAnimation;
   AnimatedItemDecoratorAdapter? _decorator;
+
+  Key get key => item.key;
 
   widgets.Offset get position => _position;
   widgets.Offset get anchorPosition =>
@@ -88,10 +95,10 @@ class OverlayedItem extends Item {
     widgets.BuildContext context, {
     widgets.Widget Function(widgets.Widget item)? wrap,
   }) {
-    final child = builder.build(context, index);
+    final child = item.builder.build(context, index);
     if (child == null) return null;
-    final item = widgets.KeyedSubtree(key: childKey, child: child);
-    final wrapped = wrap?.call(item) ?? item;
+    final keyed = widgets.KeyedSubtree(key: item.childKey, child: child);
+    final wrapped = wrap?.call(keyed) ?? keyed;
     return _decorator?.decorate(wrapped, index) ?? wrapped;
   }
 
@@ -266,6 +273,7 @@ class OverlayedItem extends Item {
     _motionAnimation = null;
     _decorator?.dispose();
     _decorator = null;
+    if (outgoing) item.dispose();
     super.dispose();
   }
 

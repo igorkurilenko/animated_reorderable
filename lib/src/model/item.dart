@@ -56,7 +56,8 @@ extension ItemAnimations on Item {
     required TickerProvider vsync,
     required Duration duration,
   }) {
-    final from = this.builder.asAnimated?.stopAnimation() ?? 1.0;
+    final replaced = this.builder;
+    final from = replaced.asAnimated?.stopAnimation() ?? 1.0;
     final controller = AnimationController(vsync: vsync, duration: duration);
 
     setBuilder(
@@ -66,6 +67,8 @@ extension ItemAnimations on Item {
       ),
       notify: false,
     );
+    // A removed item is not built with its other builders again.
+    replaced.dispose();
 
     return controller.reverse(from: from);
   }

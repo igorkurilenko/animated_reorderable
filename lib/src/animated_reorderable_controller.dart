@@ -123,11 +123,7 @@ class AnimatedReorderableController implements ItemHost {
     if (renderedItem == null) return;
     final outgoingItem = _state.putOverlayedItemIfAbsent(
       key: renderedItem.key,
-      ifAbsent: () => createOverlayedItem(
-        renderedItem,
-        builder: removedItem.builder,
-        childKey: removedItem.childKey,
-      ),
+      ifAbsent: () => createOverlayedItem(renderedItem, item: removedItem),
     );
     _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
     outgoingItem
@@ -137,15 +133,16 @@ class AnimatedReorderableController implements ItemHost {
         widgets.BoxConstraints.tight(outgoingItem.size),
         notify: false,
       )
-      ..setInteractive(false, notify: false)
-      ..animateRemovedItemBuilder(
-        builder: builder,
-        duration: duration,
-        vsync: vsync,
-      ).whenComplete(() {
-        _state.removeOverlayedItem(key: removedItem.key)?.dispose();
-        removedItem.dispose();
-      });
+      ..setInteractive(false, notify: false);
+    removedItem
+        .animateRemovedItemBuilder(
+          builder: builder,
+          duration: duration,
+          vsync: vsync,
+        )
+        .whenComplete(
+          () => _state.removeOverlayedItem(key: removedItem.key)?.dispose(),
+        );
   }
 
   void reorderItem(int index, {required int destIndex}) {
@@ -280,13 +277,11 @@ class AnimatedReorderableController implements ItemHost {
   model.OverlayedItem createOverlayedItem(
     model.RenderedItem renderedItem, {
     MultiDragGestureRecognizerFactory? recognizerFactory,
-    model.ItemBuilder? builder,
-    widgets.GlobalKey? childKey,
+    model.Item? item,
   }) {
-    final item = _state.itemBy(key: renderedItem.key);
     return model.OverlayedItem(
+      item: item ?? _state.itemBy(key: renderedItem.key)!,
       index: renderedItem.index,
-      key: renderedItem.key,
       position: overlayedItemsLayer!.globalToLocal(
         renderedItem.globalPosition!,
       )!,
@@ -295,8 +290,6 @@ class AnimatedReorderableController implements ItemHost {
           renderedItem.constraints ??
           widgets.BoxConstraints.tight(renderedItem.size!),
       size: renderedItem.size!,
-      builder: builder ?? model.ItemBuilder.proxy(item!),
-      childKey: childKey ?? item!.childKey,
       recognizerFactory: recognizerFactory,
     );
   }
@@ -339,13 +332,11 @@ class AnimatedReorderableController implements ItemHost {
 
     _state.putOverlayedItem(
       model.OverlayedItem(
+        item: item,
         index: newIndex,
-        key: item.key,
         position: fakeGeometry.topLeft,
         constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
         size: fakeGeometry.size,
-        builder: model.ItemBuilder.proxy(item),
-        childKey: item.childKey,
         interactive: false,
       ),
     );
