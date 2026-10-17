@@ -62,8 +62,10 @@ class ItemRegistry {
 
   RenderedItem? renderedItemBy({required Key key}) => _renderedItemByKey[key];
 
-  RenderedItem? removeRenderedItemBy({required Key key}) =>
-      _renderedItemByKey.remove(key);
+  /// Forgets [x], unless another rendered item has its key by now.
+  void removeRenderedItem(RenderedItem x) {
+    if (_renderedItemByKey[x.key] == x) _renderedItemByKey.remove(x.key);
+  }
 
   bool isRendered({required Key key}) => _renderedItemByKey.containsKey(key);
 

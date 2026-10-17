@@ -25,8 +25,9 @@ class AnimatedReorderableController implements ItemHost {
     _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem);
   }
 
-  /// The current configuration. The state replaces it on every rebuild, so
-  /// the getters below always read the latest builders and callbacks.
+  /// The current configuration. The state replaces it on every rebuild,
+  /// and the controller and its collaborators read it when they need it,
+  /// so they use the latest builders and callbacks.
   AnimatedReorderable widget;
   Axis scrollDirection;
   final widgets.TickerProvider vsync;
@@ -39,7 +40,7 @@ class AnimatedReorderableController implements ItemHost {
                   .findAncestorStateOfType<ItemsLayerState>() ==
               itemsLayer;
     },
-    velocityScalar: () => autoScrollerVelocityScalar,
+    velocityScalar: () => widget.autoScrollerVelocityScalar,
     itemCount: () => _items.itemCount ?? 0,
     onScroll: _shiftOverlayedItems,
     onAutoScroll: () => _drag?.reorderAndAutoScroll(),
@@ -59,35 +60,6 @@ class AnimatedReorderableController implements ItemHost {
   /// built.
   final _builtItems = <model.RenderedItem>{};
   bool _reconcileScheduled = false;
-
-  KeyGetter get keyGetter => widget.keyGetter;
-  BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
-  double get autoScrollerVelocityScalar => widget.autoScrollerVelocityScalar;
-  double get swipeToRemoveExtent => widget.swipeToRemoveExtent;
-  double get swipeToRemoveVelocity => widget.swipeToRemoveVelocity;
-  widgets.SpringDescription get swipeToRemoveSpringDescription =>
-      widget.swipeToRemoveSpringDescription;
-  ReorderCallback? get onReorder => widget.onReorder;
-  SwipeToRemoveCallback? get onSwipeToRemove => widget.onSwipeToRemove;
-  Duration get motionAnimationDuration => widget.motionAnimationDuration;
-  widgets.Curve get motionAnimationCurve => widget.motionAnimationCurve;
-  model.AnimatedItemDecorator? get draggedItemDecorator =>
-      widget.draggedItemDecorator;
-  Duration get draggedItemDecorationAnimationDuration =>
-      widget.draggedItemDecorationAnimationDuration;
-  model.AnimatedItemDecorator? get swipedItemDecorator =>
-      widget.swipedItemDecorator;
-  Duration get swipedItemDecorationAnimationDuration =>
-      widget.swipedItemDecorationAnimationDuration;
-  ItemDragStartCallback? get onItemDragStart => widget.onItemDragStart;
-  ItemDragUpdateCallback? get onItemDragUpdate => widget.onItemDragUpdate;
-  ItemDragEndCallback? get onItemDragEnd => widget.onItemDragEnd;
-  ItemDragStartCallback? get onItemSwipeStart => widget.onItemSwipeStart;
-  ItemDragUpdateCallback? get onItemSwipeUpdate => widget.onItemSwipeUpdate;
-  ItemDragEndCallback? get onItemSwipeEnd => widget.onItemSwipeEnd;
-  MultiDragGestureRecognizerFactory get reorderGestureRecognizerFactory =>
-      widget.reorderGestureRecognizerFactory ??
-      createReorderDragGestureRecognizer;
 
   void insertItem(
     int index,
@@ -143,7 +115,7 @@ class AnimatedReorderableController implements ItemHost {
 
   void reorderItem(int index, {required int destIndex}) {
     final onReorder =
-        this.onReorder ??
+        widget.onReorder ??
         (throw StateError(
           'Items can be reordered only with an onReorder callback',
         ));
@@ -160,7 +132,7 @@ class AnimatedReorderableController implements ItemHost {
     final permutations = _items.moveItem(
       index: index,
       destIndex: destIndex,
-      reorderableGetter: reorderableGetter,
+      reorderableGetter: isReorderable,
     );
 
     _overlay
@@ -190,7 +162,7 @@ class AnimatedReorderableController implements ItemHost {
       ));
 
   void checkReorderable(int index, {required String name}) {
-    if (!reorderableGetter(index)) {
+    if (!isReorderable(index)) {
       throw ArgumentError.value(index, name, 'is not reorderable');
     }
   }
@@ -226,8 +198,8 @@ class AnimatedReorderableController implements ItemHost {
         items: _items,
         scrollSync: scrollSync,
         vsync: vsync,
-        motionAnimationDuration: () => motionAnimationDuration,
-        motionAnimationCurve: () => motionAnimationCurve,
+        motionAnimationDuration: () => widget.motionAnimationDuration,
+        motionAnimationCurve: () => widget.motionAnimationCurve,
         scrollDirection: () => scrollDirection,
         itemBuilder: () => itemWidgets.originalBuilder,
       );
@@ -240,23 +212,11 @@ class AnimatedReorderableController implements ItemHost {
       _overlay?.didResizeItem(size, item);
 
   model.Item createItem(int index) => model.Item(
-    key: keyGetter(index),
+    key: widget.keyGetter(index),
     builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
       (context, index) => itemWidgets.originalBuilder(context, index),
     ),
   );
-
-  void registerRenderedItem(model.RenderedItem item) =>
-      _items.putRenderedItem(item);
-
-  void unregisterRenderedItem(model.RenderedItem item) {
-    final registeredRenderedItem = _items.renderedItemBy(key: item.key);
-    if (registeredRenderedItem == item) {
-      _items.removeRenderedItemBy(key: item.key);
-    }
-  }
-
-  widgets.ScrollPosition? get scrollPosition => scrollSync.scrollPosition;
 
   void _shiftOverlayedItems(Offset delta) =>
       _overlay?.shiftOverlayedItems(delta);
@@ -269,7 +229,8 @@ class AnimatedReorderableController implements ItemHost {
       _items.renderedItems.where((x) => x.index == index).firstOrNull;
 
   @override
-  bool isReorderable(int index) => reorderableGetter(index);
+  bool isReorderable(int index) =>
+      widget.reorderableGetter?.call(index) ?? true;
 
   @override
   bool isDraggable(int index) => widget.draggableGetter?.call(index) ?? true;
@@ -286,17 +247,16 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   @override
-  void didInitItem(model.RenderedItem item) => registerRenderedItem(item);
+  void didInitItem(model.RenderedItem item) => _items.putRenderedItem(item);
 
   @override
-  void didChangeItemIndex(model.RenderedItem item) {
-    unregisterRenderedItem(item);
-    registerRenderedItem(item);
-  }
+  void didChangeItemIndex(model.RenderedItem item) => _items
+    ..removeRenderedItem(item)
+    ..putRenderedItem(item);
 
   @override
   void didDeactivateItem(model.RenderedItem item) =>
-      unregisterRenderedItem(item);
+      _items.removeRenderedItem(item);
 
   @override
   void didBuildItem(model.RenderedItem item) {
@@ -335,7 +295,9 @@ class AnimatedReorderableController implements ItemHost {
   void recognizeReorderDrag(model.RenderedItem item, PointerDownEvent event) {
     final overlayedItem = _overlay?.createOverlayedItem(
       item,
-      recognizerFactory: reorderGestureRecognizerFactory,
+      recognizerFactory:
+          widget.reorderGestureRecognizerFactory ??
+          createReorderDragGestureRecognizer,
     );
     if (overlayedItem == null) return;
     _recognizeDrag(overlayedItem, event, item.context);
