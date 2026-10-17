@@ -201,7 +201,7 @@ class ListModel<E> {
 
   void insert(int index, E item) {
     _items.insert(index, item);
-    _animatedReorderableList!.insertItem(index, null);
+    _animatedReorderableList!.insertItem(index);
   }
 
   E removeAt(int index) {
@@ -489,7 +489,7 @@ class ListModel<E> {
 
   void insert(int index, E item) {
     _items.insert(index, item);
-    _animatedReorderableGrid!.insertItem(index, null);
+    _animatedReorderableGrid!.insertItem(index);
   }
 
   E removeAt(int index) {

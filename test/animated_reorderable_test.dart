@@ -157,10 +157,7 @@ void main() {
       const labels = ['a', 'b', 'c'];
       await tester.pumpWidget(_labels(labels, key: key));
 
-      key.currentState!.insertItem(
-        0,
-        (context, index, animation) => Text(labels[index]),
-      );
+      key.currentState!.insertItem(0);
       await tester.pumpAndSettle();
 
       for (final label in labels) {
@@ -1033,37 +1030,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(_tops(tester, list.items), [0, 100, 200, 300]);
     });
-
-    testWidgets('builds an item inserted with a builder with it', (
-      tester,
-    ) async {
-      final list = _TestList(3, insertTransition: enter);
-      await tester.pumpWidget(list.build());
-
-      list.items.insert(0, 3);
-      list.state.insertItem(
-        0,
-        (context, index, animation) => _Entrance(
-          animation: animation,
-          label: 'builder',
-          child: list.buildItem(3),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
-
-      final entrances = tester.widgetList<_Entrance>(_entranceFinder(3));
-      expect(entrances.map((x) => x.label), ['builder', null]);
-      expect(entrances.first.animation.value, closeTo(0.5, 0.01));
-      expect(entrances.last.animation.value, 1);
-      // The view's builder builds it once the list builds again.
-      await tester.pumpAndSettle();
-      await tester.pumpWidget(list.build());
-      expect(
-        tester.widgetList<_Entrance>(_entranceFinder(3)).map((x) => x.label),
-        [null],
-      );
-    });
   });
 
   group('insert again while removed', () {
@@ -1796,7 +1762,7 @@ void main() {
       await tester.pumpWidget(list.build());
 
       list.items.insert(0, 5);
-      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      list.state.insertItem(0);
       await tester.pumpWidget(list.build());
       await tester.pumpAndSettle();
 
@@ -1811,7 +1777,7 @@ void main() {
       await tester.pumpWidget(list.build());
 
       list.items.insert(0, 5);
-      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      list.state.insertItem(0);
       await tester.pumpAndSettle();
 
       expect(list.foundKeys, isNotEmpty);
@@ -1821,8 +1787,6 @@ void main() {
   });
 
   group('errors', () {
-    Widget noItem(BuildContext context, int index, Animation<double> _) =>
-        const SizedBox();
     Widget noRemovedItem(BuildContext context, Animation<double> _) =>
         const SizedBox();
 
@@ -1830,8 +1794,8 @@ void main() {
       final list = _TestList(3);
       await tester.pumpWidget(list.build());
 
-      expect(() => list.state.insertItem(-1, noItem), throwsRangeError);
-      expect(() => list.state.insertItem(4, noItem), throwsRangeError);
+      expect(() => list.state.insertItem(-1), throwsRangeError);
+      expect(() => list.state.insertItem(4), throwsRangeError);
       list.insert(3, 3);
       await tester.pumpAndSettle();
       expect(_itemWithId(3), findsOneWidget);
@@ -1943,7 +1907,7 @@ void main() {
         ),
       );
 
-      expect(() => key.currentState!.insertItem(0, noItem), throwsStateError);
+      expect(() => key.currentState!.insertItem(0), throwsStateError);
       expect(
         () => key.currentState!.removeItem(0, noRemovedItem),
         throwsStateError,
@@ -2381,7 +2345,7 @@ class _TestList {
 
   void insert(int index, int id) {
     items.insert(index, id);
-    state.insertItem(index, null);
+    state.insertItem(index);
   }
 
   void removeAt(int index) {

@@ -134,7 +134,7 @@ final class AnimatedReorderable extends StatefulWidget {
   final SwipeToRemoveOptions swipeToRemove;
 
   /// Puts an item's `child` in the transition it enters with, when
-  /// [AnimatedReorderableState.insertItem] inserts it without a builder.
+  /// [AnimatedReorderableState.insertItem] inserts it.
   ///
   /// Every item is built through it, as [AnimatedList] builds its items:
   /// an inserted item with an `animation` that runs forward while it
@@ -256,7 +256,7 @@ final class AnimatedReorderable extends StatefulWidget {
 ///
 /// void _updateList() {
 ///   _items.insert(123, newItem);
-///   animatedReorderableKey.currentState!.insertItem(123, null);
+///   animatedReorderableKey.currentState!.insertItem(123);
 /// }
 /// ```
 ///
@@ -323,31 +323,21 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
     return scrollController ?? (_ownScrollController ??= ScrollController());
   }
 
-  /// Inserts an item at `index`, which enters for `duration`.
-  ///
-  /// With a null `builder`, the item enters through the
-  /// [AnimatedReorderable.insertTransition], and keeps its state when it
-  /// has entered:
+  /// Inserts an item at `index`, which enters through the
+  /// [AnimatedReorderable.insertTransition] for `duration`:
   ///
   /// ```dart
   /// _items.insert(index, newItem);
-  /// animatedReorderableKey.currentState!.insertItem(index, null);
+  /// animatedReorderableKey.currentState!.insertItem(index);
   /// ```
-  ///
-  /// A `builder` builds the item instead while it enters, with an animation
-  /// that runs forward, the way it did before 1.6.0. When the item has
-  /// entered, the wrapped view's builder builds it again, so its state
-  /// starts over unless the two builders build the same widgets. The
-  /// `builder` parameter goes in 2.0.
   ///
   /// This method's semantics are the same as Dart's [List.insert] method: it
   /// increases the length of the list of items by one and shifts
   /// all items at or after `index` towards the end of the list of items.
   void insertItem(
-    int index,
-    AnimatedItemBuilder? builder, {
+    int index, {
     Duration duration = defaultInsertItemAnimationDuration,
-  }) => _controller.insertItem(index, builder, duration);
+  }) => _controller.insertItem(index, duration);
 
   /// Remove the item at `index` and start an animation that will be passed to
   /// `builder` when the item is visible.
