@@ -11,6 +11,10 @@ class Item extends widgets.ChangeNotifier {
   final widgets.GlobalKey childKey;
   ItemBuilder _builder;
 
+  /// The size of the item's placeholder in the list while the overlay
+  /// shows the item, or null while the list shows the item itself.
+  final placeholderSize = widgets.ValueNotifier<widgets.Size?>(null);
+
   ItemBuilder get builder => _builder;
 
   T setBuilder<T extends ItemBuilder>(T value, {bool notify = true}) {
@@ -23,6 +27,7 @@ class Item extends widgets.ChangeNotifier {
   @override
   void dispose() {
     builder.dispose();
+    placeholderSize.dispose();
     super.dispose();
   }
 

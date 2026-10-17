@@ -122,10 +122,10 @@ class AnimatedReorderableController implements ItemHost {
 
     if (renderedItem == null) return;
     // It leaves its key to an item the list may show with it.
-    final outgoingItem =
-        _state.removeOverlayedItem(key: renderedItem.key) ??
-        createOverlayedItem(renderedItem, item: removedItem);
-    _state.addOutgoingItem(outgoingItem);
+    final outgoingItem = _state.putOutgoingItem(
+      key: renderedItem.key,
+      ifAbsent: () => createOverlayedItem(renderedItem, item: removedItem),
+    );
     _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
     outgoingItem
       // It keeps its size while the removed item builder animates it.
@@ -390,7 +390,6 @@ class AnimatedReorderableController implements ItemHost {
   void unoverlay(model.OverlayedItem item) {
     if (_state.overlayedItemBy(key: item.key) != item) return;
     _state.removeOverlayedItem(key: item.key);
-    _state.renderedItemBy(key: item.key)?.rebuild();
     addPostFrame(() {
       if (_state.overlayedItemBy(key: item.key) != item) item.dispose();
     });
@@ -487,10 +486,6 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   @override
-  Size? overlayedSizeOf(widgets.Key key) =>
-      _state.overlayedItemBy(key: key)?.size;
-
-  @override
   void didInitItem(model.RenderedItem item) => registerRenderedItem(item);
 
   @override
@@ -547,7 +542,7 @@ class AnimatedReorderableController implements ItemHost {
         // Its new size, unless its main axis extent changes too.
         final size = constraints.constrain(overlayedItem.size);
         keepUnderPointer(overlayedItem, size: size);
-        overlayedItem.size = size;
+        _state.setOverlayedItemSize(overlayedItem, size);
       }
     }
 
@@ -616,10 +611,8 @@ extension OverlayedItemSizeChangeHandler on AnimatedReorderableController {
   /// The list's placeholder follows the item's size in the overlay.
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) {
     if (item.size == size) return;
-    if (_state.isDragged(key: item.key)) keepUnderPointer(item, size: size);
-    item.size = size;
-    if (_state.overlayedItemBy(key: item.key) != item) return;
-    _state.renderedItemBy(key: item.key)?.rebuild();
+    if (item == _state.draggedItem) keepUnderPointer(item, size: size);
+    _state.setOverlayedItemSize(item, size);
   }
 }
 
@@ -692,7 +685,6 @@ extension HeldItemMotion on AnimatedReorderableController {
   }) {
     if (!_state.isOverlayed(key: item.key)) {
       _state.putOverlayedItem(item);
-      _state.renderedItemBy(key: item.key)?.rebuild();
     }
     _state.setZIndex(item, maxZIndex);
 
@@ -932,6 +924,7 @@ extension ChildrenDelegate on AnimatedReorderableController {
       index: index,
       childKey: item.childKey,
       builder: item.builder.build,
+      placeholderSize: item.placeholderSize,
       host: this,
     );
   }

@@ -17,7 +17,4 @@ abstract interface class RenderedItem {
 
   /// Whether the item covers [point], a point on the screen.
   bool contains(Offset point);
-
-  /// Builds the item again, as its placeholder or as itself.
-  void rebuild();
 }

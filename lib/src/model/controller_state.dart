@@ -85,6 +85,7 @@ class ControllerState {
     final replaced = _overlayedItemByKey.remove(x.key);
     if (replaced != null && replaced != x) replaced.dispose();
     _overlayedItemByKey[x.key] = x;
+    x.item.placeholderSize.value = x.size;
     overlayChanges.notify();
     return x;
   }
@@ -96,13 +97,28 @@ class ControllerState {
 
   OverlayedItem? removeOverlayedItem({required Key key}) {
     final removed = _overlayedItemByKey.remove(key);
-    if (removed != null) overlayChanges.notify();
+    if (removed == null) return null;
+    removed.item.placeholderSize.value = null;
+    overlayChanges.notify();
     return removed;
   }
 
-  void addOutgoingItem(OverlayedItem x) {
+  void setOverlayedItemSize(OverlayedItem x, Size size) {
+    x._size = size;
+    if (_overlayedItemByKey[x.key] == x) x.item.placeholderSize.value = size;
+  }
+
+  /// Makes the overlayed item of [key], or else the one from [ifAbsent],
+  /// an outgoing item. The list's placeholder keeps its size until the
+  /// list no longer builds it.
+  OverlayedItem putOutgoingItem({
+    required Key key,
+    required OverlayedItem Function() ifAbsent,
+  }) {
+    final x = _overlayedItemByKey.remove(key) ?? ifAbsent();
     _outgoingItems.add(x);
     overlayChanges.notify();
+    return x;
   }
 
   /// Takes [x] out of the overlay once it has animated out, and disposes

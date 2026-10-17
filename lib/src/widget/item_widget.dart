@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../model/model.dart' show RenderedItem;
@@ -9,9 +10,6 @@ abstract interface class ItemHost {
   bool isReorderable(int index);
   bool isDraggable(int index);
   SwipeDirection? swipeToRemoveDirectionAt(int index);
-
-  /// The size of the item while the overlay shows it, or null.
-  Size? overlayedSizeOf(Key key);
 
   void didInitItem(RenderedItem item);
   void didChangeItemIndex(RenderedItem item);
@@ -30,12 +28,17 @@ class ItemWidget extends StatefulWidget {
     required this.index,
     required this.childKey,
     required this.builder,
+    required this.placeholderSize,
     required this.host,
   });
 
   final int index;
   final GlobalKey childKey;
   final NullableIndexedWidgetBuilder builder;
+
+  /// The size of the placeholder that stands in for the item while the
+  /// overlay shows it, or null.
+  final ValueListenable<Size?> placeholderSize;
   final ItemHost host;
 
   @override
@@ -51,7 +54,6 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   @override
   bool get reorderable => host.isReorderable(index);
   bool get draggable => host.isDraggable(index);
-  Size? get overlayedSize => host.overlayedSizeOf(key);
   @override
   SwipeDirection? get swipeToRemoveDirection =>
       host.swipeToRemoveDirectionAt(index);
@@ -76,12 +78,17 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   @override
   void initState() {
     super.initState();
+    widget.placeholderSize.addListener(_rebuild);
     host.didInitItem(this);
   }
 
   @override
   void didUpdateWidget(covariant ItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.placeholderSize != widget.placeholderSize) {
+      oldWidget.placeholderSize.removeListener(_rebuild);
+      widget.placeholderSize.addListener(_rebuild);
+    }
     if (oldWidget.index != widget.index) host.didChangeItemIndex(this);
   }
 
@@ -92,10 +99,13 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   }
 
   @override
-  void rebuild() {
-    if (!mounted) return;
-    setState(() {});
+  void dispose() {
+    widget.placeholderSize.removeListener(_rebuild);
+    super.dispose();
   }
+
+  /// It builds again as a whole, so the host reconciles it.
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -103,8 +113,10 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
 
     // While the overlay shows the item, its subtree lives there and a
     // placeholder keeps its place in the list.
-    final overlayedSize = this.overlayedSize;
-    if (overlayedSize != null) return SizedBox.fromSize(size: overlayedSize);
+    final placeholderSize = widget.placeholderSize.value;
+    if (placeholderSize != null) {
+      return SizedBox.fromSize(size: placeholderSize);
+    }
 
     final child = widget.builder(context, index);
     return Listener(

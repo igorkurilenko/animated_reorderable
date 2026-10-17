@@ -19,7 +19,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     required this.item,
     required this._position,
     required this._constraints,
-    required this.size,
+    required this._size,
     required this.index,
     this._interactive = true,
     this.zIndex = defaultZIndex,
@@ -33,9 +33,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   widgets.Offset _position;
   widgets.BoxConstraints _constraints;
 
-  /// The size of the item itself, without its decoration, as the overlay
-  /// lays it out. The list's placeholder takes this size.
-  widgets.Size size;
+  widgets.Size _size;
   bool _interactive;
 
   int zIndex;
@@ -47,6 +45,10 @@ class OverlayedItem extends widgets.ChangeNotifier {
   AnimatedItemDecoratorAdapter? _decorator;
 
   Key get key => item.key;
+
+  /// The size of the item itself, without its decoration, as the overlay
+  /// lays it out. The list's placeholder takes this size.
+  widgets.Size get size => _size;
 
   widgets.Offset get position => _position;
   widgets.Offset get anchorPosition =>
