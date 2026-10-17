@@ -20,7 +20,7 @@ class DragSession {
   });
 
   final OverlayedItem item;
-  final ControllerState items;
+  final ItemRegistry items;
   final OverlayCoordinator overlay;
   final ScrollSync scrollSync;
 
@@ -111,7 +111,7 @@ class SwipeSession {
   });
 
   final OverlayedItem item;
-  final ControllerState items;
+  final ItemRegistry items;
   final OverlayCoordinator overlay;
 
   /// The latest configuration.

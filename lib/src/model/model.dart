@@ -16,6 +16,6 @@ part 'item.dart';
 part 'overlayed_item.dart';
 part 'item_builder.dart';
 part 'item_decorator.dart';
-part 'controller_state.dart';
+part 'item_registry.dart';
 part 'rendered_item.dart';
 part 'change_signal.dart';

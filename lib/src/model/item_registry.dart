@@ -1,7 +1,14 @@
 part of 'model.dart';
 
-class ControllerState {
-  ControllerState({this.itemCount});
+/// The items by key and by index, and where each is shown: in the list,
+/// in the overlay or animating out of it (PoEAA Identity Map). The list
+/// builds its items lazily, so it has only the items the list built or
+/// moved.
+class ItemRegistry {
+  ItemRegistry({this.itemCount, required this.itemFactory});
+
+  /// Creates the item at an index the registry has no item for yet.
+  final Item Function(int index) itemFactory;
 
   /// Notifies when an item is inserted, removed or moved.
   final itemsChanges = ChangeSignal();
@@ -42,6 +49,14 @@ class ControllerState {
   Item? itemBy({required Key key}) => _itemByKey[key];
 
   Item putItem(Item x) => _itemByKey[x.key] = x;
+
+  /// The item at [index], which it creates if it has none yet.
+  Item ensureItemAt({required int index}) {
+    if (itemAt(index: index) case final item?) return item;
+    final item = putItem(itemFactory(index));
+    setIndex(itemKey: item.key, index: index);
+    return item;
+  }
 
   RenderedItem putRenderedItem(RenderedItem x) => _renderedItemByKey[x.key] = x;
 
@@ -146,10 +161,7 @@ class ControllerState {
   RenderedItem? renderedItemAt({required Offset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
 
-  Item insertItem({
-    required int index,
-    required Item Function(int index) itemFactory,
-  }) {
+  Item insertItem({required int index}) {
     for (var i in _itemKeyByIndex.keys.toList().reversed) {
       if (i < index) break;
       _itemKeyByIndex[i + 1] = _itemKeyByIndex[i]!;
@@ -161,7 +173,7 @@ class ControllerState {
       }
     }
 
-    final item = itemFactory.call(index);
+    final item = itemFactory(index);
 
     _itemByKey[item.key] = item;
     _itemKeyByIndex[index] = item.key;
@@ -200,7 +212,6 @@ class ControllerState {
     required int index,
     required int destIndex,
     required bool Function(int index) reorderableGetter,
-    required Item Function(int index) itemFactory,
   }) {
     final permutations = Permutations();
     if (index == destIndex) return permutations;

@@ -34,7 +34,7 @@ class OverlayCoordinator {
   });
 
   final OverlaySpace overlay;
-  final ControllerState items;
+  final ItemRegistry items;
   final ScrollSync scrollSync;
   final TickerProvider vsync;
   final ValueGetter<Duration> motionAnimationDuration;

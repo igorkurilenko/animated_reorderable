@@ -21,7 +21,9 @@ class AnimatedReorderableController implements ItemHost {
     required this.scrollDirection,
     int? itemCount,
     required this.vsync,
-  }) : _state = model.ControllerState(itemCount: itemCount);
+  }) {
+    _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem);
+  }
 
   /// The current configuration. The state replaces it on every rebuild, so
   /// the getters below always read the latest builders and callbacks.
@@ -38,12 +40,12 @@ class AnimatedReorderableController implements ItemHost {
               itemsLayer;
     },
     velocityScalar: () => autoScrollerVelocityScalar,
-    itemCount: () => _state.itemCount ?? 0,
+    itemCount: () => _items.itemCount ?? 0,
     onScroll: _shiftOverlayedItems,
     onAutoScroll: () => _drag?.reorderAndAutoScroll(),
   );
   late OverriddenSliverChildBuilderDelegate _childrenDelegate;
-  final model.ControllerState _state;
+  late final model.ItemRegistry _items;
   ItemsLayerState? _itemsLayer;
   OverlayCoordinator? _overlay;
 
@@ -94,10 +96,7 @@ class AnimatedReorderableController implements ItemHost {
   ) {
     RangeError.checkValueInInterval(index, 0, checkedItemCount, 'index');
 
-    final insertedItem = _state.insertItem(
-      index: index,
-      itemFactory: createItem,
-    );
+    final insertedItem = _items.insertItem(index: index);
 
     insertedItem.animateItemBuilder(
       builder: builder,
@@ -119,12 +118,12 @@ class AnimatedReorderableController implements ItemHost {
   }) {
     IndexError.check(index, checkedItemCount, name: 'index');
 
-    final removedItem = _state.removeItem(index: index);
+    final removedItem = _items.removeItem(index: index);
     if (removedItem == null) return;
 
     final overlay = _overlay;
     if (overlay == null) {
-      _state.releaseRemovedItem(removedItem);
+      _items.releaseRemovedItem(removedItem);
       return;
     }
 
@@ -135,7 +134,7 @@ class AnimatedReorderableController implements ItemHost {
       )
       ..animateOut(
         removedItem,
-        renderedItem: _state.renderedItemBy(key: removedItem.key),
+        renderedItem: _items.renderedItemBy(key: removedItem.key),
         builder: builder,
         duration: duration,
         zIndex: zIndex ?? outgoingItemZIndex,
@@ -155,14 +154,13 @@ class AnimatedReorderableController implements ItemHost {
     checkReorderable(destIndex, name: 'destIndex');
     if (index == destIndex) return;
 
-    final itemAtIndex = ensureItemAt(index: index);
-    final itemAtDestIndex = ensureItemAt(index: destIndex);
+    final itemAtIndex = _items.ensureItemAt(index: index);
+    final itemAtDestIndex = _items.ensureItemAt(index: destIndex);
 
-    final permutations = _state.moveItem(
+    final permutations = _items.moveItem(
       index: index,
       destIndex: destIndex,
       reorderableGetter: reorderableGetter,
-      itemFactory: createItem,
     );
 
     _overlay
@@ -185,7 +183,7 @@ class AnimatedReorderableController implements ItemHost {
 
   /// The item count, which a list or grid needs for its items to change.
   int get checkedItemCount =>
-      _state.itemCount ??
+      _items.itemCount ??
       (throw StateError(
         'Items can be inserted, removed and reordered only in a '
         '${widgets.ListView} or ${widgets.GridView} with an item count',
@@ -199,19 +197,19 @@ class AnimatedReorderableController implements ItemHost {
 
   void dispose() {
     scrollSync.dispose();
-    _state.dispose();
+    _items.dispose();
   }
 
   /// What the items layer builds from changes with these.
-  widgets.Listenable get itemsChanges => _state.itemsChanges;
+  widgets.Listenable get itemsChanges => _items.itemsChanges;
 
   /// What the overlayed items layer builds from changes with these, and
   /// with the overlayed items themselves.
-  widgets.Listenable get overlayChanges => _state.overlayChanges;
+  widgets.Listenable get overlayChanges => _items.overlayChanges;
 
   /// The overlayed and outgoing items, from the bottom one up.
   Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
-      _state.overlayedItemsByZIndex;
+      _items.overlayedItemsByZIndex;
 
   /// The layers attach themselves while they are mounted.
   void attachItemsLayer(ItemsLayerState layer) => _itemsLayer = layer;
@@ -225,7 +223,7 @@ class AnimatedReorderableController implements ItemHost {
   void attachOverlayedItemsLayer(OverlayedItemsLayerState layer) =>
       _overlay = OverlayCoordinator(
         overlay: layer,
-        items: _state,
+        items: _items,
         scrollSync: scrollSync,
         vsync: vsync,
         motionAnimationDuration: () => motionAnimationDuration,
@@ -241,16 +239,6 @@ class AnimatedReorderableController implements ItemHost {
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) =>
       _overlay?.didResizeItem(size, item);
 
-  model.Item ensureItemAt({required int index}) =>
-      _state.itemAt(index: index) ?? spawnItemAt(index: index);
-
-  model.Item spawnItemAt({required int index}) {
-    final item = createItem(index);
-    _state.putItem(item);
-    _state.setIndex(itemKey: item.key, index: index);
-    return item;
-  }
-
   model.Item createItem(int index) => model.Item(
     key: keyGetter(index),
     builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
@@ -259,12 +247,12 @@ class AnimatedReorderableController implements ItemHost {
   );
 
   void registerRenderedItem(model.RenderedItem item) =>
-      _state.putRenderedItem(item);
+      _items.putRenderedItem(item);
 
   void unregisterRenderedItem(model.RenderedItem item) {
-    final registeredRenderedItem = _state.renderedItemBy(key: item.key);
+    final registeredRenderedItem = _items.renderedItemBy(key: item.key);
     if (registeredRenderedItem == item) {
-      _state.removeRenderedItemBy(key: item.key);
+      _items.removeRenderedItemBy(key: item.key);
     }
   }
 
@@ -278,7 +266,7 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   model.RenderedItem? getRenderedItemAt(int index) =>
-      _state.renderedItems.where((x) => x.index == index).firstOrNull;
+      _items.renderedItems.where((x) => x.index == index).firstOrNull;
 
   @override
   bool isReorderable(int index) => reorderableGetter(index);
@@ -396,7 +384,7 @@ class AnimatedReorderableController implements ItemHost {
         item.recognizerFactory = createImmediateDragGestureRecognizer;
         session = _drag = DragSession(
           item: item,
-          items: _state,
+          items: _items,
           overlay: overlay,
           scrollSync: scrollSync,
           widget: () => widget,
@@ -428,7 +416,7 @@ class AnimatedReorderableController implements ItemHost {
         if (overlay == null) return;
         session = SwipeSession(
           item: item,
-          items: _state,
+          items: _items,
           overlay: overlay,
           widget: () => widget,
         )..start(details);
@@ -450,12 +438,12 @@ extension ChildrenDelegate on AnimatedReorderableController {
   ) => childrenDelegate = OverriddenSliverChildBuilderDelegate.override(
     delegate: delegate,
     overriddenChildBuilder: buildItemWidget,
-    overriddenChildCountGetter: () => _state.itemCount,
-    fallbackChildIndexGetter: _state.childIndexGetter(),
+    overriddenChildCountGetter: () => _items.itemCount,
+    fallbackChildIndexGetter: _items.childIndexGetter(),
   );
 
   widgets.Widget buildItemWidget(widgets.BuildContext context, int index) {
-    final item = ensureItemAt(index: index);
+    final item = _items.ensureItemAt(index: index);
 
     return ItemWidget(
       key: item.key,
