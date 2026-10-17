@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
+import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 import '../util/scheduling.dart';
 
@@ -38,7 +39,7 @@ class ItemWidget extends StatefulWidget {
   /// The size of the item while the overlay shows it, or null.
   final Size? Function(Key key) overlayedSizeGetter;
   final GlobalKey childKey;
-  final AxisDirectionGetter? swipeToRemoveDirectionGetter;
+  final SwipeDirectionGetter? swipeToRemoveDirectionGetter;
   final RenderedItemLifecycleCallback? onInit;
   final RenderedItemLifecycleCallback? didUpdate;
   final RenderedItemLifecycleCallback? onDispose;
@@ -59,7 +60,7 @@ class _ItemWidgetState extends State<ItemWidget> {
   bool get draggable => widget.draggableGetter(index);
   Size? get overlayedSize => widget.overlayedSizeGetter(key);
   bool get isOverlayed => overlayedSize != null;
-  AxisDirection? get swipeToRemoveDirection =>
+  SwipeDirection? get swipeToRemoveDirection =>
       widget.swipeToRemoveDirectionGetter?.call(index);
   bool get swipeable => swipeToRemoveDirection != null;
   Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);

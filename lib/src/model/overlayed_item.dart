@@ -77,7 +77,7 @@ class OverlayedItem extends Item {
 
   bool get swiped => _swipe != null;
 
-  widgets.AxisDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
+  SwipeDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
 
   Offset get swipeOffset => _swipe?.swipeOffset ?? Offset.zero;
 
@@ -132,7 +132,7 @@ class OverlayedItem extends Item {
   void recognizeSwipe(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
-    required widgets.AxisDirection swipeDirection,
+    required SwipeDirection swipeDirection,
     OverlayedItemDragStartCallback? onSwipeStart,
     OverlayedItemDragUpdateCallback? onSwipeUpdate,
     OverlayedItemDragEndCallback? onSwipeEnd,
@@ -311,54 +311,32 @@ class _OverlayedItemSwipe implements gestures.Drag {
   });
 
   final OverlayedItem item;
-  final widgets.AxisDirection swipeDirection;
+  final SwipeDirection swipeDirection;
   OverlayedItemDragUpdateCallback? onSwipeUpdate;
   OverlayedItemDragEndCallback? onSwipeEnd;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
 
   widgets.Offset get swipeOffset => _swipeOffset;
 
-  double get swipeExtent => _swipeOffset.dx != 0
-      ? _swipeOffset.dx / item.size.width
-      : _swipeOffset.dy / item.size.height;
+  double get swipeExtent =>
+      swipeDirection.along(_swipeOffset) / swipeDirection.extentOf(item.size);
 
   @override
   void update(widgets.DragUpdateDetails details) {
-    final delta = _restrictDirection(_restrictAxis(details.delta));
+    final delta = swipeDirection.restrict(details.delta, swiped: _swipeOffset);
     _swipeOffset += delta;
     item._globalPointerPosition = details.globalPosition;
     onSwipeUpdate?.call(
       widgets.DragUpdateDetails(
         sourceTimeStamp: details.sourceTimeStamp,
         delta: delta,
-        primaryDelta: delta.dx != 0.0 ? delta.dx : delta.dy,
+        primaryDelta: swipeDirection.along(delta),
         globalPosition: details.globalPosition,
         localPosition: details.localPosition,
       ),
       item,
     );
   }
-
-  widgets.Offset _restrictAxis(widgets.Offset delta) =>
-      switch (swipeDirection) {
-        widgets.AxisDirection.left ||
-        widgets.AxisDirection.right => widgets.Offset(delta.dx, 0),
-        widgets.AxisDirection.down ||
-        widgets.AxisDirection.up => widgets.Offset(0, delta.dy),
-      };
-
-  widgets.Offset _restrictDirection(widgets.Offset delta) =>
-      switch (swipeDirection) {
-        widgets.AxisDirection.left when delta.dx > 0 && _swipeOffset.dx > 0 =>
-          widgets.Offset(delta.dx / 3, 0),
-        widgets.AxisDirection.right when delta.dx < 0 && _swipeOffset.dx < 0 =>
-          widgets.Offset(delta.dx / 3, 0),
-        widgets.AxisDirection.down when delta.dy < 0 && _swipeOffset.dy < 0 =>
-          widgets.Offset(0, delta.dy / 3),
-        widgets.AxisDirection.up when delta.dy > 0 && _swipeOffset.dy > 0 =>
-          widgets.Offset(0, delta.dy / 3),
-        _ => delta,
-      };
 
   @override
   void end(widgets.DragEndDetails details) {

@@ -12,6 +12,7 @@ import '../../animated_reorderable.dart';
 import '../const.dart';
 import '../util/geometry.dart';
 import '../util/offset_animation.dart';
+import 'swipe_direction.dart';
 import '../widget/item_widget.dart' show RenderedItem;
 
 part 'item.dart';

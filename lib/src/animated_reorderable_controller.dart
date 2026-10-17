@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import '../animated_reorderable.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
+import 'model/swipe_direction.dart';
 import 'util/geometry.dart';
 import 'util/gesture_recognizers.dart';
 import 'util/measure_util.dart';
@@ -38,13 +39,16 @@ class AnimatedReorderableController {
   KeyGetter get keyGetter => widget.keyGetter;
   BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
   BoolGetter get draggableGetter => widget.draggableGetter ?? (_) => true;
-  AxisDirectionGetter get swipeToRemoveDirectionGetter =>
-      widget.onSwipeToRemove == null
-      ? (_) => null
-      : widget.swipeToRemoveDirectionGetter ??
-            (_) => scrollDirection == Axis.vertical
-                ? AxisDirection.left
-                : AxisDirection.down;
+  SwipeDirectionGetter get swipeToRemoveDirectionGetter {
+    if (widget.onSwipeToRemove == null) return (_) => null;
+    final getter = widget.swipeToRemoveDirectionGetter;
+    if (getter == null) return (_) => SwipeDirection.across(scrollDirection);
+    return (index) => switch (getter(index)) {
+      final direction? => SwipeDirection.of(direction),
+      null => null,
+    };
+  }
+
   double get autoScrollerVelocityScalar => widget.autoScrollerVelocityScalar;
   double get swipeToRemoveExtent => widget.swipeToRemoveExtent;
   double get swipeToRemoveVelocity => widget.swipeToRemoveVelocity;
@@ -247,21 +251,14 @@ class AnimatedReorderableController {
   bool didSwipeToRemove(
     model.OverlayedItem item, {
     required Velocity velocity,
-  }) => switch (item.swipeToRemoveDirection) {
-    AxisDirection.left =>
-      item.swipeExtent < -swipeToRemoveExtent ||
-          velocity.pixelsPerSecond.dx < -swipeToRemoveVelocity,
-    AxisDirection.right =>
-      item.swipeExtent > swipeToRemoveExtent ||
-          velocity.pixelsPerSecond.dx > swipeToRemoveVelocity,
-    AxisDirection.up =>
-      item.swipeExtent < -swipeToRemoveExtent ||
-          velocity.pixelsPerSecond.dy < -swipeToRemoveVelocity,
-    AxisDirection.down =>
-      item.swipeExtent > swipeToRemoveExtent ||
-          velocity.pixelsPerSecond.dy > swipeToRemoveVelocity,
-    _ => false,
-  };
+  }) =>
+      item.swipeToRemoveDirection?.removes(
+        extent: item.swipeExtent,
+        velocity: velocity,
+        minExtent: swipeToRemoveExtent,
+        minVelocity: swipeToRemoveVelocity,
+      ) ??
+      false;
 
   model.Item ensureItemAt({required int index}) =>
       _state.itemAt(index: index) ?? spawnItemAt(index: index);
@@ -748,12 +745,11 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
       onSwipeToRemove!.call(item.index);
 
       item.animateFlingTo(
-        switch (item.swipeToRemoveDirection!) {
-          AxisDirection.left => Offset(-item.size.width, item.position.dy),
-          AxisDirection.right => Offset(bounds.width, item.position.dy),
-          AxisDirection.up => Offset(item.position.dx, -item.size.height),
-          AxisDirection.down => Offset(item.position.dx, bounds.height),
-        },
+        item.swipeToRemoveDirection!.flingTarget(
+          item.position,
+          itemSize: item.size,
+          bounds: bounds,
+        ),
         velocity: details.velocity,
         screenSize: getScreenSize(),
         springDescription: swipeToRemoveSpringDescription,
@@ -908,19 +904,14 @@ extension ChildrenDelegate on AnimatedReorderableController {
         );
       },
       recognizeSwipeDrag: (renderedItem, event) {
+        final swipeDirection = renderedItem.swipeToRemoveDirection!;
         createOverlayedItem(
           renderedItem,
-          recognizerFactory: switch (renderedItem.swipeToRemoveDirection) {
-            AxisDirection.up ||
-            AxisDirection.down => createVerticalSwipeDragGestureRecognizer,
-            AxisDirection.left ||
-            AxisDirection.right => createHorizontalSwipeDragGestureRecognizer,
-            _ => null,
-          },
+          recognizerFactory: swipeDirection.recognizerFactory,
         ).recognizeSwipe(
           event,
           context: context,
-          swipeDirection: swipeToRemoveDirectionGetter.call(index)!,
+          swipeDirection: swipeDirection,
           onSwipeStart: handleItemSwipeStart,
           onSwipeUpdate: handleItemSwipeUpdate,
           onSwipeEnd: handleItemSwipeEnd,
