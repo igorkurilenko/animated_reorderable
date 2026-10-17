@@ -294,6 +294,10 @@ class AnimatedReorderableController implements ItemHost {
 
   /// Overlays the rendered items, except [except] and the held ones, so
   /// they can move to their slots at [newIndex] when the list lays out.
+  ///
+  /// After another change in the same frame, the list may not have built
+  /// its items again yet. Items already in the overlay keep their indexes,
+  /// which the model has moved, and removed items stay as they are.
   void overlayRenderedItems({
     required int Function(model.RenderedItem item) newIndex,
     widgets.Key? except,
@@ -301,14 +305,15 @@ class AnimatedReorderableController implements ItemHost {
     for (var renderedItem
         in _state.renderedItems
             .where((x) => x.key != except)
+            .where((x) => _state.itemBy(key: x.key) != null)
             .where(isNotDragged)
             .where(isNotSwiped)) {
-      _state.putOverlayedItemIfAbsent(
-          key: renderedItem.key,
-          ifAbsent: () => createOverlayedItem(renderedItem),
-        )
-        ..index = newIndex(renderedItem)
-        ..setInteractive(false, notify: false);
+      final overlayedItem =
+          _state.overlayedItemBy(key: renderedItem.key) ??
+          _state.putOverlayedItem(
+            createOverlayedItem(renderedItem)..index = newIndex(renderedItem),
+          );
+      overlayedItem.setInteractive(false, notify: false);
     }
   }
 

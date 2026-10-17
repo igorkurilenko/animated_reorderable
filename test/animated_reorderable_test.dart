@@ -898,6 +898,22 @@ void main() {
       expect(_trackedTickers(tester), 0);
     });
 
+    testWidgets('moves an item inserted again at once', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      list.removeAt(1);
+      list.insert(1, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      list.state.reorderItem(1, destIndex: 3);
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 2, 3, 1, 4]);
+      _expectEachItemOnce(list.items);
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400]);
+    });
+
     testWidgets('moves the item', (tester) async {
       final list = await reinsert(tester);
 
@@ -909,6 +925,60 @@ void main() {
       expect(_tops(tester, list.items), [0, 100, 200, 300, 400]);
       expect(_trackedTickers(tester), 0);
     });
+  });
+
+  group('two changes in a frame', () {
+    for (final (name, count, change, items) in [
+      (
+        'inserts two items',
+        4,
+        (_TestList list) => list
+          ..insert(0, 4)
+          ..insert(0, 5),
+        [5, 4, 0, 1, 2, 3],
+      ),
+      (
+        'removes two items',
+        5,
+        (_TestList list) => list
+          ..removeAt(0)
+          ..removeAt(0),
+        [2, 3, 4],
+      ),
+      (
+        'inserts an item and removes another',
+        5,
+        (_TestList list) => list
+          ..insert(0, 5)
+          ..removeAt(2),
+        [5, 0, 2, 3, 4],
+      ),
+      (
+        'reorders twice',
+        5,
+        (_TestList list) => list.state
+          ..reorderItem(0, destIndex: 2)
+          ..reorderItem(3, destIndex: 0),
+        [3, 1, 2, 0, 4],
+      ),
+    ]) {
+      testWidgets(name, (tester) async {
+        final list = _TestList(count);
+        await tester.pumpWidget(list.build());
+
+        change(list);
+        // Each frame shows every item as itself, moving or not.
+        do {
+          await tester.pump(const Duration(milliseconds: 50));
+          _expectEachItemOnce(items);
+        } while (tester.binding.hasScheduledFrame);
+
+        expect(list.items, items);
+        expect(_tops(tester, items), [
+          for (final (index, _) in items.indexed) index * _extent,
+        ]);
+      });
+    }
   });
 
   group('swipe to remove', () {
