@@ -17,7 +17,10 @@ import 'widget/overlayed_items_layer.dart';
 
 class AnimatedReorderableController implements ItemHost {
   AnimatedReorderableController({
-    required this.widget,
+    required this.keyGetter,
+    required this.motion,
+    required this.reorder,
+    required this.swipeToRemove,
     required this.scrollDirection,
     int? itemCount,
     required this.vsync,
@@ -25,10 +28,13 @@ class AnimatedReorderableController implements ItemHost {
     _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem);
   }
 
-  /// The current configuration. The state replaces it on every rebuild,
-  /// and the controller and its collaborators read it when they need it,
-  /// so they use the latest builders and callbacks.
-  AnimatedReorderable widget;
+  // The current configuration. The state replaces it on every rebuild,
+  // and the controller and its collaborators read it when they need it,
+  // so they use the latest builders and callbacks.
+  KeyGetter keyGetter;
+  MotionOptions motion;
+  ReorderOptions reorder;
+  SwipeToRemoveOptions swipeToRemove;
   Axis scrollDirection;
   final widgets.TickerProvider vsync;
 
@@ -40,7 +46,7 @@ class AnimatedReorderableController implements ItemHost {
                   .findAncestorStateOfType<ItemsLayerState>() ==
               itemsLayer;
     },
-    velocityScalar: () => widget.autoScrollerVelocityScalar,
+    velocityScalar: () => reorder.autoScrollerVelocityScalar,
     itemCount: () => _items.itemCount ?? 0,
     onScroll: _shiftOverlayedItems,
     onAutoScroll: () => _drag?.reorderAndAutoScroll(),
@@ -115,7 +121,7 @@ class AnimatedReorderableController implements ItemHost {
 
   void reorderItem(int index, {required int destIndex}) {
     final onReorder =
-        widget.onReorder ??
+        reorder.onReorder ??
         (throw StateError(
           'Items can be reordered only with an onReorder callback',
         ));
@@ -198,8 +204,8 @@ class AnimatedReorderableController implements ItemHost {
         items: _items,
         scrollSync: scrollSync,
         vsync: vsync,
-        motionAnimationDuration: () => widget.motionAnimationDuration,
-        motionAnimationCurve: () => widget.motionAnimationCurve,
+        motionAnimationDuration: () => motion.duration,
+        motionAnimationCurve: () => motion.curve,
         scrollDirection: () => scrollDirection,
         itemBuilder: () => itemWidgets.originalBuilder,
       );
@@ -212,7 +218,7 @@ class AnimatedReorderableController implements ItemHost {
       _overlay?.didResizeItem(size, item);
 
   model.Item createItem(int index) => model.Item(
-    key: widget.keyGetter(index),
+    key: keyGetter(index),
     builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
       (context, index) => itemWidgets.originalBuilder(context, index),
     ),
@@ -230,15 +236,15 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   bool isReorderable(int index) =>
-      widget.reorderableGetter?.call(index) ?? true;
+      reorder.reorderableGetter?.call(index) ?? true;
 
   @override
-  bool isDraggable(int index) => widget.draggableGetter?.call(index) ?? true;
+  bool isDraggable(int index) => reorder.draggableGetter?.call(index) ?? true;
 
   @override
   SwipeDirection? swipeToRemoveDirectionAt(int index) {
-    if (widget.onSwipeToRemove == null) return null;
-    final getter = widget.swipeToRemoveDirectionGetter;
+    if (swipeToRemove.onSwipeToRemove == null) return null;
+    final getter = swipeToRemove.directionGetter;
     if (getter == null) return SwipeDirection.across(scrollDirection);
     return switch (getter(index)) {
       final direction? => SwipeDirection.of(direction),
@@ -296,7 +302,7 @@ class AnimatedReorderableController implements ItemHost {
     final overlayedItem = _overlay?.createOverlayedItem(
       item,
       recognizerFactory:
-          widget.reorderGestureRecognizerFactory ??
+          reorder.gestureRecognizerFactory ??
           createReorderDragGestureRecognizer,
     );
     if (overlayedItem == null) return;
@@ -349,7 +355,7 @@ class AnimatedReorderableController implements ItemHost {
           items: _items,
           overlay: overlay,
           scrollSync: scrollSync,
-          widget: () => widget,
+          options: () => reorder,
           reorderItem: reorderItem,
         )..start(details);
       },
@@ -380,7 +386,7 @@ class AnimatedReorderableController implements ItemHost {
           item: item,
           items: _items,
           overlay: overlay,
-          widget: () => widget,
+          options: () => swipeToRemove,
         )..start(details);
       },
       onSwipeUpdate: (details, _) => session?.update(details),

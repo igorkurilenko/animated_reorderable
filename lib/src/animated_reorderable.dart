@@ -5,6 +5,7 @@ import 'animated_reorderable_controller.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
 import 'model/permutations.dart';
+import 'options.dart';
 import 'util/anchored_scroll_physics.dart';
 import 'util/overridden_sliver_child_builder_delegate.dart';
 import 'util/sliver_grid_layout_notifier.dart';
@@ -244,6 +245,48 @@ abstract class AnimatedReorderable extends StatefulWidget {
 
   /// A function that provides the unique key for each item in the list or grid.
   final KeyGetter keyGetter;
+
+  /// How items move to their new places.
+  MotionOptions get motion => MotionOptions(
+    duration: motionAnimationDuration,
+    curve: motionAnimationCurve,
+  );
+
+  /// How items are dragged and reordered.
+  ReorderOptions get reorder => ReorderOptions(
+    onReorder: onReorder,
+    draggableGetter: draggableGetter,
+    reorderableGetter: reorderableGetter,
+    gestureRecognizerFactory: reorderGestureRecognizerFactory,
+    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+    decoration: ItemDecoration(
+      decorator: draggedItemDecorator,
+      duration: draggedItemDecorationAnimationDuration,
+    ),
+    callbacks: ItemDragCallbacks(
+      onStart: onItemDragStart,
+      onUpdate: onItemDragUpdate,
+      onEnd: onItemDragEnd,
+    ),
+  );
+
+  /// How items are swiped away to remove them.
+  SwipeToRemoveOptions get swipeToRemove => SwipeToRemoveOptions(
+    onSwipeToRemove: onSwipeToRemove,
+    directionGetter: swipeToRemoveDirectionGetter,
+    extent: swipeToRemoveExtent,
+    velocity: swipeToRemoveVelocity,
+    springDescription: swipeToRemoveSpringDescription,
+    decoration: ItemDecoration(
+      decorator: swipedItemDecorator,
+      duration: swipedItemDecorationAnimationDuration,
+    ),
+    callbacks: ItemDragCallbacks(
+      onStart: onItemSwipeStart,
+      onUpdate: onItemSwipeUpdate,
+      onEnd: onItemSwipeEnd,
+    ),
+  );
 
   /// A function that determines whether an item at a given index is draggable.
   ///
@@ -511,7 +554,10 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     super.initState();
 
     _controller = AnimatedReorderableController(
-      widget: widget,
+      keyGetter: widget.keyGetter,
+      motion: widget.motion,
+      reorder: widget.reorder,
+      swipeToRemove: widget.swipeToRemove,
       scrollDirection: _scrollDirection,
       itemCount: childrenDelegateSettingsOf(_childrenDelegate).childCount,
       vsync: this,
@@ -530,7 +576,10 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     super.didUpdateWidget(oldWidget);
 
     _controller
-      ..widget = widget
+      ..keyGetter = widget.keyGetter
+      ..motion = widget.motion
+      ..reorder = widget.reorder
+      ..swipeToRemove = widget.swipeToRemove
       ..scrollDirection = _scrollDirection
       ..scrollSync.scrollController = _effectiveScrollController;
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../animated_reorderable.dart';
+import '../options.dart';
 import '../model/model.dart';
 import '../util/scheduling.dart';
 import 'overlay_coordinator.dart';
@@ -15,7 +15,7 @@ class DragSession {
     required this.items,
     required this.overlay,
     required this.scrollSync,
-    required this.widget,
+    required this.options,
     required this.reorderItem,
   });
 
@@ -24,8 +24,8 @@ class DragSession {
   final OverlayCoordinator overlay;
   final ScrollSync scrollSync;
 
-  /// The latest configuration.
-  final ValueGetter<AnimatedReorderable> widget;
+  /// The latest options.
+  final ValueGetter<ReorderOptions> options;
   final void Function(int index, {required int destIndex}) reorderItem;
 
   /// The rendered item the pointer was over, so the dragged item takes its
@@ -33,8 +33,8 @@ class DragSession {
   Key? _itemUnderThePointerKey;
 
   void start(DragStartDetails details) {
-    final widget = this.widget();
-    widget.onItemDragStart?.call(details, item.index);
+    final options = this.options();
+    options.callbacks.onStart?.call(details, item.index);
 
     item.stopMotion();
 
@@ -42,13 +42,13 @@ class DragSession {
 
     overlay.lift(
       item,
-      decorator: widget.draggedItemDecorator,
-      decorationDuration: widget.draggedItemDecorationAnimationDuration,
+      decorator: options.decoration.decorator,
+      decorationDuration: options.decoration.duration,
     );
   }
 
   void update(DragUpdateDetails details) {
-    widget().onItemDragUpdate?.call(details, item.index);
+    options().callbacks.onUpdate?.call(details, item.index);
 
     item.shift(details.delta);
 
@@ -56,7 +56,7 @@ class DragSession {
   }
 
   void end(DragEndDetails details) {
-    widget().onItemDragEnd?.call(details, item.index);
+    options().callbacks.onEnd?.call(details, item.index);
 
     items.draggedItem = null;
 
@@ -75,10 +75,10 @@ class DragSession {
   }
 
   void _reorderIfOverAnotherItem() {
-    final widget = this.widget();
+    final options = this.options();
     final pointerPosition = item.globalPointerPosition;
-    if (widget.onReorder == null || pointerPosition == null) return;
-    if (!(widget.reorderableGetter?.call(item.index) ?? true)) return;
+    if (options.onReorder == null || pointerPosition == null) return;
+    if (!(options.reorderableGetter?.call(item.index) ?? true)) return;
 
     final renderedItem = items.renderedItemAt(position: pointerPosition);
 
@@ -107,19 +107,19 @@ class SwipeSession {
     required this.item,
     required this.items,
     required this.overlay,
-    required this.widget,
+    required this.options,
   });
 
   final OverlayedItem item;
   final ItemRegistry items;
   final OverlayCoordinator overlay;
 
-  /// The latest configuration.
-  final ValueGetter<AnimatedReorderable> widget;
+  /// The latest options.
+  final ValueGetter<SwipeToRemoveOptions> options;
 
   void start(DragStartDetails details) {
-    final widget = this.widget();
-    widget.onItemSwipeStart?.call(details, item.index);
+    final options = this.options();
+    options.callbacks.onStart?.call(details, item.index);
 
     item.stopMotion();
 
@@ -127,32 +127,32 @@ class SwipeSession {
 
     overlay.lift(
       item,
-      decorator: widget.swipedItemDecorator,
-      decorationDuration: widget.swipedItemDecorationAnimationDuration,
+      decorator: options.decoration.decorator,
+      decorationDuration: options.decoration.duration,
     );
   }
 
   void update(DragUpdateDetails details) {
-    widget().onItemSwipeUpdate?.call(details, item.index);
+    options().callbacks.onUpdate?.call(details, item.index);
 
     item.shift(details.delta);
   }
 
   void end(DragEndDetails details) {
-    final widget = this.widget();
-    widget.onItemSwipeEnd?.call(details, item.index);
+    final options = this.options();
+    options.callbacks.onEnd?.call(details, item.index);
 
     items.swipedItem = null;
 
     final undecoration = item.animateUndecoration();
     final swipeDirection = item.swipeToRemoveDirection;
-    final onSwipeToRemove = widget.onSwipeToRemove;
+    final onSwipeToRemove = options.onSwipeToRemove;
     final removes =
         swipeDirection?.removes(
           extent: item.swipeExtent,
           velocity: details.velocity,
-          minExtent: widget.swipeToRemoveExtent,
-          minVelocity: widget.swipeToRemoveVelocity,
+          minExtent: options.extent,
+          minVelocity: options.velocity,
         ) ??
         false;
 
@@ -163,14 +163,14 @@ class SwipeSession {
         item,
         direction: swipeDirection,
         velocity: details.velocity,
-        springDescription: widget.swipeToRemoveSpringDescription,
+        springDescription: options.springDescription,
       );
     } else {
       overlay.flingBackToSlot(
         item,
         undecoration: undecoration,
         velocity: details.velocity,
-        springDescription: widget.swipeToRemoveSpringDescription,
+        springDescription: options.springDescription,
       );
     }
   }
