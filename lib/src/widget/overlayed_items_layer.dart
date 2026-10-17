@@ -19,8 +19,6 @@ class OverlayedItemsLayer extends StatefulWidget {
 }
 
 class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
-  final canvasKey = GlobalKey();
-
   AnimatedReorderableController get controller => widget.controller;
 
   @override
@@ -37,19 +35,20 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
     super.dispose();
   }
 
-  Offset? globalToLocal(Offset point) =>
-      canvasKey.currentContext?.findRenderBox()?.globalToLocal(point);
+  /// The overlay's box. The controller places items in it from the frame
+  /// that mounted the layer on, once the frame has laid it out.
+  RenderBox get _box => context.findRenderBox()!;
 
-  Offset? localToGlobal(Offset point) =>
-      canvasKey.currentContext?.findRenderBox()?.localToGlobal(point);
+  Offset globalToLocal(Offset point) => _box.globalToLocal(point);
 
-  Size? get size => canvasKey.currentContext?.findRenderBox()?.size;
+  Offset localToGlobal(Offset point) => _box.localToGlobal(point);
+
+  Size get size => _box.size;
 
   void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) => Stack(
-    key: canvasKey,
     clipBehavior: widget.clipBehavior,
     children: [
       for (var item in controller.overlayedItemsOrderedByZIndex)

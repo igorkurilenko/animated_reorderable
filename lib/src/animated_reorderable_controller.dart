@@ -144,11 +144,11 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   void reorderItem(int index, {required int destIndex}) {
-    if (onReorder == null) {
-      throw StateError(
-        'Items can be reordered only with an onReorder callback',
-      );
-    }
+    final onReorder =
+        this.onReorder ??
+        (throw StateError(
+          'Items can be reordered only with an onReorder callback',
+        ));
     final itemCount = checkedItemCount;
     IndexError.check(index, itemCount, name: 'index');
     IndexError.check(destIndex, itemCount, name: 'destIndex');
@@ -180,7 +180,7 @@ class AnimatedReorderableController implements ItemHost {
       newIndex: permutations.indexOf(itemAtDestIndex.key)!,
     );
 
-    onReorder!.call(permutations);
+    onReorder(permutations);
   }
 
   /// The item count, which a list or grid needs for its items to change.
@@ -282,7 +282,7 @@ class AnimatedReorderableController implements ItemHost {
       index: renderedItem.index,
       position: overlayedItemsLayer!.globalToLocal(
         renderedItem.globalPosition!,
-      )!,
+      ),
       // The item lays out in the overlay as it would in the list.
       constraints:
           renderedItem.constraints ??
@@ -361,14 +361,11 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   void reorderDraggedItemIfNecessary() {
-    if (onReorder == null) return;
-    if (_state.draggedItem == null) return;
-
-    final item = _state.draggedItem!;
-
+    final item = _state.draggedItem;
+    final pointerPosition = item?.globalPointerPosition;
+    if (onReorder == null || item == null || pointerPosition == null) return;
     if (!reorderableGetter(item.index)) return;
 
-    final pointerPosition = item.globalPointerPosition!;
     final renderedItem = _state.renderedItemAt(position: pointerPosition);
 
     if (renderedItem?.key == _state.itemUnderThePointerKey) return;
@@ -413,13 +410,13 @@ class AnimatedReorderableController implements ItemHost {
 
     // Just outside the overlay, which covers the list. It is the space the
     // overlayed items are positioned in, unlike the screen.
-    final bounds = Offset.zero & overlayedItemsLayer!.size!;
+    final bounds = Offset.zero & overlayedItemsLayer!.size;
     // In line with a list's items, or in the middle of a grid.
     final anyRenderedItemPosition = gridLayout == null
         ? anyRenderedItem.globalPosition
         : null;
     final crossAxisPosition = anyRenderedItemPosition != null
-        ? overlayedItemsLayer!.globalToLocal(anyRenderedItemPosition)!
+        ? overlayedItemsLayer!.globalToLocal(anyRenderedItemPosition)
         : bounds.center - Offset(itemSize.width / 2, itemSize.height / 2);
     final before = notRenderedItemIndex < anyRenderedItem.index;
     final fakePosition = switch (scrollPosition!.axisDirection) {
@@ -453,8 +450,8 @@ class AnimatedReorderableController implements ItemHost {
             constraints ??
             // As wide as the overlay, which covers the list, or as high.
             (scrollDirection == Axis.vertical
-                ? BoxConstraints(maxWidth: overlayedItemsLayer!.size!.width)
-                : BoxConstraints(maxHeight: overlayedItemsLayer!.size!.height)),
+                ? BoxConstraints(maxWidth: overlayedItemsLayer!.size.width)
+                : BoxConstraints(maxHeight: overlayedItemsLayer!.size.height)),
       );
 
   Size getScreenSize() {
@@ -553,7 +550,7 @@ class AnimatedReorderableController implements ItemHost {
     final globalPosition = item.globalPosition;
     if (globalPosition == null) return;
 
-    final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition)!;
+    final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition);
 
     if (isSwiped(item)) {
       // It stays in its slot, swiped as far.
@@ -594,7 +591,8 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   void recognizeSwipe(model.RenderedItem item, PointerDownEvent event) {
-    final swipeDirection = item.swipeToRemoveDirection!;
+    final swipeDirection = item.swipeToRemoveDirection;
+    if (swipeDirection == null) return;
     createOverlayedItem(
       item,
       recognizerFactory: swipeDirection.recognizerFactory,
@@ -624,7 +622,7 @@ extension DraggedItemPlacement on AnimatedReorderableController {
   void keepUnderPointer(model.OverlayedItem item, {required Size size}) {
     final globalPointerPosition = item.globalPointerPosition;
     if (globalPointerPosition == null || item.size.isEmpty) return;
-    final pointer = overlayedItemsLayer!.globalToLocal(globalPointerPosition)!;
+    final pointer = overlayedItemsLayer!.globalToLocal(globalPointerPosition);
     final grip = pointer - item.position;
     item.setPosition(
       pointer -
@@ -710,7 +708,7 @@ extension HeldItemMotion on AnimatedReorderableController {
       item.animateFlingTo(
         overlayedItemsLayer!.globalToLocal(
           _state.renderedItemBy(key: item.key)!.globalPosition!,
-        )!,
+        ),
         velocity: velocity,
         screenSize: getScreenSize(),
         springDescription: springDescription,
@@ -803,13 +801,17 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
     _state.swipedItem = null;
 
     final undecoration = item.animateUndecoration();
-    final bounds = overlayedItemsLayer!.size!;
+    final bounds = overlayedItemsLayer!.size;
+    final swipeDirection = item.swipeToRemoveDirection;
+    final onSwipeToRemove = this.onSwipeToRemove;
 
-    if (didSwipeToRemove(item, velocity: details.velocity)) {
-      onSwipeToRemove!.call(item.index);
+    if (swipeDirection != null &&
+        onSwipeToRemove != null &&
+        didSwipeToRemove(item, velocity: details.velocity)) {
+      onSwipeToRemove(item.index);
 
       item.animateFlingTo(
-        item.swipeToRemoveDirection!.flingTarget(
+        swipeDirection.flingTarget(
           item.position,
           itemSize: item.size,
           bounds: bounds,
@@ -973,15 +975,12 @@ extension Scrolling on AnimatedReorderableController {
   }
 
   void autoScrollIfNecessary() {
-    if (_state.draggedItem == null) return;
+    final item = _state.draggedItem;
+    if (item == null) return;
 
-    final size = _state.draggedItem!.size;
-    final position = overlayedItemsLayer!.localToGlobal(
-      _state.draggedItem!.position,
-    )!;
-
+    final position = overlayedItemsLayer!.localToGlobal(item.position);
     _autoScroller?.startAutoScrollIfNecessary(
-      (position & size).deflate(autoScrollEdgeInset),
+      (position & item.size).deflate(autoScrollEdgeInset),
     );
   }
 
