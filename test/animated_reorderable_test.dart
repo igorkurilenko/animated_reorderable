@@ -455,8 +455,93 @@ void main() {
         frames++;
       }
 
-      expect(builds, lessThanOrEqualTo(138));
+      expect(builds, lessThanOrEqualTo(14));
       expect(frames, 33);
+    });
+
+    testWidgets('builds no item while items move', (tester) async {
+      var builds = 0;
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  builds++;
+                  return SizedBox(
+                    height: _extent,
+                    child: Text('${items[index]}'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 3);
+      // The overlay builds the moving items as they enter it, and the list
+      // builds the item that stays once it leaves the overlay.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      builds = 0;
+      for (var i = 0; i < 25; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(builds, 0);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('builds moving items again when their indexes change', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4, 5];
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: _extent,
+                  child: Text('${items[index]} at $index'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Every item the list shows moves.
+      key.currentState!.reorderItem(0, destIndex: 5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Each moves on by a slot, and builds at its new index.
+      items.insert(0, 100);
+      key.currentState!.insertItem(0);
+      await tester.pump();
+
+      expect(tester.hasRunningAnimations, isTrue);
+      for (final id in [1, 2, 3, 4, 5]) {
+        expect(find.text('$id at $id'), findsOneWidget, reason: 'item $id');
+      }
+      await tester.pumpAndSettle();
     });
   });
 

@@ -1,3 +1,9 @@
+## Unreleased
+
+### Performance
+
+- Build a moving item only when it changes, not on every frame of its move. The item builder runs for a moving item when it enters the overlay, when its index or the list's configuration changes, and when it lands. One reorder in a list of five items ran the item builder 138 times, and now runs it 14 times.
+
 ## 2.0.0-dev.1
 
 2.0 removes what 1.6.0 deprecated. Upgrade to 1.6.0 first and fix its deprecation warnings. Three changes are left after that: drop the `null` from `insertItem(index, null)`, rename `ReorderCallback` to `PermutationsCallback`, and drop the type argument from `AnimatedReorderableState<…>`.
