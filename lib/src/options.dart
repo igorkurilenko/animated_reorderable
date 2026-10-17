@@ -15,6 +15,10 @@ class MotionOptions {
   });
 
   /// The time it takes an item to move to its new place.
+  ///
+  /// When the place moves again while the item is on such a move, the item
+  /// heads for the new place at the speed it has, and gets there [duration]
+  /// after the place moved.
   final Duration duration;
 
   /// The curve an item moves to its new place along.

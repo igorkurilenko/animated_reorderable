@@ -1833,6 +1833,145 @@ void main() {
     }
   });
 
+  group('moving again', () {
+    /// The tops of the item [finder] finds over [frames] frames.
+    Future<List<double>> track(
+      WidgetTester tester,
+      Finder finder,
+      int frames,
+    ) async {
+      final tops = <double>[];
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(finder).dy);
+      }
+      return tops;
+    }
+
+    testWidgets('moves items at once when animations are off', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      list.state.reorderItem(3, destIndex: 2);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.hasRunningAnimations, isFalse);
+      expect(tester.getTopLeft(_itemWithId(0)).dy, 2 * _extent);
+    });
+
+    testWidgets('keeps an item going as items above it go one by one', (
+      tester,
+    ) async {
+      final list = _TestList(16);
+      await tester.pumpWidget(list.build());
+
+      final tops = <double>[];
+      for (var i = 0; i < 4; i++) {
+        list.removeAt(0);
+        tops.addAll(await track(tester, _itemWithId(4), 12));
+      }
+      tops.addAll(await track(tester, _itemWithId(4), 40));
+
+      expect(tops.last, 0);
+      expect(_steps(tops), everyElement(lessThanOrEqualTo(0)));
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('keeps an item going as items come in above it one by one', (
+      tester,
+    ) async {
+      final list = _TestList(8);
+      await tester.pumpWidget(list.build());
+
+      final tops = <double>[];
+      for (var i = 0; i < 4; i++) {
+        list.insert(0, 100 + i);
+        tops.addAll(await track(tester, _itemWithId(0), 12));
+      }
+      tops.addAll(await track(tester, _itemWithId(0), 40));
+
+      expect(tops.last, 4 * _extent);
+      expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('turns an item around without a dead stop', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 1);
+      final tops = await track(tester, _itemWithId(1), 10);
+      list.state.reorderItem(1, destIndex: 0);
+      tops.addAll(await track(tester, _itemWithId(1), 50));
+
+      expect(list.items, [0, 1, 2, 3, 4]);
+      expect(tops.last, _extent);
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('keeps an item moving out of sight on time as the list '
+        'changes', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 40);
+      await tester.pump();
+      // It moves from this frame on.
+      await tester.pump(const Duration(milliseconds: 200));
+      // The list lays out again, and the item heads for the same place.
+      list.removeAt(45);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(_motionDuration - const Duration(milliseconds: 8));
+
+      expect(_itemWithId(0), findsNothing);
+    });
+
+    testWidgets('finishes each move when the motion gets shorter', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build(Duration duration) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            motion: MotionOptions(duration: duration),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) =>
+                  SizedBox(height: _extent, child: Text('${items[index]}')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build(const Duration(seconds: 1)));
+      key.currentState!.reorderItem(0, destIndex: 2);
+      final tops = await track(tester, find.text('0'), 10);
+
+      await tester.pumpWidget(build(const Duration(milliseconds: 100)));
+      key.currentState!.reorderItem(2, destIndex: 3);
+      tops.addAll(await track(tester, find.text('0'), 80));
+
+      expect(tops.last, 3 * _extent);
+      // It gets there on its way rather than jumps there at the end.
+      expect(_steps(tops), everyElement(inInclusiveRange(0, 40)));
+    });
+  });
+
   group('children delegate', () {
     testWidgets('reorders the children of a list view', (tester) async {
       final list = _ChildrenList(5);
@@ -2167,6 +2306,20 @@ Future<TestGesture> _holdAndDrag(
   }
   return drag;
 }
+
+/// How far an item at [positions], one a frame, moves each frame.
+List<double> _steps(List<double> positions) => [
+  for (var i = 1; i < positions.length; i++) positions[i] - positions[i - 1],
+];
+
+/// The frames at which an item at [positions], one a frame, stops dead: it
+/// moves over 2 px the frame before and under 0.25 px the frame after.
+List<int> _deadStops(List<double> positions) => [
+  for (var i = 1; i < positions.length - 1; i++)
+    if ((positions[i] - positions[i - 1]).abs() > 2 &&
+        (positions[i + 1] - positions[i]).abs() < 0.25)
+      i,
+];
 
 /// The ids of the items from the bottom one up.
 List<int> _paintOrder(WidgetTester tester) => [
