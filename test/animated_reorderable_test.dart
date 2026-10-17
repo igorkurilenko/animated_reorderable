@@ -694,6 +694,48 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('keeps a dragged item under the pointer as it grows', (
+      tester,
+    ) async {
+      final extent = ValueNotifier(_extent);
+      addTearDown(extent.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              keyGetter: (index) => ValueKey(index),
+              onReorder: (_) {},
+              listView: ListView.builder(
+                itemCount: 5,
+                itemBuilder: (context, index) => ValueListenableBuilder(
+                  valueListenable: extent,
+                  builder: (context, extent, _) => SizedBox(
+                    height: index == 0 ? extent : _extent,
+                    child: Text('$index'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // A quarter of the way down the item.
+      final drag = await tester.startGesture(const Offset(10, 25));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      await drag.moveBy(const Offset(0, 20));
+      await tester.pump();
+      expect(tester.getTopLeft(find.text('0')).dy, 20);
+
+      extent.value = 2 * _extent;
+      await tester.pump();
+      await tester.pump();
+
+      // Still a quarter of the way down, under the pointer at 45.
+      expect(tester.getTopLeft(find.text('0')).dy, moreOrLessEquals(-5));
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('keeps a swiped item in its slot', (tester) async {
       final grid = _TestList(
         9,
