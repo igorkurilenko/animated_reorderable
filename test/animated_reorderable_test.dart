@@ -128,6 +128,35 @@ void main() {
       expect(soft, greaterThan(stiff + 50));
     });
 
+    testWidgets(
+      'springs swiped items back with swipeToRemoveSpringDescription',
+      (tester) async {
+        Future<double> springOffset(SpringDescription spring) async {
+          final list = _TestList(5, swipeToRemoveSpringDescription: spring);
+          await tester.pumpWidget(list.build());
+          // Too short and too slow to remove the item.
+          await tester.timedDrag(
+            find.text('1'),
+            const Offset(-300, 0),
+            const Duration(seconds: 1),
+          );
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          final offset = tester.getTopLeft(find.text('1')).dx;
+          await tester.pumpAndSettle();
+          expect(list.items, [0, 1, 2, 3, 4]);
+          return offset;
+        }
+
+        final stiff = await springOffset(_defaultSpring);
+        final soft = await springOffset(
+          const SpringDescription(mass: 1, stiffness: 10, damping: 10),
+        );
+
+        expect(soft, lessThan(stiff - 50));
+      },
+    );
+
     testWidgets('calls the latest onReorder', (tester) async {
       final key = GlobalKey<AnimatedReorderableState>();
       final calls = <String>[];
