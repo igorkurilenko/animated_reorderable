@@ -96,22 +96,12 @@ class AnimatedReorderableController {
       vsync: vsync,
     );
 
-    overlayedItemsLayer!.rebuild(() {
-      for (var renderedItem
-          in _state.renderedItems
-              .where((x) => x.key != insertedItem.key)
-              .where(isNotDragged)
-              .where(isNotSwiped)) {
-        _state.putOverlayedItemIfAbsent(
-            key: renderedItem.key,
-            ifAbsent: () => createOverlayedItem(renderedItem),
-          )
-          ..index = renderedItem.index >= index
-              ? renderedItem.index + 1
-              : renderedItem.index
-          ..setInteractive(false, notify: false);
-      }
-    });
+    overlayedItemsLayer!.rebuild(
+      () => overlayRenderedItems(
+        except: insertedItem.key,
+        newIndex: (x) => x.index >= index ? x.index + 1 : x.index,
+      ),
+    );
 
     itemsLayer!.rebuild();
   }
@@ -139,20 +129,10 @@ class AnimatedReorderableController {
     }
 
     overlayedItemsLayer!.rebuild(() {
-      for (var renderedItem
-          in _state.renderedItems
-              .where((x) => x.key != removedItem.key)
-              .where(isNotDragged)
-              .where(isNotSwiped)) {
-        _state.putOverlayedItemIfAbsent(
-            key: renderedItem.key,
-            ifAbsent: () => createOverlayedItem(renderedItem),
-          )
-          ..index = renderedItem.index > index
-              ? renderedItem.index - 1
-              : renderedItem.index
-          ..setInteractive(false, notify: false);
-      }
+      overlayRenderedItems(
+        except: removedItem.key,
+        newIndex: (x) => x.index > index ? x.index - 1 : x.index,
+      );
 
       if (renderedItem != null) {
         final outgoingItem = _state.putOverlayedItemIfAbsent(
@@ -221,15 +201,9 @@ class AnimatedReorderableController {
     );
 
     overlayedItemsLayer!.rebuild(() {
-      for (var renderedItem
-          in _state.renderedItems.where(isNotDragged).where(isNotSwiped)) {
-        _state.putOverlayedItemIfAbsent(
-            key: renderedItem.key,
-            ifAbsent: () => createOverlayedItem(renderedItem),
-          )
-          ..index = permutations.indexOf(renderedItem.key) ?? renderedItem.index
-          ..setInteractive(false, notify: false);
-      }
+      overlayRenderedItems(
+        newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
+      );
 
       if (!_state.isRendered(key: itemAtIndex.key) &&
           !_state.isOverlayed(key: itemAtIndex.key)) {
@@ -370,6 +344,26 @@ class AnimatedReorderableController {
       childKey: childKey ?? item!.childKey,
       recognizerFactory: recognizerFactory,
     )..addListener(overlayedItemsLayer!.rebuild);
+  }
+
+  /// Overlays the rendered items, except [except] and the held ones, so
+  /// they can move to their slots at [newIndex] when the list lays out.
+  void overlayRenderedItems({
+    required int Function(RenderedItem item) newIndex,
+    widgets.Key? except,
+  }) {
+    for (var renderedItem
+        in _state.renderedItems
+            .where((x) => x.key != except)
+            .where(isNotDragged)
+            .where(isNotSwiped)) {
+      _state.putOverlayedItemIfAbsent(
+          key: renderedItem.key,
+          ifAbsent: () => createOverlayedItem(renderedItem),
+        )
+        ..index = newIndex(renderedItem)
+        ..setInteractive(false, notify: false);
+    }
   }
 
   void registerRenderedItem(RenderedItem item) => _state.putRenderedItem(item);
