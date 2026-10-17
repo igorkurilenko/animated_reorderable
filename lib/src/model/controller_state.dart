@@ -20,7 +20,6 @@ class ControllerState {
   final _renderedItemByKey = <Key, RenderedItem>{};
   OverlayedItem? draggedItem;
   OverlayedItem? swipedItem;
-  Key? itemUnderThePointerKey;
   int? itemCount;
 
   Iterable<Item> get items => _itemByKey.values;

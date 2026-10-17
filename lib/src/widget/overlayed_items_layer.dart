@@ -60,12 +60,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
         OverlayedItemWidget(
           key: ObjectKey(item),
           item: item,
-          onDragStart: controller.handleItemDragStart,
-          onDragUpdate: controller.handleItemDragUpdate,
-          onDragEnd: controller.handleItemDragEnd,
-          onSwipeStart: controller.handleItemSwipeStart,
-          onSwipeUpdate: controller.handleItemSwipeUpdate,
-          onSwipeEnd: controller.handleItemSwipeEnd,
+          onPointerDown: controller.recognizeOverlayedItem,
           onSizeChange: controller.handleOverlayedItemSizeChange,
         ),
     ],

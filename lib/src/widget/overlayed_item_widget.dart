@@ -7,27 +7,24 @@ typedef OverlayedItemSizeCallback = void Function(
   Size size,
   OverlayedItem item,
 );
+typedef OverlayedItemPointerDownCallback = void Function(
+  PointerDownEvent event,
+  OverlayedItem item,
+  BuildContext context,
+);
 
 class OverlayedItemWidget extends StatelessWidget {
   const OverlayedItemWidget({
     super.key,
     required this.item,
-    this.onDragStart,
-    this.onDragUpdate,
-    this.onDragEnd,
-    this.onSwipeStart,
-    this.onSwipeUpdate,
-    this.onSwipeEnd,
+    this.onPointerDown,
     this.onSizeChange,
   });
 
   final OverlayedItem item;
-  final OverlayedItemDragStartCallback? onDragStart;
-  final OverlayedItemDragUpdateCallback? onDragUpdate;
-  final OverlayedItemDragEndCallback? onDragEnd;
-  final OverlayedItemDragStartCallback? onSwipeStart;
-  final OverlayedItemDragUpdateCallback? onSwipeUpdate;
-  final OverlayedItemDragEndCallback? onSwipeEnd;
+
+  /// Lets a pointer down on the item start a drag or a swipe of it.
+  final OverlayedItemPointerDownCallback? onPointerDown;
   final OverlayedItemSizeCallback? onSizeChange;
 
   /// It builds again when its item changes, without the other items.
@@ -41,22 +38,7 @@ class OverlayedItemWidget extends StatelessWidget {
     child: IgnorePointer(
       ignoring: !item.interactive,
       child: Listener(
-        onPointerDown: (event) => item.swiped
-            ? item.recognizeSwipe(
-                event,
-                context: context,
-                swipeDirection: item.swipeToRemoveDirection!,
-                onSwipeStart: onSwipeStart,
-                onSwipeUpdate: onSwipeUpdate,
-                onSwipeEnd: onSwipeEnd,
-              )
-            : item.recognizeDrag(
-                event,
-                context: context,
-                onDragStart: onDragStart,
-                onDragUpdate: onDragUpdate,
-                onDragEnd: onDragEnd,
-              ),
+        onPointerDown: (event) => onPointerDown?.call(event, item, context),
         child: ConstrainedBox(
           constraints: item.constraints,
           child: item.build(

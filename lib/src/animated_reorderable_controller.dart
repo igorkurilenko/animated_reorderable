@@ -1,9 +1,9 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
 
 import '../animated_reorderable.dart';
 import 'const.dart';
+import 'controller/held_item_sessions.dart';
 import 'controller/overlay_coordinator.dart';
 import 'controller/scroll_sync.dart';
 import 'model/model.dart' as model;
@@ -40,12 +40,15 @@ class AnimatedReorderableController implements ItemHost {
     velocityScalar: () => autoScrollerVelocityScalar,
     itemCount: () => _state.itemCount ?? 0,
     onScroll: _shiftOverlayedItems,
-    onAutoScroll: reorderAndAutoScrollIfNecessary,
+    onAutoScroll: () => _drag?.reorderAndAutoScroll(),
   );
   late OverriddenSliverChildBuilderDelegate _childrenDelegate;
   final model.ControllerState _state;
   ItemsLayerState? _itemsLayer;
   OverlayCoordinator? _overlay;
+
+  /// The latest drag, which the auto-scroller keeps going.
+  DragSession? _drag;
 
   /// Whether the items layer was built since the last reconcile pass.
   bool _itemsLayerBuilt = false;
@@ -238,18 +241,6 @@ class AnimatedReorderableController implements ItemHost {
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) =>
       _overlay?.didResizeItem(size, item);
 
-  bool didSwipeToRemove(
-    model.OverlayedItem item, {
-    required Velocity velocity,
-  }) =>
-      item.swipeToRemoveDirection?.removes(
-        extent: item.swipeExtent,
-        velocity: velocity,
-        minExtent: swipeToRemoveExtent,
-        minVelocity: swipeToRemoveVelocity,
-      ) ??
-      false;
-
   model.Item ensureItemAt({required int index}) =>
       _state.itemAt(index: index) ?? spawnItemAt(index: index);
 
@@ -281,43 +272,6 @@ class AnimatedReorderableController implements ItemHost {
 
   void _shiftOverlayedItems(Offset delta) =>
       _overlay?.shiftOverlayedItems(delta);
-
-  void reorderAndAutoScrollIfNecessary() {
-    reorderDraggedItemIfNecessary();
-    autoScrollIfNecessary();
-  }
-
-  void autoScrollIfNecessary() {
-    final item = _state.draggedItem;
-    if (item == null) return;
-
-    final rect = _overlay?.globalRectOf(item);
-    if (rect != null) scrollSync.autoScroll(rect);
-  }
-
-  void reorderDraggedItemIfNecessary() {
-    final item = _state.draggedItem;
-    final pointerPosition = item?.globalPointerPosition;
-    if (onReorder == null || item == null || pointerPosition == null) return;
-    if (!reorderableGetter(item.index)) return;
-
-    final renderedItem = _state.renderedItemAt(position: pointerPosition);
-
-    if (renderedItem?.key == _state.itemUnderThePointerKey) return;
-    _state.itemUnderThePointerKey = renderedItem?.key;
-
-    if (renderedItem == null) return;
-    if (renderedItem.key == item.key) return;
-    if (!renderedItem.reorderable) return;
-
-    reorderItem(item.index, destIndex: renderedItem.index);
-
-    addPostFrame(
-      () => _state.itemUnderThePointerKey = _state
-          .renderedItemAt(position: pointerPosition)
-          ?.key,
-    );
-  }
 
   bool isItemRendered(int index) {
     return getRenderedItemAt(index) != null;
@@ -390,149 +344,98 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   @override
-  void recognizeReorderDrag(model.RenderedItem item, PointerDownEvent event) =>
-      _overlay
-          ?.createOverlayedItem(
-            item,
-            recognizerFactory: reorderGestureRecognizerFactory,
-          )
-          .recognizeDrag(
-            event,
-            context: item.context,
-            onDragStart: (details, overlayedItem) {
-              overlayedItem.recognizerFactory =
-                  createImmediateDragGestureRecognizer;
-              handleItemDragStart(details, overlayedItem);
-            },
-            onDragUpdate: handleItemDragUpdate,
-            onDragEnd: handleItemDragEnd,
-          );
+  void recognizeReorderDrag(model.RenderedItem item, PointerDownEvent event) {
+    final overlayedItem = _overlay?.createOverlayedItem(
+      item,
+      recognizerFactory: reorderGestureRecognizerFactory,
+    );
+    if (overlayedItem == null) return;
+    _recognizeDrag(overlayedItem, event, item.context);
+  }
 
   @override
   void recognizeSwipe(model.RenderedItem item, PointerDownEvent event) {
-    final swipeDirection = item.swipeToRemoveDirection;
-    if (swipeDirection == null) return;
-    _overlay
-        ?.createOverlayedItem(
-          item,
-          recognizerFactory: swipeDirection.recognizerFactory,
-        )
-        .recognizeSwipe(
-          event,
-          context: item.context,
-          swipeDirection: swipeDirection,
-          onSwipeStart: handleItemSwipeStart,
-          onSwipeUpdate: handleItemSwipeUpdate,
-          onSwipeEnd: handleItemSwipeEnd,
-        );
-  }
-}
-
-extension OverlayedItemDragHandlers on AnimatedReorderableController {
-  void handleItemDragStart(
-    widgets.DragStartDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemDragStart?.call(details, item.index);
-
-    item.stopMotion();
-
-    _state.draggedItem = item;
-
-    _overlay?.lift(
+    final direction = item.swipeToRemoveDirection;
+    if (direction == null) return;
+    final overlayedItem = _overlay?.createOverlayedItem(
       item,
-      decorator: draggedItemDecorator,
-      decorationDuration: draggedItemDecorationAnimationDuration,
+      recognizerFactory: direction.recognizerFactory,
+    );
+    if (overlayedItem == null) return;
+    _recognizeSwipe(overlayedItem, event, item.context, direction: direction);
+  }
+
+  /// Lets an item that flies back to its slot be held again.
+  void recognizeOverlayedItem(
+    PointerDownEvent event,
+    model.OverlayedItem item,
+    widgets.BuildContext context,
+  ) => switch (item.swipeToRemoveDirection) {
+    final direction? => _recognizeSwipe(
+      item,
+      event,
+      context,
+      direction: direction,
+    ),
+    null => _recognizeDrag(item, event, context),
+  };
+
+  /// Starts a drag session for [item] if [event] starts a drag of it.
+  void _recognizeDrag(
+    model.OverlayedItem item,
+    PointerDownEvent event,
+    widgets.BuildContext context,
+  ) {
+    DragSession? session;
+    item.recognizeDrag(
+      event,
+      context: context,
+      onDragStart: (details, item) {
+        final overlay = _overlay;
+        if (overlay == null) return;
+        item.recognizerFactory = createImmediateDragGestureRecognizer;
+        session = _drag = DragSession(
+          item: item,
+          items: _state,
+          overlay: overlay,
+          scrollSync: scrollSync,
+          widget: () => widget,
+          reorderItem: reorderItem,
+        )..start(details);
+      },
+      onDragUpdate: (details, _) => session?.update(details),
+      onDragEnd: (details, _) {
+        session?.end(details);
+        if (_drag == session) _drag = null;
+      },
     );
   }
 
-  void handleItemDragUpdate(
-    widgets.DragUpdateDetails details,
+  /// Starts a swipe session for [item] if [event] starts a swipe of it.
+  void _recognizeSwipe(
     model.OverlayedItem item,
-  ) {
-    onItemDragUpdate?.call(details, item.index);
-
-    item.shift(details.delta);
-
-    reorderAndAutoScrollIfNecessary();
-  }
-
-  void handleItemDragEnd(
-    widgets.DragEndDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemDragEnd?.call(details, item.index);
-
-    _state.draggedItem = null;
-
-    scrollSync.stopAutoScroll(forceStopAnimation: true);
-
-    _overlay?.flingBackToSlot(
-      item,
-      undecoration: item.animateUndecoration(),
-      velocity: details.velocity,
+    PointerDownEvent event,
+    widgets.BuildContext context, {
+    required SwipeDirection direction,
+  }) {
+    SwipeSession? session;
+    item.recognizeSwipe(
+      event,
+      context: context,
+      swipeDirection: direction,
+      onSwipeStart: (details, item) {
+        final overlay = _overlay;
+        if (overlay == null) return;
+        session = SwipeSession(
+          item: item,
+          items: _state,
+          overlay: overlay,
+          widget: () => widget,
+        )..start(details);
+      },
+      onSwipeUpdate: (details, _) => session?.update(details),
+      onSwipeEnd: (details, _) => session?.end(details),
     );
-  }
-}
-
-extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
-  void handleItemSwipeStart(
-    widgets.DragStartDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemSwipeStart?.call(details, item.index);
-
-    item.stopMotion();
-
-    _state.swipedItem = item;
-
-    _overlay?.lift(
-      item,
-      decorator: swipedItemDecorator,
-      decorationDuration: swipedItemDecorationAnimationDuration,
-    );
-  }
-
-  void handleItemSwipeUpdate(
-    widgets.DragUpdateDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemSwipeUpdate?.call(details, item.index);
-
-    item.shift(details.delta);
-  }
-
-  void handleItemSwipeEnd(
-    widgets.DragEndDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemSwipeEnd?.call(details, item.index);
-
-    _state.swipedItem = null;
-
-    final undecoration = item.animateUndecoration();
-    final swipeDirection = item.swipeToRemoveDirection;
-    final onSwipeToRemove = this.onSwipeToRemove;
-
-    if (swipeDirection != null &&
-        onSwipeToRemove != null &&
-        didSwipeToRemove(item, velocity: details.velocity)) {
-      onSwipeToRemove(item.index);
-
-      _overlay?.flingOut(
-        item,
-        direction: swipeDirection,
-        velocity: details.velocity,
-        springDescription: swipeToRemoveSpringDescription,
-      );
-    } else {
-      _overlay?.flingBackToSlot(
-        item,
-        undecoration: undecoration,
-        velocity: details.velocity,
-        springDescription: swipeToRemoveSpringDescription,
-      );
-    }
   }
 }
 
