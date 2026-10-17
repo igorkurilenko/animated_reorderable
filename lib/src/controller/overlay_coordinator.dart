@@ -11,8 +11,8 @@ import 'scroll_sync.dart';
 
 /// The space overlayed items are positioned in. It covers the list.
 abstract interface class OverlaySpace {
-  Offset globalToLocal(Offset point);
-  Offset localToGlobal(Offset point);
+  OverlayOffset globalToLocal(GlobalOffset point);
+  GlobalOffset localToGlobal(OverlayOffset point);
   Size get size;
 }
 
@@ -107,7 +107,7 @@ class OverlayCoordinator {
       OverlayedItem(
         item: item,
         index: newIndex,
-        position: fakeGeometry.topLeft,
+        position: OverlayOffset(fakeGeometry.topLeft),
         constraints: BoxConstraints.tight(fakeGeometry.size),
         size: fakeGeometry.size,
         interactive: false,
@@ -290,7 +290,7 @@ class OverlayCoordinator {
 
       overlayedItem
           .animateTo(
-            fakeGeometry.topLeft,
+            OverlayOffset(fakeGeometry.topLeft),
             vsync: vsync,
             duration: motionAnimationDuration(),
             curve: motionAnimationCurve(),
@@ -329,11 +329,13 @@ class OverlayCoordinator {
     final pointer = overlay.globalToLocal(globalPointerPosition);
     final grip = pointer - item.position;
     item.setPosition(
-      pointer -
-          Offset(
-            grip.dx * size.width / item.size.width,
-            grip.dy * size.height / item.size.height,
-          ),
+      OverlayOffset(
+        pointer -
+            Offset(
+              grip.dx * size.width / item.size.width,
+              grip.dy * size.height / item.size.height,
+            ),
+      ),
     );
   }
 

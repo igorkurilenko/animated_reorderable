@@ -30,7 +30,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// its state as it moves between the list and the overlay.
   final Item item;
   int index;
-  widgets.Offset _position;
+  OverlayOffset _position;
   widgets.BoxConstraints _constraints;
 
   widgets.Size _size;
@@ -40,7 +40,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
-  widgets.Offset? _globalPointerPosition;
+  GlobalOffset? _globalPointerPosition;
   OffsetAnimation? _motionAnimation;
   AnimatedItemDecoratorAdapter? _decorator;
 
@@ -50,13 +50,17 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// lays it out. The list's placeholder takes this size.
   widgets.Size get size => _size;
 
-  widgets.Offset get position => _position;
-  widgets.Offset get anchorPosition =>
-      _motionAnimation != null ? _motionAnimation!.end : position;
+  OverlayOffset get position => _position;
+
+  /// Where the item moves to, or where it is if it does not move.
+  OverlayOffset get anchorPosition => switch (_motionAnimation) {
+    final animation? => OverlayOffset(animation.end),
+    null => position,
+  };
   widgets.AnimationStatus? get motionAnimationStatus =>
       _motionAnimation?.controller.status;
 
-  void setPosition(widgets.Offset value) {
+  void setPosition(OverlayOffset value) {
     if (_position == value) return;
     _position = value;
     notifyListeners();
@@ -78,7 +82,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     notifyListeners();
   }
 
-  Offset? get globalPointerPosition => _globalPointerPosition;
+  GlobalOffset? get globalPointerPosition => _globalPointerPosition;
 
   bool get swiped => _swipe != null;
 
@@ -162,7 +166,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
     _recognizer = recognizerFactory!.call(context)
       ..onStart = (globalPosition) {
-        _globalPointerPosition = globalPosition;
+        _globalPointerPosition = GlobalOffset(globalPosition);
         onStart?.call(
           DragStartDetails(
             sourceTimeStamp: event.timeStamp,
@@ -179,7 +183,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }
 
   Future animateTo(
-    Offset position, {
+    OverlayOffset position, {
     required TickerProvider vsync,
     required Duration duration,
     required Curve curve,
@@ -196,7 +200,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }
 
   Future animateFlingTo(
-    Offset position, {
+    OverlayOffset position, {
     required widgets.Velocity velocity,
     required Size screenSize,
     SpringDescription springDescription = defaultFlingSpringDescription,
@@ -223,13 +227,15 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// The motion animation, set to move this item from where it is to
   /// [position] along [curve].
   OffsetAnimation _motionTo(
-    Offset position, {
+    OverlayOffset position, {
     required Curve curve,
     required TickerProvider vsync,
   }) =>
       (_motionAnimation ??= OffsetAnimation(
           controller: AnimationController(vsync: vsync)
-            ..addListener(() => setPosition(_motionAnimation!.value)),
+            ..addListener(
+              () => setPosition(OverlayOffset(_motionAnimation!.value)),
+            ),
         ))
         ..begin = this.position
         ..end = position
@@ -287,7 +293,7 @@ class _OverlayedItemDrag implements gestures.Drag {
 
   @override
   void update(widgets.DragUpdateDetails details) {
-    item._globalPointerPosition = details.globalPosition;
+    item._globalPointerPosition = GlobalOffset(details.globalPosition);
     onDragUpdate?.call(details, item);
   }
 
@@ -324,7 +330,7 @@ class _OverlayedItemSwipe implements gestures.Drag {
   void update(widgets.DragUpdateDetails details) {
     final delta = swipeDirection.restrict(details.delta, swiped: _swipeOffset);
     _swipeOffset += delta;
-    item._globalPointerPosition = details.globalPosition;
+    item._globalPointerPosition = GlobalOffset(details.globalPosition);
     onSwipeUpdate?.call(
       widgets.DragUpdateDetails(
         sourceTimeStamp: details.sourceTimeStamp,

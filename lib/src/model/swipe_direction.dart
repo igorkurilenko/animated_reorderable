@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import '../util/gesture_recognizers.dart';
+import 'coordinates.dart';
 
 /// The direction an item is swiped in to remove it, and the rules of
 /// swiping that way.
@@ -72,16 +73,16 @@ enum SwipeDirection {
 
   /// Where a removed item at [position] is flung to: just outside
   /// [bounds], which it moves in.
-  Offset flingTarget(
-    Offset position, {
+  OverlayOffset flingTarget(
+    OverlayOffset position, {
     required Size itemSize,
     required Size bounds,
-  }) => switch (this) {
+  }) => OverlayOffset(switch (this) {
     left => Offset(-itemSize.width, position.dy),
     right => Offset(bounds.width, position.dy),
     up => Offset(position.dx, -itemSize.height),
     down => Offset(position.dx, bounds.height),
-  };
+  });
 
   /// Recognizes drags along the axis.
   MultiDragGestureRecognizer Function(BuildContext context)

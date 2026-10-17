@@ -9,12 +9,12 @@ abstract interface class RenderedItem {
   SwipeDirection? get swipeToRemoveDirection;
 
   /// Where the item is on the screen, or null once it is unmounted.
-  Offset? get globalPosition;
+  GlobalOffset? get globalPosition;
   Size? get size;
 
   /// The constraints the list lays the item out with.
   BoxConstraints? get constraints;
 
   /// Whether the item covers [point], a point on the screen.
-  bool contains(Offset point);
+  bool contains(GlobalOffset point);
 }

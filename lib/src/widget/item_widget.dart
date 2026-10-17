@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../model/model.dart' show RenderedItem;
+import '../model/model.dart' show GlobalOffset, RenderedItem;
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 
@@ -59,7 +59,10 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
       host.swipeToRemoveDirectionAt(index);
   bool get swipeable => swipeToRemoveDirection != null;
   @override
-  Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
+  GlobalOffset? get globalPosition => switch (findRenderBox()) {
+    final box? => GlobalOffset(box.localToGlobal(Offset.zero)),
+    null => null,
+  };
   @override
   Size? get size => findRenderBox()?.size;
 
@@ -72,7 +75,7 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   }
 
   @override
-  bool contains(Offset point) =>
+  bool contains(GlobalOffset point) =>
       findRenderBox()?.getGeometry().contains(point) ?? false;
 
   @override

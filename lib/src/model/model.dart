@@ -10,7 +10,10 @@ import 'package:flutter/widgets.dart';
 import '../../animated_reorderable.dart';
 import '../const.dart';
 import '../util/offset_animation.dart';
+import 'coordinates.dart';
 import 'swipe_direction.dart';
+
+export 'coordinates.dart';
 
 part 'item.dart';
 part 'overlayed_item.dart';

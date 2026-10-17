@@ -211,7 +211,7 @@ Item _item(int id) => Item(
 
 OverlayedItem _overlayed(int id, {required int index}) => OverlayedItem(
   item: _item(id),
-  position: Offset.zero,
+  position: const OverlayOffset(Offset.zero),
   constraints: const BoxConstraints(),
   size: Size.zero,
   index: index,

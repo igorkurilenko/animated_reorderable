@@ -160,7 +160,7 @@ class ItemRegistry {
     overlayChanges.notify();
   }
 
-  RenderedItem? renderedItemAt({required Offset position}) =>
+  RenderedItem? renderedItemAt({required GlobalOffset position}) =>
       renderedItems.where((x) => x.contains(position)).firstOrNull;
 
   Item insertItem({required int index}) {
