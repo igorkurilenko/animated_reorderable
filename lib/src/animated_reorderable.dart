@@ -193,7 +193,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     )
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required ListView listView,
-  }) => _ListView(
+  }) => _AnimatedReorderable(
     key: key,
     keyGetter: keyGetter,
     motion:
@@ -238,7 +238,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
             onEnd: onItemSwipeEnd,
           ),
         ),
-    listView: listView,
+    view: _WrappedListView(listView),
   );
 
   /// Creates an [AnimatedReorderable] for a [GridView].
@@ -344,7 +344,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     )
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required GridView gridView,
-  }) => _GridView(
+  }) => _AnimatedReorderable(
     key: key,
     keyGetter: keyGetter,
     motion:
@@ -389,7 +389,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
             onEnd: onItemSwipeEnd,
           ),
         ),
-    gridView: gridView,
+    view: _WrappedGridView(gridView),
   );
 
   /// Creates an [AnimatedReorderable] from its settings, for a subclass.
@@ -768,15 +768,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   late final AnimatedReorderableController _controller;
   ScrollController? _ownScrollController;
 
-  ScrollController? get _scrollController;
-
-  bool? get _primary;
-
-  SliverChildDelegate get _childrenDelegate;
-
-  Clip get _clipBehavior;
-
-  Axis get _scrollDirection;
+  _WrappedView get _view;
 
   @override
   void initState() {
@@ -787,8 +779,8 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       motion: widget.motion,
       reorder: widget.reorder,
       swipeToRemove: widget.swipeToRemove,
-      scrollDirection: _scrollDirection,
-      itemCount: childrenDelegateSettingsOf(_childrenDelegate).childCount,
+      scrollDirection: _view.scrollDirection,
+      itemCount: childrenDelegateSettingsOf(_view.childrenDelegate).childCount,
       vsync: this,
     );
   }
@@ -809,7 +801,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       ..motion = widget.motion
       ..reorder = widget.reorder
       ..swipeToRemove = widget.swipeToRemove
-      ..scrollDirection = _scrollDirection
+      ..scrollDirection = _view.scrollDirection
       ..scrollSync.scrollController = _effectiveScrollController;
   }
 
@@ -818,12 +810,15 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   /// The view is then built with that controller and `primary: false`.
   ScrollController get _effectiveScrollController {
     final primary =
-        _primary ??
-        (_scrollController == null &&
-            PrimaryScrollController.shouldInherit(context, _scrollDirection));
+        _view.primary ??
+        (_view.controller == null &&
+            PrimaryScrollController.shouldInherit(
+              context,
+              _view.scrollDirection,
+            ));
     final scrollController = primary
         ? PrimaryScrollController.maybeOf(context)
-        : _scrollController;
+        : _view.controller;
     return scrollController ?? (_ownScrollController ??= ScrollController());
   }
 
@@ -938,7 +933,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
 
   @override
   Widget build(BuildContext context) => CrossAxisResizeListener(
-    scrollDirection: _scrollDirection,
+    scrollDirection: _view.scrollDirection,
     // A grid keeps its first visible item in place when its cross axis
     // resizes.
     onResize: _controller.scrollSync.anchorFirstVisibleGridItem,
@@ -962,141 +957,140 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
             },
             child: ItemsLayer(
               controller: _controller,
-              collectionViewBuilder: buildCollectionView,
+              collectionViewBuilder: (context) => _view.build(_controller),
             ),
           ),
         ),
         OverlayedItemsLayer(
           controller: _controller,
-          clipBehavior: _clipBehavior,
+          clipBehavior: _view.clipBehavior,
         ),
       ],
     ),
   );
 
-  Widget buildCollectionView(BuildContext context);
+  /// Builds the wrapped list or grid view.
+  @Deprecated('It goes in 2.0, when the state builds the view itself.')
+  Widget buildCollectionView(BuildContext context) => _view.build(_controller);
 }
 
-class _ListView extends AnimatedReorderable {
-  const _ListView({
+/// The [AnimatedReorderable] that [AnimatedReorderable.list] and
+/// [AnimatedReorderable.grid] create, around its [view].
+class _AnimatedReorderable extends AnimatedReorderable {
+  const _AnimatedReorderable({
     super.key,
     required super.keyGetter,
     required super.motion,
     required super.reorder,
     required super.swipeToRemove,
-    required this.listView,
+    required this.view,
   }) : super._();
+
+  final _WrappedView view;
+
+  @override
+  State<AnimatedReorderable> createState() => _AnimatedReorderableState();
+}
+
+class _AnimatedReorderableState
+    extends AnimatedReorderableState<_AnimatedReorderable> {
+  @override
+  _WrappedView get _view => widget.view;
+}
+
+/// The list or grid view an [AnimatedReorderable] wraps. It builds the view
+/// again, with the controller's children and scrolling (GoF Bridge).
+sealed class _WrappedView {
+  const _WrappedView();
+
+  ScrollView get scrollView;
+  ScrollController? get controller => scrollView.controller;
+  bool? get primary => scrollView.primary;
+  SliverChildDelegate get childrenDelegate;
+  Clip get clipBehavior => scrollView.clipBehavior;
+  Axis get scrollDirection => scrollView.scrollDirection;
+
+  Widget build(AnimatedReorderableController controller);
+}
+
+final class _WrappedListView extends _WrappedView {
+  const _WrappedListView(this.listView);
 
   final ListView listView;
 
   @override
-  State<AnimatedReorderable> createState() => _ListViewState();
-}
-
-class _ListViewState extends AnimatedReorderableState<_ListView> {
-  @override
-  ScrollController? get _scrollController => widget.listView.controller;
+  ScrollView get scrollView => listView;
 
   @override
-  bool? get _primary => widget.listView.primary;
+  SliverChildDelegate get childrenDelegate => listView.childrenDelegate;
 
   @override
-  SliverChildDelegate get _childrenDelegate => widget.listView.childrenDelegate;
-
-  @override
-  Clip get _clipBehavior => widget.listView.clipBehavior;
-
-  @override
-  Axis get _scrollDirection => widget.listView.scrollDirection;
-
-  @override
-  Widget buildCollectionView(BuildContext context) => ListView.custom(
-    key: widget.listView.key,
-    scrollDirection: _scrollDirection,
-    reverse: widget.listView.reverse,
-    controller: _controller.scrollSync.scrollController,
+  Widget build(AnimatedReorderableController controller) => ListView.custom(
+    key: listView.key,
+    scrollDirection: scrollDirection,
+    reverse: listView.reverse,
+    controller: controller.scrollSync.scrollController,
     primary: false,
-    physics: widget.listView.physics,
-    shrinkWrap: widget.listView.shrinkWrap,
-    padding: widget.listView.padding,
-    itemExtent: widget.listView.itemExtent,
-    prototypeItem: widget.listView.prototypeItem,
-    itemExtentBuilder: widget.listView.itemExtentBuilder,
-    childrenDelegate: _controller.itemWidgets.overrideChildrenDelegate(
-      _childrenDelegate,
+    physics: listView.physics,
+    shrinkWrap: listView.shrinkWrap,
+    padding: listView.padding,
+    itemExtent: listView.itemExtent,
+    prototypeItem: listView.prototypeItem,
+    itemExtentBuilder: listView.itemExtentBuilder,
+    childrenDelegate: controller.itemWidgets.overrideChildrenDelegate(
+      childrenDelegate,
     ),
     // ignore: deprecated_member_use
-    cacheExtent: widget.listView.cacheExtent,
-    scrollCacheExtent: widget.listView.scrollCacheExtent,
-    semanticChildCount: widget.listView.semanticChildCount,
-    dragStartBehavior: widget.listView.dragStartBehavior,
-    keyboardDismissBehavior: widget.listView.keyboardDismissBehavior,
-    restorationId: widget.listView.restorationId,
-    clipBehavior: _clipBehavior,
-    hitTestBehavior: widget.listView.hitTestBehavior,
+    cacheExtent: listView.cacheExtent,
+    scrollCacheExtent: listView.scrollCacheExtent,
+    semanticChildCount: listView.semanticChildCount,
+    dragStartBehavior: listView.dragStartBehavior,
+    keyboardDismissBehavior: listView.keyboardDismissBehavior,
+    restorationId: listView.restorationId,
+    clipBehavior: clipBehavior,
+    hitTestBehavior: listView.hitTestBehavior,
   );
 }
 
-class _GridView extends AnimatedReorderable {
-  const _GridView({
-    super.key,
-    required super.keyGetter,
-    required super.motion,
-    required super.reorder,
-    required super.swipeToRemove,
-    required this.gridView,
-  }) : super._();
+final class _WrappedGridView extends _WrappedView {
+  const _WrappedGridView(this.gridView);
 
   final GridView gridView;
 
   @override
-  State<AnimatedReorderable> createState() => _GridViewState();
-}
-
-class _GridViewState extends AnimatedReorderableState<_GridView> {
-  @override
-  ScrollController? get _scrollController => widget.gridView.controller;
+  ScrollView get scrollView => gridView;
 
   @override
-  bool? get _primary => widget.gridView.primary;
+  SliverChildDelegate get childrenDelegate => gridView.childrenDelegate;
 
   @override
-  SliverChildDelegate get _childrenDelegate => widget.gridView.childrenDelegate;
-
-  @override
-  Clip get _clipBehavior => widget.gridView.clipBehavior;
-
-  @override
-  Axis get _scrollDirection => widget.gridView.scrollDirection;
-
-  @override
-  Widget buildCollectionView(BuildContext context) => GridView.custom(
-    key: widget.gridView.key,
-    scrollDirection: _scrollDirection,
-    reverse: widget.gridView.reverse,
-    controller: _controller.scrollSync.scrollController,
+  Widget build(AnimatedReorderableController controller) => GridView.custom(
+    key: gridView.key,
+    scrollDirection: scrollDirection,
+    reverse: gridView.reverse,
+    controller: controller.scrollSync.scrollController,
     primary: false,
     physics: AnchoredScrollPhysics(
-      anchor: _controller.scrollSync.anchoredScrollOffset,
-      parent: widget.gridView.physics,
+      anchor: controller.scrollSync.anchoredScrollOffset,
+      parent: gridView.physics,
     ),
-    shrinkWrap: widget.gridView.shrinkWrap,
-    padding: widget.gridView.padding,
+    shrinkWrap: gridView.shrinkWrap,
+    padding: gridView.padding,
     gridDelegate: SliverGridLayoutNotifier(
-      gridDelegate: widget.gridView.gridDelegate,
-      onLayout: _controller.scrollSync.didLayOutGrid,
+      gridDelegate: gridView.gridDelegate,
+      onLayout: controller.scrollSync.didLayOutGrid,
     ),
-    childrenDelegate: _controller.itemWidgets.overrideChildrenDelegate(
-      _childrenDelegate,
+    childrenDelegate: controller.itemWidgets.overrideChildrenDelegate(
+      childrenDelegate,
     ),
     // ignore: deprecated_member_use
-    cacheExtent: widget.gridView.cacheExtent,
-    scrollCacheExtent: widget.gridView.scrollCacheExtent,
-    semanticChildCount: widget.gridView.semanticChildCount,
-    dragStartBehavior: widget.gridView.dragStartBehavior,
-    keyboardDismissBehavior: widget.gridView.keyboardDismissBehavior,
-    restorationId: widget.gridView.restorationId,
-    clipBehavior: _clipBehavior,
-    hitTestBehavior: widget.gridView.hitTestBehavior,
+    cacheExtent: gridView.cacheExtent,
+    scrollCacheExtent: gridView.scrollCacheExtent,
+    semanticChildCount: gridView.semanticChildCount,
+    dragStartBehavior: gridView.dragStartBehavior,
+    keyboardDismissBehavior: gridView.keyboardDismissBehavior,
+    restorationId: gridView.restorationId,
+    clipBehavior: clipBehavior,
+    hitTestBehavior: gridView.hitTestBehavior,
   );
 }
