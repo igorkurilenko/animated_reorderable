@@ -545,6 +545,505 @@ void main() {
       expect(list.inits.values, everyElement(1));
     });
   });
+
+  group('swipe to remove', () {
+    for (final (scrollDirection, direction) in [
+      (Axis.vertical, AxisDirection.left),
+      (Axis.vertical, AxisDirection.right),
+      (Axis.horizontal, AxisDirection.up),
+      (Axis.horizontal, AxisDirection.down),
+    ]) {
+      group(direction.name, () {
+        final forward = _unit(direction);
+        // The item's extent along its swipe axis.
+        final extent = scrollDirection == Axis.vertical ? 800.0 : 600.0;
+        double along(Offset offset) =>
+            offset.dx * forward.dx + offset.dy * forward.dy;
+        // Long enough to scroll, so the list competes for drags.
+        _TestList createList() => _TestList(
+          20,
+          scrollDirection: scrollDirection,
+          swipeToRemoveDirection: direction,
+        );
+        final items = List.generate(20, (i) => i);
+        final removed = [...items]..remove(1);
+
+        testWidgets('springs an item back from a short swipe', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+
+          await tester.timedDrag(
+            _itemWithId(1),
+            forward * extent * 0.5,
+            const Duration(seconds: 1),
+          );
+          await tester.pumpAndSettle();
+
+          expect(list.items, items);
+          expect(tester.getTopLeft(_itemWithId(1)), slot);
+        });
+
+        testWidgets('removes an item swiped far enough', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+
+          await tester.timedDrag(
+            _itemWithId(1),
+            forward * extent * 0.7,
+            const Duration(seconds: 2),
+          );
+          await tester.pumpAndSettle();
+
+          expect(list.items, removed);
+        });
+
+        testWidgets('removes an item flung fast enough', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+
+          await tester.fling(_itemWithId(1), forward * extent * 0.2, 2000);
+          await tester.pumpAndSettle();
+
+          expect(list.items, removed);
+        });
+
+        testWidgets('springs an item back from a fling the other way', (
+          tester,
+        ) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+
+          await tester.fling(_itemWithId(1), -forward * extent * 0.2, 2000);
+          await tester.pumpAndSettle();
+
+          expect(list.items, items);
+          expect(tester.getTopLeft(_itemWithId(1)), slot);
+        });
+
+        testWidgets('scrolls the list from a drag along it', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+          final back = scrollDirection == Axis.vertical
+              ? const Offset(0, -1)
+              : const Offset(-1, 0);
+
+          await tester.drag(_itemWithId(1), back * 200);
+          await tester.pumpAndSettle();
+
+          final pixels = _scrollPosition(tester).pixels;
+          expect(pixels, greaterThan(100));
+          expect(tester.getTopLeft(_itemWithId(1)) - slot, back * pixels);
+          expect(list.items, items);
+        });
+
+        testWidgets('damps a pull the other way', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+
+          final swipe = await tester.startGesture(
+            tester.getCenter(_itemWithId(1)),
+          );
+          final offsets = <double>[];
+          for (final distance in const [30.0, -30.0, -30.0, -30.0]) {
+            await swipe.moveBy(forward * distance);
+            await tester.pump();
+            offsets.add(along(tester.getTopLeft(_itemWithId(1)) - slot));
+          }
+
+          // Freely back to its slot and past it, then a third as far.
+          expect(offsets, [30, 0, -30, -40]);
+          await swipe.up();
+          await tester.pumpAndSettle();
+        });
+
+        testWidgets('keeps a swiped item on its axis', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+          final across = Offset(forward.dy, forward.dx);
+
+          final swipe = await tester.startGesture(
+            tester.getCenter(_itemWithId(1)),
+          );
+          await swipe.moveBy(forward * 50);
+          await tester.pump();
+          await swipe.moveBy(forward * 20 + across * 40);
+          await tester.pump();
+
+          expect(tester.getTopLeft(_itemWithId(1)) - slot, forward * 70);
+          await swipe.up();
+          await tester.pumpAndSettle();
+        });
+
+        testWidgets('flings a removed item out through its edge', (
+          tester,
+        ) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+
+          await tester.fling(_itemWithId(1), forward * extent * 0.2, 2000);
+          final offsets = <Offset>[];
+          for (var i = 0; i < 11; i++) {
+            await tester.pump(const Duration(milliseconds: 50));
+            offsets.add(tester.getTopLeft(_itemWithId(1)) - slot);
+          }
+
+          for (var i = 1; i < offsets.length; i++) {
+            expect(along(offsets[i]), greaterThan(along(offsets[i - 1])));
+          }
+          // Its decoration scales it a little about its center.
+          expect(
+            offsets.map((offset) => offset - forward * along(offset)),
+            everyElement(_offsetCloseTo(Offset.zero, 3)),
+          );
+          // On its way to just outside the overlay, which covers the list.
+          expect(
+            along(offsets.last),
+            allOf(lessThan(extent), greaterThan(extent * 0.95)),
+          );
+          await tester.pumpAndSettle();
+        });
+      });
+    }
+  });
+
+  group('grid', () {
+    // Three columns of squares.
+    const side = 800 / 3;
+
+    testWidgets('moves items aside for an inserted item', (tester) async {
+      // Three rows, on the screen.
+      final grid = _TestList(8, grid: true);
+      await tester.pumpWidget(grid.build());
+
+      grid.insert(0, 9);
+      final path = await _pathUntilSettled(
+        tester,
+        _itemWithId(2),
+        onFrame: () => _expectEachItemOnce(grid.items),
+      );
+
+      _expectStraightPath(
+        path,
+        const Offset(2 * side, 0),
+        const Offset(0, side),
+      );
+      expect(tester.getTopLeft(_itemWithId(9)), Offset.zero);
+      expect(grid.inits.values, everyElement(1));
+    });
+
+    testWidgets('moves items into the place of a removed item', (tester) async {
+      final grid = _TestList(9, grid: true);
+      await tester.pumpWidget(grid.build());
+
+      grid.removeAt(0);
+      final path = await _pathUntilSettled(
+        tester,
+        _itemWithId(3),
+        onFrame: () => _expectEachItemOnce(grid.items),
+      );
+
+      _expectStraightPath(
+        path,
+        const Offset(0, side),
+        const Offset(2 * side, 0),
+      );
+      expect(_itemWithId(0), findsNothing);
+      expect(grid.inits.values, everyElement(1));
+    });
+  });
+
+  group('reorder off-screen', () {
+    for (final (scrollDirection, reverse, edge) in [
+      (Axis.vertical, false, AxisDirection.down),
+      (Axis.vertical, true, AxisDirection.up),
+      (Axis.horizontal, false, AxisDirection.right),
+      (Axis.horizontal, true, AxisDirection.left),
+    ]) {
+      final forward = _unit(edge);
+      final viewportExtent = scrollDirection == Axis.vertical ? 600.0 : 800.0;
+      double along(Offset offset) =>
+          offset.dx * forward.dx + offset.dy * forward.dy;
+      _TestList createList() =>
+          _TestList(50, scrollDirection: scrollDirection, reverse: reverse);
+
+      testWidgets('moves an item out through the ${edge.name} edge', (
+        tester,
+      ) async {
+        final list = createList();
+        await tester.pumpWidget(list.build());
+        final slot = tester.getTopLeft(_itemWithId(0));
+
+        list.state.reorderItem(0, destIndex: 40);
+        final path = await _pathUntilSettled(tester, _itemWithId(0));
+
+        // To just outside the overlay.
+        _expectStraightPath(path, slot, slot + forward * viewportExtent);
+        expect(_itemWithId(0), findsNothing);
+        expect(list.items.indexOf(0), 40);
+      });
+
+      testWidgets('moves an item in through the ${edge.name} edge', (
+        tester,
+      ) async {
+        final list = createList();
+        await tester.pumpWidget(list.build());
+        final slot = tester.getTopLeft(_itemWithId(0));
+
+        list.state.reorderItem(40, destIndex: 0);
+        final path = await _pathUntilSettled(tester, _itemWithId(40));
+
+        // From just outside the overlay.
+        expect(along(path.first - slot), viewportExtent);
+        for (var i = 1; i < path.length; i++) {
+          expect(
+            along(path[i] - slot),
+            lessThanOrEqualTo(along(path[i - 1] - slot)),
+          );
+        }
+        expect(path.last, slot);
+        expect(list.items.indexOf(40), 0);
+      });
+    }
+  });
+
+  group('scroll', () {
+    for (final (scrollDirection, reverse, shift) in [
+      (Axis.vertical, false, const Offset(0, -50)),
+      (Axis.vertical, true, const Offset(0, 50)),
+      (Axis.horizontal, false, const Offset(-50, 0)),
+      (Axis.horizontal, true, const Offset(50, 0)),
+    ]) {
+      testWidgets('moves moving items with a ${reverse ? 'reversed ' : ''}'
+          '${scrollDirection.name} list', (tester) async {
+        final list = _TestList(
+          50,
+          scrollDirection: scrollDirection,
+          reverse: reverse,
+        );
+        await tester.pumpWidget(list.build());
+        list.state.reorderItem(0, destIndex: 3);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        final position = tester.getTopLeft(_itemWithId(0));
+
+        _scrollPosition(tester).jumpTo(50);
+        await tester.pump();
+
+        expect(tester.getTopLeft(_itemWithId(0)) - position, shift);
+        await tester.pumpAndSettle();
+        expect(list.items.indexOf(0), 3);
+      });
+    }
+  });
+
+  group('children delegate', () {
+    testWidgets('reorders the children of a list view', (tester) async {
+      final list = _ChildrenList(5);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 2);
+      await tester.pumpWidget(list.build());
+      await tester.pumpAndSettle();
+
+      expect(list.items, [1, 2, 0, 3, 4]);
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400]);
+      expect(list.inits.values, everyElement(1));
+    });
+
+    testWidgets('inserts into the children of a list view', (tester) async {
+      final list = _ChildrenList(5);
+      await tester.pumpWidget(list.build());
+
+      list.items.insert(0, 5);
+      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      await tester.pumpWidget(list.build());
+      await tester.pumpAndSettle();
+
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400, 500]);
+      expect(list.inits.values, everyElement(1));
+    });
+
+    testWidgets("finds moved items with the list view's callback", (
+      tester,
+    ) async {
+      final list = _ChildrenList(5, builder: true);
+      await tester.pumpWidget(list.build());
+
+      list.items.insert(0, 5);
+      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      await tester.pumpAndSettle();
+
+      expect(list.foundKeys, isNotEmpty);
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400, 500]);
+      expect(list.inits.values, everyElement(1));
+    });
+  });
+
+  group('errors', () {
+    Widget noItem(BuildContext context, int index, Animation<double> _) =>
+        const SizedBox();
+    Widget noRemovedItem(BuildContext context, Animation<double> _) =>
+        const SizedBox();
+
+    testWidgets('checks the index of an inserted item', (tester) async {
+      final list = _TestList(3);
+      await tester.pumpWidget(list.build());
+
+      expect(() => list.state.insertItem(-1, noItem), throwsRangeError);
+      expect(() => list.state.insertItem(4, noItem), throwsRangeError);
+      list.insert(3, 3);
+      await tester.pumpAndSettle();
+      expect(_itemWithId(3), findsOneWidget);
+    });
+
+    testWidgets('checks the index of a removed item', (tester) async {
+      final list = _TestList(3);
+      await tester.pumpWidget(list.build());
+
+      expect(() => list.state.removeItem(-1, noRemovedItem), throwsRangeError);
+      expect(() => list.state.removeItem(3, noRemovedItem), throwsRangeError);
+    });
+
+    testWidgets('checks the index of a reordered item', (tester) async {
+      final list = _TestList(3);
+      await tester.pumpWidget(list.build());
+
+      expect(() => list.state.reorderItem(-1, destIndex: 0), throwsRangeError);
+      expect(() => list.state.reorderItem(3, destIndex: 0), throwsRangeError);
+    });
+
+    testWidgets('needs onReorder to reorder', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(_labels(const ['a', 'b'], key: key));
+
+      expect(
+        () => key.currentState!.reorderItem(0, destIndex: 1),
+        throwsA(anything),
+      );
+    });
+
+    testWidgets('reorders only reorderable items', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      final labels = ['a', 'b', 'c'];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(labels[index]),
+              reorderableGetter: (index) => index != 1,
+              onReorder: (permutations) => permutations.apply(labels),
+              listView: ListView.builder(
+                itemCount: labels.length,
+                itemBuilder: (context, index) => Text(labels[index]),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        () => key.currentState!.reorderItem(1, destIndex: 0),
+        throwsA(anything),
+      );
+      expect(
+        () => key.currentState!.reorderItem(0, destIndex: 1),
+        throwsA(anything),
+      );
+      expect(labels, ['a', 'b', 'c']);
+    });
+
+    testWidgets('needs an item count to insert', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(index),
+              listView: ListView.builder(
+                itemBuilder: (context, index) => Text('$index'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(() => key.currentState!.insertItem(0, noItem), throwsA(anything));
+    });
+  });
+
+  group('callbacks', () {
+    testWidgets('report a swipe', (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(
+        _withCallbacks(
+          calls,
+          onSwipeToRemove: (index) => calls.add('remove $index'),
+        ),
+      );
+
+      final swipe = await tester.startGesture(tester.getCenter(find.text('1')));
+      await swipe.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      await swipe.moveBy(const Offset(-20, 40));
+      await tester.pump();
+      await swipe.up();
+      await tester.pumpAndSettle();
+
+      expect(calls, [
+        'swipe start 1',
+        'swipe update 1 Offset(-30.0, 0.0) -30.0',
+        'swipe update 1 Offset(-20.0, 0.0) -20.0',
+        'swipe end 1',
+      ]);
+    });
+
+    testWidgets('report a swipe that removes an item', (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(
+        _withCallbacks(
+          calls,
+          onSwipeToRemove: (index) => calls.add('remove $index'),
+        ),
+      );
+
+      await tester.fling(find.text('1'), const Offset(-200, 0), 2000);
+      await tester.pumpAndSettle();
+
+      expect(calls.first, 'swipe start 1');
+      expect(
+        calls.skip(1).take(calls.length - 3),
+        everyElement(startsWith('swipe update 1')),
+      );
+      expect(calls.reversed.take(2), ['remove 1', 'swipe end 1']);
+    });
+
+    testWidgets('report a drag', (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(_withCallbacks(calls));
+
+      final drag = await tester.startGesture(tester.getCenter(find.text('0')));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      for (var i = 0; i < 11; i++) {
+        await drag.moveBy(const Offset(0, 20));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await drag.up();
+      await tester.pumpAndSettle();
+
+      expect(calls.first, 'drag start 0');
+      expect(calls.last, 'drag end 2');
+      expect(calls, contains('drag update 0 Offset(0.0, 20.0) null'));
+      expect(calls, contains('drag update 2 Offset(0.0, 20.0) null'));
+    });
+  });
 }
 
 /// A list of [labels] keyed by label, rebuilt from scratch like immutable
@@ -597,6 +1096,139 @@ void _resize(WidgetTester tester, Size size) {
   addTearDown(tester.view.resetPhysicalSize);
 }
 
+/// One logical pixel in [direction].
+Offset _unit(AxisDirection direction) => switch (direction) {
+  AxisDirection.left => const Offset(-1, 0),
+  AxisDirection.right => const Offset(1, 0),
+  AxisDirection.up => const Offset(0, -1),
+  AxisDirection.down => const Offset(0, 1),
+};
+
+/// The tops of the items with [ids].
+List<double> _tops(WidgetTester tester, List<int> ids) => [
+  for (final id in ids) tester.getTopLeft(_itemWithId(id)).dy,
+];
+
+/// Where [finder] is after each frame until the animations end, or until it
+/// is gone. Calls [onFrame] after each frame.
+Future<List<Offset>> _pathUntilSettled(
+  WidgetTester tester,
+  Finder finder, {
+  VoidCallback? onFrame,
+}) async {
+  final path = <Offset>[];
+  do {
+    await tester.pump(const Duration(milliseconds: 50));
+    onFrame?.call();
+    if (finder.evaluate().isEmpty) break;
+    path.add(tester.getTopLeft(finder));
+  } while (tester.binding.hasScheduledFrame);
+  return path;
+}
+
+/// Expects every item of [ids] to show once, as itself.
+void _expectEachItemOnce(List<int> ids) {
+  for (final id in ids) {
+    expect(_itemWithId(id), findsOneWidget, reason: 'item $id');
+  }
+}
+
+/// Expects [path] to go straight from [from] to [to], never back.
+void _expectStraightPath(List<Offset> path, Offset from, Offset to) {
+  expect(path.first, from);
+  expect(path.last, to);
+  final direction = (to - from) / (to - from).distance;
+  var traveled = 0.0;
+  for (final position in path) {
+    final offset = position - from;
+    final along = offset.dx * direction.dx + offset.dy * direction.dy;
+    expect(offset - direction * along, _offsetCloseTo(Offset.zero, 1e-6));
+    expect(along, greaterThanOrEqualTo(traveled));
+    traveled = along;
+  }
+}
+
+Matcher _offsetCloseTo(Offset expected, double epsilon) => predicate<Offset>(
+  (offset) => (offset - expected).distance < epsilon,
+  'within $epsilon of $expected',
+);
+
+/// A list view of children, or with [builder] a list view builder that
+/// finds its children by key.
+class _ChildrenList {
+  _ChildrenList(int count, {this.builder = false})
+    : items = List.generate(count, (i) => i);
+
+  final List<int> items;
+  final bool builder;
+  final key = GlobalKey<AnimatedReorderableState>();
+  final inits = <int, int>{};
+
+  /// The keys the list view builder's callback was asked to find.
+  final foundKeys = <Key>[];
+
+  AnimatedReorderableState get state => key.currentState!;
+
+  Widget build() => MaterialApp(
+    home: Scaffold(
+      body: AnimatedReorderable.list(
+        key: key,
+        keyGetter: (index) => ValueKey(items[index]),
+        onReorder: (permutations) => permutations.apply(items),
+        listView: builder
+            ? ListView.builder(
+                itemCount: items.length,
+                findChildIndexCallback: (key) {
+                  foundKeys.add(key);
+                  final index = items.indexOf((key as ValueKey<int>).value);
+                  return index < 0 ? null : index;
+                },
+                itemBuilder: (context, index) => item(items[index]),
+              )
+            : ListView(children: [for (final id in items) item(id)]),
+      ),
+    ),
+  );
+
+  Widget item(int id) => _Item(
+    id: id,
+    onInit: () => inits.update(id, (n) => n + 1, ifAbsent: () => 1),
+  );
+}
+
+/// A list of five labels that records its drag and swipe callbacks in
+/// [calls].
+Widget _withCallbacks(
+  List<String> calls, {
+  SwipeToRemoveCallback? onSwipeToRemove,
+}) {
+  final labels = ['0', '1', '2', '3', '4'];
+  String update(String name, DragUpdateDetails details, int index) =>
+      '$name update $index ${details.delta} ${details.primaryDelta}';
+  return MaterialApp(
+    home: Scaffold(
+      body: AnimatedReorderable.list(
+        keyGetter: (index) => ValueKey(labels[index]),
+        onReorder: (permutations) => permutations.apply(labels),
+        onSwipeToRemove: onSwipeToRemove,
+        onItemDragStart: (details, index) => calls.add('drag start $index'),
+        onItemDragUpdate: (details, index) =>
+            calls.add(update('drag', details, index)),
+        onItemDragEnd: (details, index) => calls.add('drag end $index'),
+        onItemSwipeStart: (details, index) => calls.add('swipe start $index'),
+        onItemSwipeUpdate: (details, index) =>
+            calls.add(update('swipe', details, index)),
+        onItemSwipeEnd: (details, index) => calls.add('swipe end $index'),
+        listView: ListView.builder(
+          itemCount: labels.length,
+          itemBuilder: (context, index) =>
+              SizedBox(height: _extent, child: Text(labels[index])),
+        ),
+      ),
+    ),
+  );
+}
+
 /// A list of ids shown as stateful items of a fixed extent.
 class _TestList {
   _TestList(
@@ -605,12 +1237,20 @@ class _TestList {
     this.gridDelegate = const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 3,
     ),
+    this.scrollDirection = Axis.vertical,
+    this.reverse = false,
+    this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
   }) : items = List.generate(count, (i) => i);
 
   final List<int> items;
   final bool grid;
   final SliverGridDelegate gridDelegate;
+  final Axis scrollDirection;
+  final bool reverse;
+
+  /// The swipe direction of every item, or null for the default one.
+  final AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
   final key = GlobalKey<AnimatedReorderableState>();
 
@@ -627,7 +1267,10 @@ class _TestList {
           keyGetter: (index) => ValueKey(items[index]),
           onReorder: (permutations) => permutations.apply(items),
           onSwipeToRemove: removeAt,
+          swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
           gridView: GridView.builder(
+            scrollDirection: scrollDirection,
+            reverse: reverse,
             gridDelegate: gridDelegate,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),
@@ -638,12 +1281,21 @@ class _TestList {
           keyGetter: (index) => ValueKey(items[index]),
           onReorder: (permutations) => permutations.apply(items),
           onSwipeToRemove: removeAt,
+          swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
           swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
           listView: ListView.builder(
+            scrollDirection: scrollDirection,
+            reverse: reverse,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),
           ),
         );
+
+  AxisDirectionGetter? get _swipeToRemoveDirectionGetter =>
+      switch (swipeToRemoveDirection) {
+        final direction? => (_) => direction,
+        null => null,
+      };
 
   void insert(int index, int id) {
     items.insert(index, id);
@@ -686,7 +1338,7 @@ class _ItemState extends State<_Item> {
 
   @override
   Widget build(BuildContext context) =>
-      SizedBox(height: _extent, child: Text('${widget.id}'));
+      SizedBox.square(dimension: _extent, child: Text('${widget.id}'));
 }
 
 /// The objects of [className] created from now on that are not disposed yet.
