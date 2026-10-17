@@ -50,8 +50,10 @@ class ControllerState<
 
   bool isSwiped({required Key key}) => key == swipedItem?.key;
 
-  Item? itemAt({required int index}) =>
-      itemBy(key: _itemKeyByIndex[index] ?? UniqueKey());
+  Item? itemAt({required int index}) => switch (_itemKeyByIndex[index]) {
+    final key? => itemBy(key: key),
+    null => null,
+  };
 
   Item? itemBy({required Key key}) => _itemByKey[key];
 
