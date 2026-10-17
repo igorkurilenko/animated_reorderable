@@ -11,7 +11,6 @@ class ControllerState {
   OverlayedItem? swipedItem;
   Key? itemUnderThePointerKey;
   int? itemCount;
-  BoxConstraints? constraints;
   SliverGridLayout? gridLayout;
 
   /// The scroll extent before the grid, like its padding.

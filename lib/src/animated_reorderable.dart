@@ -8,6 +8,7 @@ import 'model/permutations.dart';
 import 'util/anchored_scroll_physics.dart';
 import 'util/overridden_sliver_child_builder_delegate.dart';
 import 'util/sliver_grid_layout_notifier.dart';
+import 'widget/cross_axis_resize_listener.dart';
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
@@ -658,36 +659,39 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      _controller.handleConstraintsChange(constraints);
-      return Stack(
-        children: [
-          Align(
-            alignment: Alignment.center,
-            // A layout-time correction, like a clamp after the content
-            // shrank, moves the scroll offset without notifying listeners.
-            // Only re-mark the baseline: overlayed items are re-targeted from
-            // live positions after the build, so shifting them would count
-            // the correction twice. On ordinary scrolls this is a no-op.
-            child: NotificationListener<ScrollMetricsNotification>(
-              onNotification: (notification) {
-                if (notification.depth == 0) _controller.markScrollOffset();
-                return false;
-              },
-              child: ItemsLayer(
-                controller: _controller,
-                collectionViewBuilder: buildCollectionView,
-              ),
+  Widget build(BuildContext context) => CrossAxisResizeListener(
+    scrollDirection: _scrollDirection,
+    // A grid keeps its first visible item in place when its cross axis
+    // resizes.
+    onResize: _controller.anchorFirstVisibleGridItem,
+    // The layers build again with the new constraints, so the overlayed
+    // items fit the new layout.
+    builder: (context) => Stack(
+      children: [
+        Align(
+          alignment: Alignment.center,
+          // A layout-time correction, like a clamp after the content
+          // shrank, moves the scroll offset without notifying listeners.
+          // Only re-mark the baseline: overlayed items are re-targeted from
+          // live positions after the build, so shifting them would count
+          // the correction twice. On ordinary scrolls this is a no-op.
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              if (notification.depth == 0) _controller.markScrollOffset();
+              return false;
+            },
+            child: ItemsLayer(
+              controller: _controller,
+              collectionViewBuilder: buildCollectionView,
             ),
           ),
-          OverlayedItemsLayer(
-            controller: _controller,
-            clipBehavior: _clipBehavior,
-          ),
-        ],
-      );
-    },
+        ),
+        OverlayedItemsLayer(
+          controller: _controller,
+          clipBehavior: _clipBehavior,
+        ),
+      ],
+    ),
   );
 
   Widget buildCollectionView(BuildContext context);

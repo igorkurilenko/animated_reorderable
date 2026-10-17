@@ -468,9 +468,10 @@ class AnimatedReorderableController implements ItemHost {
             _childrenDelegate.originalBuilder(context, index)!,
         constraints:
             constraints ??
+            // As wide as the overlay, which covers the list, or as high.
             (scrollDirection == Axis.vertical
-                ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
-                : BoxConstraints(maxHeight: _state.constraints!.maxHeight)),
+                ? BoxConstraints(maxWidth: overlayedItemsLayer!.size!.width)
+                : BoxConstraints(maxHeight: overlayedItemsLayer!.size!.height)),
       );
 
   Size getScreenSize() {
@@ -870,22 +871,6 @@ extension ScrollHandler on AnimatedReorderableController {
             .where((x) => !_state.isSwiped(key: x.key))) {
       x.shift(-delta);
     }
-  }
-}
-
-extension ConstraintsChangeHandler on AnimatedReorderableController {
-  void handleConstraintsChange(BoxConstraints constraints) {
-    final oldConstraints = _state.constraints;
-    _state.constraints = constraints;
-    if (oldConstraints == null) return;
-
-    final scaleFactor = scrollDirection == Axis.vertical
-        ? constraints.maxWidth / oldConstraints.maxWidth
-        : constraints.maxHeight / oldConstraints.maxHeight;
-    // Every rebuild comes here too.
-    if (scaleFactor == 1) return;
-
-    anchorFirstVisibleGridItem();
   }
 }
 
