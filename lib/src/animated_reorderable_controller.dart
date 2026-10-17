@@ -4,12 +4,11 @@ import 'package:flutter/widgets.dart' as widgets;
 
 import '../animated_reorderable.dart';
 import 'const.dart';
+import 'controller/overlay_coordinator.dart';
 import 'controller/scroll_sync.dart';
 import 'model/model.dart' as model;
 import 'model/swipe_direction.dart';
-import 'util/geometry.dart';
 import 'util/gesture_recognizers.dart';
-import 'util/measure_util.dart';
 import 'util/overridden_sliver_child_builder_delegate.dart';
 import 'util/scheduling.dart';
 import 'widget/item_widget.dart';
@@ -46,7 +45,7 @@ class AnimatedReorderableController implements ItemHost {
   late OverriddenSliverChildBuilderDelegate _childrenDelegate;
   final model.ControllerState _state;
   ItemsLayerState? _itemsLayer;
-  OverlayedItemsLayerState? _overlayedItemsLayer;
+  OverlayCoordinator? _overlay;
 
   /// Whether the items layer was built since the last reconcile pass.
   bool _itemsLayerBuilt = false;
@@ -103,7 +102,7 @@ class AnimatedReorderableController implements ItemHost {
       vsync: vsync,
     );
 
-    overlayRenderedItems(
+    _overlay?.overlayRenderedItems(
       except: insertedItem.key,
       newIndex: (x) => x.index >= index ? x.index + 1 : x.index,
     );
@@ -120,37 +119,24 @@ class AnimatedReorderableController implements ItemHost {
     final removedItem = _state.removeItem(index: index);
     if (removedItem == null) return;
 
-    final renderedItem = _state.renderedItemBy(key: removedItem.key);
-    // An item that moves where the list does not build it goes on moving,
-    // and its overlayed item disposes it.
-    final moving = _state.overlayedItemBy(key: removedItem.key)?.item;
-    if (renderedItem == null && moving != removedItem) {
-      removedItem.dispose();
+    final overlay = _overlay;
+    if (overlay == null) {
+      _state.releaseRemovedItem(removedItem);
+      return;
     }
 
-    overlayRenderedItems(
-      except: removedItem.key,
-      newIndex: (x) => x.index > index ? x.index - 1 : x.index,
-    );
-
-    if (renderedItem == null) return;
-    // It leaves its key to an item the list may show with it.
-    final outgoingItem = _state.putOutgoingItem(
-      key: renderedItem.key,
-      ifAbsent: () => createOverlayedItem(renderedItem, item: removedItem),
-    );
-    _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
-    outgoingItem
-      // It keeps its size while the removed item builder animates it.
-      ..setConstraints(widgets.BoxConstraints.tight(outgoingItem.size))
-      ..setInteractive(false);
-    removedItem
-        .animateRemovedItemBuilder(
-          builder: builder,
-          duration: duration,
-          vsync: vsync,
-        )
-        .whenComplete(() => _state.removeOutgoingItem(outgoingItem));
+    overlay
+      ..overlayRenderedItems(
+        except: removedItem.key,
+        newIndex: (x) => x.index > index ? x.index - 1 : x.index,
+      )
+      ..animateOut(
+        removedItem,
+        renderedItem: _state.renderedItemBy(key: removedItem.key),
+        builder: builder,
+        duration: duration,
+        zIndex: zIndex ?? outgoingItemZIndex,
+      );
   }
 
   void reorderItem(int index, {required int destIndex}) {
@@ -176,19 +162,20 @@ class AnimatedReorderableController implements ItemHost {
       itemFactory: createItem,
     );
 
-    overlayRenderedItems(
-      newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
-    );
-    overlayNotRenderedItem(
-      itemAtIndex,
-      index: index,
-      newIndex: permutations.indexOf(itemAtIndex.key)!,
-    );
-    overlayNotRenderedItem(
-      itemAtDestIndex,
-      index: destIndex,
-      newIndex: permutations.indexOf(itemAtDestIndex.key)!,
-    );
+    _overlay
+      ?..overlayRenderedItems(
+        newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
+      )
+      ..overlayNotRenderedItem(
+        itemAtIndex,
+        index: index,
+        newIndex: permutations.indexOf(itemAtIndex.key)!,
+      )
+      ..overlayNotRenderedItem(
+        itemAtDestIndex,
+        index: destIndex,
+        newIndex: permutations.indexOf(itemAtDestIndex.key)!,
+      );
 
     onReorder(permutations);
   }
@@ -212,22 +199,6 @@ class AnimatedReorderableController implements ItemHost {
     _state.dispose();
   }
 
-  Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
-      [..._state.overlayedItems, ..._state.outgoingItems]
-        ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
-
-  bool isDragged(model.RenderedItem item) => _state.isDragged(key: item.key);
-
-  bool isSwiped(model.RenderedItem item) => _state.isSwiped(key: item.key);
-
-  bool isNotDragged(model.RenderedItem item) => !isDragged(item);
-
-  bool isNotSwiped(model.RenderedItem item) => !isSwiped(item);
-
-  bool isRendered(model.OverlayedItem item) => _state.isRendered(key: item.key);
-
-  bool isNotRendered(model.OverlayedItem item) => !isRendered(item);
-
   /// What the items layer builds from changes with these.
   widgets.Listenable get itemsChanges => _state.itemsChanges;
 
@@ -235,9 +206,9 @@ class AnimatedReorderableController implements ItemHost {
   /// with the overlayed items themselves.
   widgets.Listenable get overlayChanges => _state.overlayChanges;
 
-  ItemsLayerState? get itemsLayer => _itemsLayer;
-
-  OverlayedItemsLayerState? get overlayedItemsLayer => _overlayedItemsLayer;
+  /// The overlayed and outgoing items, from the bottom one up.
+  Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
+      _state.overlayedItemsByZIndex;
 
   /// The layers attach themselves while they are mounted.
   void attachItemsLayer(ItemsLayerState layer) => _itemsLayer = layer;
@@ -246,12 +217,26 @@ class AnimatedReorderableController implements ItemHost {
     if (_itemsLayer == layer) _itemsLayer = null;
   }
 
+  /// Items move between the list and the overlay while the overlay is
+  /// attached.
   void attachOverlayedItemsLayer(OverlayedItemsLayerState layer) =>
-      _overlayedItemsLayer = layer;
+      _overlay = OverlayCoordinator(
+        overlay: layer,
+        items: _state,
+        scrollSync: scrollSync,
+        vsync: vsync,
+        motionAnimationDuration: () => motionAnimationDuration,
+        motionAnimationCurve: () => motionAnimationCurve,
+        scrollDirection: () => scrollDirection,
+        itemBuilder: () => childrenDelegate.originalBuilder,
+      );
 
   void detachOverlayedItemsLayer(OverlayedItemsLayerState layer) {
-    if (_overlayedItemsLayer == layer) _overlayedItemsLayer = null;
+    if (_overlay?.overlay == layer) _overlay = null;
   }
+
+  void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) =>
+      _overlay?.didResizeItem(size, item);
 
   bool didSwipeToRemove(
     model.OverlayedItem item, {
@@ -282,79 +267,6 @@ class AnimatedReorderableController implements ItemHost {
     ),
   );
 
-  model.OverlayedItem createOverlayedItem(
-    model.RenderedItem renderedItem, {
-    MultiDragGestureRecognizerFactory? recognizerFactory,
-    model.Item? item,
-  }) {
-    return model.OverlayedItem(
-      item: item ?? _state.itemBy(key: renderedItem.key)!,
-      index: renderedItem.index,
-      position: overlayedItemsLayer!.globalToLocal(
-        renderedItem.globalPosition!,
-      ),
-      // The item lays out in the overlay as it would in the list.
-      constraints:
-          renderedItem.constraints ??
-          widgets.BoxConstraints.tight(renderedItem.size!),
-      size: renderedItem.size!,
-      recognizerFactory: recognizerFactory,
-    );
-  }
-
-  /// Overlays the rendered items, except [except] and the held ones, so
-  /// they can move to their slots at [newIndex] when the list lays out.
-  ///
-  /// After another change in the same frame, the list may not have built
-  /// its items again yet. Items already in the overlay keep their indexes,
-  /// which the model has moved, and removed items stay as they are.
-  void overlayRenderedItems({
-    required int Function(model.RenderedItem item) newIndex,
-    widgets.Key? except,
-  }) {
-    for (var renderedItem
-        in _state.renderedItems
-            .where((x) => x.key != except)
-            .where((x) => _state.itemBy(key: x.key) != null)
-            .where(isNotDragged)
-            .where(isNotSwiped)) {
-      final overlayedItem =
-          _state.overlayedItemBy(key: renderedItem.key) ??
-          _state.putOverlayedItem(
-            createOverlayedItem(renderedItem)..index = newIndex(renderedItem),
-          );
-      overlayedItem.setInteractive(false);
-    }
-  }
-
-  /// Overlays [item], which was at [index] and is neither rendered nor
-  /// overlayed, just outside the overlay, so it can move in to its slot at
-  /// [newIndex] when the list lays out.
-  void overlayNotRenderedItem(
-    model.Item item, {
-    required int index,
-    required int newIndex,
-  }) {
-    if (_state.isRendered(key: item.key)) return;
-    if (_state.isOverlayed(key: item.key)) return;
-
-    final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
-      notRenderedItemIndex: index,
-      anyRenderedItem: _state.renderedItems.first,
-    );
-
-    _state.putOverlayedItem(
-      model.OverlayedItem(
-        item: item,
-        index: newIndex,
-        position: fakeGeometry.topLeft,
-        constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
-        size: fakeGeometry.size,
-        interactive: false,
-      ),
-    );
-  }
-
   void registerRenderedItem(model.RenderedItem item) =>
       _state.putRenderedItem(item);
 
@@ -367,16 +279,8 @@ class AnimatedReorderableController implements ItemHost {
 
   widgets.ScrollPosition? get scrollPosition => scrollSync.scrollPosition;
 
-  /// The overlayed items move with the content as the view scrolls, except
-  /// the held ones, which stay under the pointer.
-  void _shiftOverlayedItems(Offset delta) {
-    for (var x
-        in [..._state.overlayedItems, ..._state.outgoingItems]
-            .where((x) => x != _state.draggedItem)
-            .where((x) => x != _state.swipedItem)) {
-      x.shift(-delta);
-    }
-  }
+  void _shiftOverlayedItems(Offset delta) =>
+      _overlay?.shiftOverlayedItems(delta);
 
   void reorderAndAutoScrollIfNecessary() {
     reorderDraggedItemIfNecessary();
@@ -387,9 +291,8 @@ class AnimatedReorderableController implements ItemHost {
     final item = _state.draggedItem;
     if (item == null) return;
 
-    scrollSync.autoScroll(
-      overlayedItemsLayer!.localToGlobal(item.position) & item.size,
-    );
+    final rect = _overlay?.globalRectOf(item);
+    if (rect != null) scrollSync.autoScroll(rect);
   }
 
   void reorderDraggedItemIfNecessary() {
@@ -414,82 +317,6 @@ class AnimatedReorderableController implements ItemHost {
           .renderedItemAt(position: pointerPosition)
           ?.key,
     );
-  }
-
-  void unoverlay(model.OverlayedItem item) {
-    if (_state.overlayedItemBy(key: item.key) != item) return;
-    _state.removeOverlayedItem(key: item.key);
-    addPostFrame(() {
-      if (_state.overlayedItemBy(key: item.key) != item) {
-        _state.disposeOverlayedItem(item);
-      }
-    });
-  }
-
-  widgets.Rect getFakeAnchorGeometryOfNotRenderedItem({
-    required int notRenderedItemIndex,
-    required model.RenderedItem anyRenderedItem,
-    widgets.Size? itemSize,
-  }) {
-    final gridLayout = scrollSync.gridLayout;
-    itemSize ??=
-        gridLayout?.getChildSize(notRenderedItemIndex, scrollDirection) ??
-        // A list lays out all its items with the same constraints.
-        measureItemWidgetAt(
-          index: notRenderedItemIndex,
-          constraints: anyRenderedItem.constraints,
-        );
-
-    // Just outside the overlay, which covers the list. It is the space the
-    // overlayed items are positioned in, unlike the screen.
-    final bounds = Offset.zero & overlayedItemsLayer!.size;
-    // In line with a list's items, or in the middle of a grid.
-    final anyRenderedItemPosition = gridLayout == null
-        ? anyRenderedItem.globalPosition
-        : null;
-    final crossAxisPosition = anyRenderedItemPosition != null
-        ? overlayedItemsLayer!.globalToLocal(anyRenderedItemPosition)
-        : bounds.center - Offset(itemSize.width / 2, itemSize.height / 2);
-    final before = notRenderedItemIndex < anyRenderedItem.index;
-    final fakePosition = switch (scrollPosition!.axisDirection) {
-      AxisDirection.down => Offset(
-        crossAxisPosition.dx,
-        before ? bounds.top - itemSize.height : bounds.bottom,
-      ),
-      AxisDirection.right => Offset(
-        before ? bounds.left - itemSize.width : bounds.right,
-        crossAxisPosition.dy,
-      ),
-      AxisDirection.up => Offset(
-        crossAxisPosition.dx,
-        before ? bounds.bottom : bounds.top - itemSize.height,
-      ),
-      AxisDirection.left => Offset(
-        before ? bounds.right : bounds.left - itemSize.width,
-        crossAxisPosition.dy,
-      ),
-    };
-
-    return fakePosition & itemSize;
-  }
-
-  Size measureItemWidgetAt({required int index, BoxConstraints? constraints}) =>
-      MeasureUtil.measureWidget(
-        context: scrollPosition!.context.storageContext,
-        builder: (context) =>
-            _childrenDelegate.originalBuilder(context, index)!,
-        constraints:
-            constraints ??
-            // As wide as the overlay, which covers the list, or as high.
-            (scrollDirection == Axis.vertical
-                ? BoxConstraints(maxWidth: overlayedItemsLayer!.size.width)
-                : BoxConstraints(maxHeight: overlayedItemsLayer!.size.height)),
-      );
-
-  Size getScreenSize() {
-    final screenView =
-        widgets.WidgetsBinding.instance.platformDispatcher.views.first;
-    return screenView.physicalSize / screenView.devicePixelRatio;
   }
 
   bool isItemRendered(int index) {
@@ -551,202 +378,53 @@ class AnimatedReorderableController implements ItemHost {
   /// were built.
   void _reconcile() {
     _reconcileScheduled = false;
-    if (_itemsLayerBuilt) {
-      _itemsLayerBuilt = false;
-      reconcileItemsLayer();
-    }
+    final itemsLayerBuilt = _itemsLayerBuilt;
     final builtItems = _builtItems.toList();
+    _itemsLayerBuilt = false;
     _builtItems.clear();
-    builtItems.forEach(reconcileItem);
-  }
 
-  /// Moves the overlayed item of [item] to where the list laid [item] out.
-  void reconcileItem(model.RenderedItem item) {
-    final overlayedItem = _state.overlayedItemBy(key: item.key);
-    if (overlayedItem == null) return;
-
-    // They change when the list resizes.
-    final constraints = item.constraints;
-    if (constraints != null && constraints != overlayedItem.constraints) {
-      overlayedItem.setConstraints(constraints);
-      if (isDragged(item)) {
-        // Its new size, unless its main axis extent changes too.
-        final size = constraints.constrain(overlayedItem.size);
-        keepUnderPointer(overlayedItem, size: size);
-        _state.setOverlayedItemSize(overlayedItem, size);
-      }
-    }
-
-    if (isDragged(item)) return;
-
-    final globalPosition = item.globalPosition;
-    if (globalPosition == null) return;
-
-    final anchorPosition = overlayedItemsLayer!.globalToLocal(globalPosition);
-
-    if (isSwiped(item)) {
-      // It stays in its slot, swiped as far.
-      overlayedItem.setPosition(anchorPosition + overlayedItem.swipeOffset);
-      return;
-    }
-
-    if (overlayedItem.anchorPosition != anchorPosition) {
-      overlayedItem
-          .animateTo(
-            anchorPosition,
-            vsync: vsync,
-            duration: motionAnimationDuration,
-            curve: motionAnimationCurve,
-          )
-          .whenComplete(() => unoverlay(overlayedItem));
-    } else if (!(overlayedItem.motionAnimationStatus?.isAnimating ?? false)) {
-      unoverlay(overlayedItem);
-    }
+    final overlay = _overlay;
+    if (overlay == null) return;
+    if (itemsLayerBuilt) overlay.reconcileItemsLayer();
+    builtItems.forEach(overlay.reconcileItem);
   }
 
   @override
   void recognizeReorderDrag(model.RenderedItem item, PointerDownEvent event) =>
-      createOverlayedItem(
-        item,
-        recognizerFactory: reorderGestureRecognizerFactory,
-      ).recognizeDrag(
-        event,
-        context: item.context,
-        onDragStart: (details, overlayedItem) {
-          overlayedItem.recognizerFactory =
-              createImmediateDragGestureRecognizer;
-          handleItemDragStart(details, overlayedItem);
-        },
-        onDragUpdate: handleItemDragUpdate,
-        onDragEnd: handleItemDragEnd,
-      );
+      _overlay
+          ?.createOverlayedItem(
+            item,
+            recognizerFactory: reorderGestureRecognizerFactory,
+          )
+          .recognizeDrag(
+            event,
+            context: item.context,
+            onDragStart: (details, overlayedItem) {
+              overlayedItem.recognizerFactory =
+                  createImmediateDragGestureRecognizer;
+              handleItemDragStart(details, overlayedItem);
+            },
+            onDragUpdate: handleItemDragUpdate,
+            onDragEnd: handleItemDragEnd,
+          );
 
   @override
   void recognizeSwipe(model.RenderedItem item, PointerDownEvent event) {
     final swipeDirection = item.swipeToRemoveDirection;
     if (swipeDirection == null) return;
-    createOverlayedItem(
-      item,
-      recognizerFactory: swipeDirection.recognizerFactory,
-    ).recognizeSwipe(
-      event,
-      context: item.context,
-      swipeDirection: swipeDirection,
-      onSwipeStart: handleItemSwipeStart,
-      onSwipeUpdate: handleItemSwipeUpdate,
-      onSwipeEnd: handleItemSwipeEnd,
-    );
-  }
-}
-
-extension OverlayedItemSizeChangeHandler on AnimatedReorderableController {
-  /// The list's placeholder follows the item's size in the overlay.
-  void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) {
-    if (item.size == size) return;
-    if (item == _state.draggedItem) keepUnderPointer(item, size: size);
-    _state.setOverlayedItemSize(item, size);
-  }
-}
-
-extension DraggedItemPlacement on AnimatedReorderableController {
-  /// Keeps the pointer over the same point of a dragged item, relative to
-  /// its size, when the item is about to change its [size].
-  void keepUnderPointer(model.OverlayedItem item, {required Size size}) {
-    final globalPointerPosition = item.globalPointerPosition;
-    if (globalPointerPosition == null || item.size.isEmpty) return;
-    final pointer = overlayedItemsLayer!.globalToLocal(globalPointerPosition);
-    final grip = pointer - item.position;
-    item.setPosition(
-      pointer -
-          Offset(
-            grip.dx * size.width / item.size.width,
-            grip.dy * size.height / item.size.height,
-          ),
-    );
-  }
-}
-
-extension ItemsLayerReconciliation on AnimatedReorderableController {
-  /// Fits removed items to the layout and moves the overlayed items that
-  /// the list did not build out of sight.
-  void reconcileItemsLayer() {
-    fitOutgoingItemsToLayout();
-
-    for (var overlayedItem
-        in _state.overlayedItems.where(isNotRendered).toList()) {
-      final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
-        notRenderedItemIndex: overlayedItem.index,
-        anyRenderedItem: _state.renderedItems.first,
-        itemSize: overlayedItem.size,
-      );
-
-      overlayedItem
-          .animateTo(
-            fakeGeometry.topLeft,
-            vsync: vsync,
-            duration: motionAnimationDuration,
-            curve: motionAnimationCurve,
-          )
-          .whenComplete(() => unoverlay(overlayedItem));
-    }
-  }
-
-  /// A removed item has no slot any more. It fades out in place, as wide
-  /// as the list's slots (or as big as the grid's) after a resize.
-  void fitOutgoingItemsToLayout() {
-    for (var item in _state.outgoingItems) {
-      final slot =
-          getRenderedItemAt(item.index) ?? _state.renderedItems.firstOrNull;
-      final constraints = slot?.constraints;
-      if (constraints == null) continue;
-      item.setConstraints(
-        constraints.tighten(width: item.size.width, height: item.size.height),
-      );
-    }
-  }
-}
-
-/// What dragged and swiped items have in common.
-extension HeldItemMotion on AnimatedReorderableController {
-  /// Lifts [item] above the other items, into the overlay if it is not
-  /// there yet, and decorates it with [decorator].
-  void lift(
-    model.OverlayedItem item, {
-    required model.AnimatedItemDecorator? decorator,
-    required Duration decorationDuration,
-  }) {
-    if (!_state.isOverlayed(key: item.key)) {
-      _state.putOverlayedItem(item);
-    }
-    _state.setZIndex(item, maxZIndex);
-
-    item.animateDecoration(
-      decorator: decorator,
-      duration: decorationDuration,
-      vsync: vsync,
-    );
-  }
-
-  /// Flings [item] back to its slot in the list, and takes it out of the
-  /// overlay once it is there and [undecoration] is done.
-  void flingBackToSlot(
-    model.OverlayedItem item, {
-    required Future undecoration,
-    required Velocity velocity,
-    widgets.SpringDescription springDescription = defaultFlingSpringDescription,
-  }) {
-    Future.wait([
-      undecoration,
-      item.animateFlingTo(
-        overlayedItemsLayer!.globalToLocal(
-          _state.renderedItemBy(key: item.key)!.globalPosition!,
-        ),
-        velocity: velocity,
-        screenSize: getScreenSize(),
-        springDescription: springDescription,
-        vsync: vsync,
-      ),
-    ]).whenComplete(() => unoverlay(item));
+    _overlay
+        ?.createOverlayedItem(
+          item,
+          recognizerFactory: swipeDirection.recognizerFactory,
+        )
+        .recognizeSwipe(
+          event,
+          context: item.context,
+          swipeDirection: swipeDirection,
+          onSwipeStart: handleItemSwipeStart,
+          onSwipeUpdate: handleItemSwipeUpdate,
+          onSwipeEnd: handleItemSwipeEnd,
+        );
   }
 }
 
@@ -761,7 +439,7 @@ extension OverlayedItemDragHandlers on AnimatedReorderableController {
 
     _state.draggedItem = item;
 
-    lift(
+    _overlay?.lift(
       item,
       decorator: draggedItemDecorator,
       decorationDuration: draggedItemDecorationAnimationDuration,
@@ -789,7 +467,7 @@ extension OverlayedItemDragHandlers on AnimatedReorderableController {
 
     scrollSync.stopAutoScroll(forceStopAnimation: true);
 
-    flingBackToSlot(
+    _overlay?.flingBackToSlot(
       item,
       undecoration: item.animateUndecoration(),
       velocity: details.velocity,
@@ -808,7 +486,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
     _state.swipedItem = item;
 
-    lift(
+    _overlay?.lift(
       item,
       decorator: swipedItemDecorator,
       decorationDuration: swipedItemDecorationAnimationDuration,
@@ -833,7 +511,6 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
     _state.swipedItem = null;
 
     final undecoration = item.animateUndecoration();
-    final bounds = overlayedItemsLayer!.size;
     final swipeDirection = item.swipeToRemoveDirection;
     final onSwipeToRemove = this.onSwipeToRemove;
 
@@ -842,19 +519,14 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
         didSwipeToRemove(item, velocity: details.velocity)) {
       onSwipeToRemove(item.index);
 
-      item.animateFlingTo(
-        swipeDirection.flingTarget(
-          item.position,
-          itemSize: item.size,
-          bounds: bounds,
-        ),
+      _overlay?.flingOut(
+        item,
+        direction: swipeDirection,
         velocity: details.velocity,
-        screenSize: getScreenSize(),
         springDescription: swipeToRemoveSpringDescription,
-        vsync: vsync,
       );
     } else {
-      flingBackToSlot(
+      _overlay?.flingBackToSlot(
         item,
         undecoration: undecoration,
         velocity: details.velocity,

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
+import '../controller/overlay_coordinator.dart';
 import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';
 
@@ -18,7 +19,8 @@ class OverlayedItemsLayer extends StatefulWidget {
   State<OverlayedItemsLayer> createState() => OverlayedItemsLayerState();
 }
 
-class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
+class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
+    implements OverlaySpace {
   AnimatedReorderableController get controller => widget.controller;
 
   @override
@@ -39,10 +41,13 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
   /// that mounted the layer on, once the frame has laid it out.
   RenderBox get _box => context.findRenderBox()!;
 
+  @override
   Offset globalToLocal(Offset point) => _box.globalToLocal(point);
 
+  @override
   Offset localToGlobal(Offset point) => _box.localToGlobal(point);
 
+  @override
   Size get size => _box.size;
 
   void _rebuild() => setState(() {});

@@ -93,6 +93,17 @@ class ControllerState {
     return removed;
   }
 
+  /// Disposes [item], which the list removed, unless an overlayed item
+  /// still moves it and so owns it.
+  void releaseRemovedItem(Item item) {
+    if (overlayedItemBy(key: item.key)?.item != item) item.dispose();
+  }
+
+  /// The overlayed and outgoing items, from the bottom one up.
+  Iterable<OverlayedItem> get overlayedItemsByZIndex =>
+      [...overlayedItems, ..._outgoingItems]
+        ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+
   /// Disposes [x], and its item if the list no longer has it: an item
   /// removed while it moved where the list did not build it.
   void disposeOverlayedItem(OverlayedItem x) {
