@@ -15,8 +15,7 @@ abstract class ItemBuilder {
     required widgets.AnimationController controller,
   }) => AnimatedRemovedItemBuilderAdapter(builder, controller: controller);
 
-  factory ItemBuilder.adaptOtherItemBuilder(Item item) =>
-      OtherItemBuilderAdapter(item: item);
+  factory ItemBuilder.proxy(Item item) => ItemBuilderProxy(item: item);
 
   widgets.Widget? build(widgets.BuildContext context, int index);
 
@@ -36,8 +35,8 @@ class NullableIndexedWidgetBuilderAdapter implements ItemBuilder {
   void dispose() {}
 }
 
-class OtherItemBuilderAdapter implements ItemBuilder {
-  OtherItemBuilderAdapter({required this.item});
+class ItemBuilderProxy implements ItemBuilder {
+  ItemBuilderProxy({required this.item});
 
   final Item item;
 
@@ -87,7 +86,7 @@ class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
 
 extension ItemBuilderExt on ItemBuilder {
   AnimatedItemBuilder? get asAnimated => switch (this) {
-    (OtherItemBuilderAdapter b) => b.item.builder.asAnimated,
+    (ItemBuilderProxy b) => b.item.builder.asAnimated,
     (AnimatedItemBuilder b) => b,
     _ => null,
   };

@@ -2,19 +2,19 @@ import 'package:flutter/widgets.dart';
 
 typedef ChildCountGetter = int? Function();
 
-class OverridedSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
-  factory OverridedSliverChildBuilderDelegate.override({
+class OverriddenSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
+  factory OverriddenSliverChildBuilderDelegate.override({
     required SliverChildDelegate delegate,
-    required NullableIndexedWidgetBuilder overridedChildBuilder,
-    required ChildCountGetter overridedChildCountGetter,
+    required NullableIndexedWidgetBuilder overriddenChildBuilder,
+    required ChildCountGetter overriddenChildCountGetter,
     ChildIndexGetter? fallbackChildIndexGetter,
-  }) => OverridedSliverChildBuilderDelegate(
+  }) => OverriddenSliverChildBuilderDelegate(
     getChildBuilder(delegate),
-    overridedBuilder: overridedChildBuilder,
-    overridedChildCountGetter: overridedChildCountGetter,
+    overriddenBuilder: overriddenChildBuilder,
+    overriddenChildCountGetter: overriddenChildCountGetter,
     findChildIndexCallback:
         getChildIndexGetter(delegate) ?? fallbackChildIndexGetter,
-    childCount: overridedChildCountGetter(),
+    childCount: overriddenChildCountGetter(),
     addAutomaticKeepAlives: getAddAutomaticKeepAlives(delegate),
     addRepaintBoundaries: getAddRepaintBoundaries(delegate),
     addSemanticIndexes: getAddSemanticIndexes(delegate),
@@ -22,10 +22,10 @@ class OverridedSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
     semanticIndexOffset: getSemanticIndexOffset(delegate),
   );
 
-  OverridedSliverChildBuilderDelegate(
+  OverriddenSliverChildBuilderDelegate(
     super.builder, {
-    this.overridedBuilder,
-    this.overridedChildCountGetter,
+    this.overriddenBuilder,
+    this.overriddenChildCountGetter,
     super.findChildIndexCallback,
     super.childCount,
     super.addAutomaticKeepAlives = true,
@@ -35,17 +35,17 @@ class OverridedSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
     super.semanticIndexOffset = 0,
   });
 
-  NullableIndexedWidgetBuilder? overridedBuilder;
-  ChildCountGetter? overridedChildCountGetter;
+  NullableIndexedWidgetBuilder? overriddenBuilder;
+  ChildCountGetter? overriddenChildCountGetter;
 
   @override
-  int? get childCount => overridedChildCountGetter != null
-      ? overridedChildCountGetter!.call()
+  int? get childCount => overriddenChildCountGetter != null
+      ? overriddenChildCountGetter!.call()
       : super.childCount;
 
   @override
   NullableIndexedWidgetBuilder get builder =>
-      overridedBuilder ?? originalBuilder;
+      overriddenBuilder ?? originalBuilder;
 
   NullableIndexedWidgetBuilder get originalBuilder => super.builder;
 }

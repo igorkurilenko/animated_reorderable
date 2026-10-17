@@ -1,7 +1,9 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
-const alpha = 0.001;
+/// How far inside a dragged item the auto-scroller looks, so an item that
+/// only touches an edge of the list does not scroll it.
+const autoScrollEdgeInset = 0.001;
 
 const maxInt = kIsWeb ? 9007199254740992 : ((1 << 63) - 1);
 

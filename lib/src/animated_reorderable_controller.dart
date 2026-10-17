@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import '../animated_reorderable.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
-import 'util/overrided_sliver_child_builder_delegate.dart';
+import 'util/overridden_sliver_child_builder_delegate.dart';
 import 'util/misc.dart';
 import 'widget/item_widget.dart';
 import 'widget/items_layer.dart';
@@ -30,7 +30,7 @@ class AnimatedReorderableController {
 
   widgets.ScrollController? _scrollController;
   widgets.EdgeDraggingAutoScroller? _autoScroller;
-  late OverridedSliverChildBuilderDelegate _childrenDelegate;
+  late OverriddenSliverChildBuilderDelegate _childrenDelegate;
   final model.ControllerState<ItemsLayerState, OverlayedItemsLayerState> _state;
 
   KeyGetter get keyGetter => widget.keyGetter;
@@ -241,7 +241,7 @@ class AnimatedReorderableController {
                 position: fakeGeometry.topLeft,
                 constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
                 size: fakeGeometry.size,
-                builder: model.ItemBuilder.adaptOtherItemBuilder(itemAtIndex),
+                builder: model.ItemBuilder.proxy(itemAtIndex),
                 childKey: itemAtIndex.childKey,
                 interactive: false,
               ),
@@ -264,9 +264,7 @@ class AnimatedReorderableController {
                 position: fakeGeometry.topLeft,
                 constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
                 size: fakeGeometry.size,
-                builder: model.ItemBuilder.adaptOtherItemBuilder(
-                  itemAtDestIndex,
-                ),
+                builder: model.ItemBuilder.proxy(itemAtDestIndex),
                 childKey: itemAtDestIndex.childKey,
                 interactive: false,
               ),
@@ -363,7 +361,7 @@ class AnimatedReorderableController {
           renderedItem.constraints ??
           widgets.BoxConstraints.tight(renderedItem.size!),
       size: renderedItem.size!,
-      builder: builder ?? model.ItemBuilder.adaptOtherItemBuilder(item!),
+      builder: builder ?? model.ItemBuilder.proxy(item!),
       childKey: childKey ?? item!.childKey,
       recognizerFactory: recognizerFactory,
     )..addListener(overlayedItemsLayer!.rebuild);
@@ -582,7 +580,7 @@ extension DraggedItemPlacement on AnimatedReorderableController {
   }
 }
 
-extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
+extension ItemsLayerLifecycleHandlers on AnimatedReorderableController {
   void handleDidBuildItemsLayer() {
     fitOutgoingItemsToLayout();
 
@@ -857,16 +855,17 @@ extension GridScrollAnchoring on AnimatedReorderableController {
 }
 
 extension ChildrenDelegate on AnimatedReorderableController {
-  OverridedSliverChildBuilderDelegate get childrenDelegate => _childrenDelegate;
-  set childrenDelegate(OverridedSliverChildBuilderDelegate value) =>
+  OverriddenSliverChildBuilderDelegate get childrenDelegate =>
+      _childrenDelegate;
+  set childrenDelegate(OverriddenSliverChildBuilderDelegate value) =>
       _childrenDelegate = value;
 
   widgets.SliverChildDelegate overrideChildrenDelegate(
     widgets.SliverChildDelegate delegate,
-  ) => childrenDelegate = OverridedSliverChildBuilderDelegate.override(
+  ) => childrenDelegate = OverriddenSliverChildBuilderDelegate.override(
     delegate: delegate,
-    overridedChildBuilder: buildItemWidget,
-    overridedChildCountGetter: () => _state.itemCount,
+    overriddenChildBuilder: buildItemWidget,
+    overriddenChildCountGetter: () => _state.itemCount,
     fallbackChildIndexGetter: _state.childIndexGetter(),
   );
 
@@ -895,7 +894,8 @@ extension ChildrenDelegate on AnimatedReorderableController {
           event,
           context: context,
           onDragStart: (details, overlayedItem) {
-            overlayedItem.recognizerFactory = createImmediateGestureRecognizer;
+            overlayedItem.recognizerFactory =
+                createImmediateDragGestureRecognizer;
             handleItemDragStart(details, overlayedItem);
           },
           onDragUpdate: handleItemDragUpdate,
@@ -907,9 +907,9 @@ extension ChildrenDelegate on AnimatedReorderableController {
           renderedItem,
           recognizerFactory: switch (renderedItem.swipeToRemoveDirection) {
             AxisDirection.up ||
-            AxisDirection.down => createVerticalSwipeToRemoveGestureRecognizer,
-            AxisDirection.left || AxisDirection.right =>
-              createHorizontalSwipeToRemoveDragGestureRecognizer,
+            AxisDirection.down => createVerticalSwipeDragGestureRecognizer,
+            AxisDirection.left ||
+            AxisDirection.right => createHorizontalSwipeDragGestureRecognizer,
             _ => null,
           },
         ).recognizeSwipe(
@@ -973,7 +973,9 @@ extension Scrolling on AnimatedReorderableController {
       _state.draggedItem!.position,
     )!;
 
-    _autoScroller?.startAutoScrollIfNecessary((position & size).deflate(alpha));
+    _autoScroller?.startAutoScrollIfNecessary(
+      (position & size).deflate(autoScrollEdgeInset),
+    );
   }
 
   void stopAutoScroll({bool forceStopAnimation = false}) {
