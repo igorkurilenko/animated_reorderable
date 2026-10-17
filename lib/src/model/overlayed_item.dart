@@ -22,7 +22,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
     required this.size,
     required this.index,
     this._interactive = true,
-    this.outgoing = false,
     this.zIndex = defaultZIndex,
     this.recognizerFactory,
   });
@@ -39,9 +38,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
   widgets.Size size;
   bool _interactive;
 
-  /// Whether the item was removed from the list. The list no longer owns
-  /// an outgoing item, so the overlay disposes it.
-  bool outgoing;
   int zIndex;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
@@ -273,7 +269,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
     _motionAnimation = null;
     _decorator?.dispose();
     _decorator = null;
-    if (outgoing) item.dispose();
     super.dispose();
   }
 

@@ -128,7 +128,6 @@ class AnimatedReorderableController implements ItemHost {
     _state.addOutgoingItem(outgoingItem);
     _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
     outgoingItem
-      ..outgoing = true
       // It keeps its size while the removed item builder animates it.
       ..setConstraints(
         widgets.BoxConstraints.tight(outgoingItem.size),
@@ -141,10 +140,7 @@ class AnimatedReorderableController implements ItemHost {
           duration: duration,
           vsync: vsync,
         )
-        .whenComplete(() {
-          _state.removeOutgoingItem(outgoingItem);
-          outgoingItem.dispose();
-        });
+        .whenComplete(() => _state.removeOutgoingItem(outgoingItem));
   }
 
   void reorderItem(int index, {required int destIndex}) {

@@ -105,8 +105,13 @@ class ControllerState {
     overlayChanges.notify();
   }
 
+  /// Takes [x] out of the overlay once it has animated out, and disposes
+  /// it with its item, which the list no longer has.
   void removeOutgoingItem(OverlayedItem x) {
-    if (_outgoingItems.remove(x)) overlayChanges.notify();
+    if (!_outgoingItems.remove(x)) return;
+    overlayChanges.notify();
+    x.dispose();
+    x.item.dispose();
   }
 
   void setZIndex(OverlayedItem item, int zIndex) {
@@ -216,8 +221,12 @@ class ControllerState {
     for (var x in items) {
       x.dispose();
     }
-    for (var x in [...overlayedItems, ..._outgoingItems]) {
+    for (var x in overlayedItems) {
       x.dispose();
+    }
+    for (var x in _outgoingItems) {
+      x.dispose();
+      x.item.dispose();
     }
     _itemByKey.clear();
     _overlayedItemByKey.clear();
