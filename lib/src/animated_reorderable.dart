@@ -89,130 +89,37 @@ typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
 /// This widget's [AnimatedReorderableState] can be used to dynamically insert,
 /// remove or reorder items. To refer to the [AnimatedReorderableState] either provide a
 /// [GlobalKey] or use the static [of] method from an item's input callback.
-abstract class AnimatedReorderable extends StatefulWidget {
+final class AnimatedReorderable extends StatefulWidget {
   /// Creates an [AnimatedReorderable] for a [ListView].
   ///
   /// [motion], [reorder], [swipeToRemove] and [insertTransition] configure
   /// it.
-  factory AnimatedReorderable.list({
-    Key? key,
-    required KeyGetter keyGetter,
-    MotionOptions motion = const MotionOptions(),
-    ReorderOptions reorder = const ReorderOptions(),
-    SwipeToRemoveOptions swipeToRemove = const SwipeToRemoveOptions(),
-    model.AnimatedItemDecorator? insertTransition,
+  AnimatedReorderable.list({
+    super.key,
+    required this.keyGetter,
+    this.motion = const MotionOptions(),
+    this.reorder = const ReorderOptions(),
+    this.swipeToRemove = const SwipeToRemoveOptions(),
+    this.insertTransition,
     required ListView listView,
-  }) => _AnimatedReorderable(
-    key: key,
-    keyGetter: keyGetter,
-    motion: motion,
-    reorder: reorder,
-    swipeToRemove: swipeToRemove,
-    insertTransition: insertTransition,
-    view: _WrappedListView(listView),
-  );
+  }) : _view = _WrappedListView(listView);
 
   /// Creates an [AnimatedReorderable] for a [GridView].
   ///
   /// [motion], [reorder], [swipeToRemove] and [insertTransition] configure
   /// it.
-  factory AnimatedReorderable.grid({
-    Key? key,
-    required KeyGetter keyGetter,
-    MotionOptions motion = const MotionOptions(),
-    ReorderOptions reorder = const ReorderOptions(),
-    SwipeToRemoveOptions swipeToRemove = const SwipeToRemoveOptions(),
-    model.AnimatedItemDecorator? insertTransition,
+  AnimatedReorderable.grid({
+    super.key,
+    required this.keyGetter,
+    this.motion = const MotionOptions(),
+    this.reorder = const ReorderOptions(),
+    this.swipeToRemove = const SwipeToRemoveOptions(),
+    this.insertTransition,
     required GridView gridView,
-  }) => _AnimatedReorderable(
-    key: key,
-    keyGetter: keyGetter,
-    motion: motion,
-    reorder: reorder,
-    swipeToRemove: swipeToRemove,
-    insertTransition: insertTransition,
-    view: _WrappedGridView(gridView),
-  );
+  }) : _view = _WrappedGridView(gridView);
 
-  /// Creates an [AnimatedReorderable] from its settings, for a subclass.
-  @Deprecated(
-    'Use AnimatedReorderable.list or AnimatedReorderable.grid instead. '
-    'It goes in 2.0.',
-  )
-  AnimatedReorderable({
-    super.key,
-    required this.keyGetter,
-    Duration motionAnimationDuration = defaultMotionAnimationDuration,
-    Curve motionAnimationCurve = defaultMotionAnimationCurve,
-    double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
-    BoolGetter? draggableGetter,
-    BoolGetter? reorderableGetter,
-    ReorderCallback? onReorder,
-    AxisDirectionGetter? swipeToRemoveDirectionGetter,
-    double swipeToRemoveExtent = defaultSwipeToRemoveExtent,
-    double swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
-    SpringDescription swipeToRemoveSpringDescription =
-        defaultFlingSpringDescription,
-    SwipeToRemoveCallback? onSwipeToRemove,
-    model.AnimatedItemDecorator? draggedItemDecorator,
-    Duration draggedItemDecorationAnimationDuration =
-        defaultDraggedItemDecorationAnimationDuration,
-    model.AnimatedItemDecorator? swipedItemDecorator,
-    Duration swipedItemDecorationAnimationDuration =
-        defaultSwipedItemDecorationAnimationDuration,
-    ItemDragStartCallback? onItemDragStart,
-    ItemDragUpdateCallback? onItemDragUpdate,
-    ItemDragEndCallback? onItemDragEnd,
-    ItemDragStartCallback? onItemSwipeStart,
-    ItemDragUpdateCallback? onItemSwipeUpdate,
-    ItemDragEndCallback? onItemSwipeEnd,
-    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
-  }) : insertTransition = null,
-       motion = MotionOptions(
-         duration: motionAnimationDuration,
-         curve: motionAnimationCurve,
-       ),
-       reorder = ReorderOptions(
-         onReorder: onReorder,
-         draggableGetter: draggableGetter,
-         reorderableGetter: reorderableGetter,
-         gestureRecognizerFactory: reorderGestureRecognizerFactory,
-         autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-         decoration: ItemDecoration(
-           decorator: draggedItemDecorator,
-           duration: draggedItemDecorationAnimationDuration,
-         ),
-         callbacks: ItemDragCallbacks(
-           onStart: onItemDragStart,
-           onUpdate: onItemDragUpdate,
-           onEnd: onItemDragEnd,
-         ),
-       ),
-       swipeToRemove = SwipeToRemoveOptions(
-         onSwipeToRemove: onSwipeToRemove,
-         directionGetter: swipeToRemoveDirectionGetter,
-         extent: swipeToRemoveExtent,
-         velocity: swipeToRemoveVelocity,
-         springDescription: swipeToRemoveSpringDescription,
-         decoration: ItemDecoration(
-           decorator: swipedItemDecorator,
-           duration: swipedItemDecorationAnimationDuration,
-         ),
-         callbacks: ItemDragCallbacks(
-           onStart: onItemSwipeStart,
-           onUpdate: onItemSwipeUpdate,
-           onEnd: onItemSwipeEnd,
-         ),
-       );
-
-  const AnimatedReorderable._({
-    super.key,
-    required this.keyGetter,
-    required this.motion,
-    required this.reorder,
-    required this.swipeToRemove,
-    required this.insertTransition,
-  });
+  /// The list or grid view it wraps.
+  final _WrappedView _view;
 
   /// A function that provides the unique key for each item in the list or grid.
   final KeyGetter keyGetter;
@@ -238,6 +145,9 @@ abstract class AnimatedReorderable extends StatefulWidget {
   /// Without it, an inserted item shows at once while the others move
   /// aside.
   final model.AnimatedItemDecorator? insertTransition;
+
+  @override
+  State<AnimatedReorderable> createState() => AnimatedReorderableState();
 
   /// The state from the closest instance of this class that encloses the given
   /// context.
@@ -352,13 +262,12 @@ abstract class AnimatedReorderable extends StatefulWidget {
 ///
 /// [AnimatedReorderable] item input handlers can also refer to their [AnimatedReorderableState]
 /// with the static [AnimatedReorderable.of] method.
-abstract class AnimatedReorderableState<T extends AnimatedReorderable>
-    extends State<T>
+final class AnimatedReorderableState extends State<AnimatedReorderable>
     with TickerProviderStateMixin {
   late final AnimatedReorderableController _controller;
   ScrollController? _ownScrollController;
 
-  _WrappedView get _view;
+  _WrappedView get _view => widget._view;
 
   @override
   void initState() {
@@ -384,7 +293,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   }
 
   @override
-  void didUpdateWidget(covariant T oldWidget) {
+  void didUpdateWidget(AnimatedReorderable oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     _controller
@@ -574,35 +483,6 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       ],
     ),
   );
-
-  /// Builds the wrapped list or grid view.
-  @Deprecated('It goes in 2.0, when the state builds the view itself.')
-  Widget buildCollectionView(BuildContext context) => _view.build(_controller);
-}
-
-/// The [AnimatedReorderable] that [AnimatedReorderable.list] and
-/// [AnimatedReorderable.grid] create, around its [view].
-class _AnimatedReorderable extends AnimatedReorderable {
-  const _AnimatedReorderable({
-    super.key,
-    required super.keyGetter,
-    required super.motion,
-    required super.reorder,
-    required super.swipeToRemove,
-    required super.insertTransition,
-    required this.view,
-  }) : super._();
-
-  final _WrappedView view;
-
-  @override
-  State<AnimatedReorderable> createState() => _AnimatedReorderableState();
-}
-
-class _AnimatedReorderableState
-    extends AnimatedReorderableState<_AnimatedReorderable> {
-  @override
-  _WrappedView get _view => widget.view;
 }
 
 /// The list or grid view an [AnimatedReorderable] wraps. It builds the view
