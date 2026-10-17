@@ -83,7 +83,7 @@ class ControllerState {
 
   OverlayedItem putOverlayedItem(OverlayedItem x) {
     final replaced = _overlayedItemByKey.remove(x.key);
-    if (replaced != null && replaced != x) replaced.dispose();
+    if (replaced != null && replaced != x) disposeOverlayedItem(replaced);
     _overlayedItemByKey[x.key] = x;
     x.item.placeholderSize.value = x.size;
     overlayChanges.notify();
@@ -101,6 +101,13 @@ class ControllerState {
     removed.item.placeholderSize.value = null;
     overlayChanges.notify();
     return removed;
+  }
+
+  /// Disposes [x], and its item if the list no longer has it: an item
+  /// removed while it moved where the list did not build it.
+  void disposeOverlayedItem(OverlayedItem x) {
+    x.dispose();
+    if (_itemByKey[x.key] != x.item) x.item.dispose();
   }
 
   void setOverlayedItemSize(OverlayedItem x, Size size) {
@@ -238,7 +245,7 @@ class ControllerState {
       x.dispose();
     }
     for (var x in overlayedItems) {
-      x.dispose();
+      disposeOverlayedItem(x);
     }
     for (var x in _outgoingItems) {
       x.dispose();

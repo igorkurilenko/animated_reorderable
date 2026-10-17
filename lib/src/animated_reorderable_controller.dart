@@ -111,7 +111,10 @@ class AnimatedReorderableController implements ItemHost {
     if (removedItem == null) return;
 
     final renderedItem = _state.renderedItemBy(key: removedItem.key);
-    if (renderedItem == null) {
+    // An item that moves where the list does not build it goes on moving,
+    // and its overlayed item disposes it.
+    final moving = _state.overlayedItemBy(key: removedItem.key)?.item;
+    if (renderedItem == null && moving != removedItem) {
       removedItem.dispose();
     }
 
@@ -388,7 +391,9 @@ class AnimatedReorderableController implements ItemHost {
     if (_state.overlayedItemBy(key: item.key) != item) return;
     _state.removeOverlayedItem(key: item.key);
     addPostFrame(() {
-      if (_state.overlayedItemBy(key: item.key) != item) item.dispose();
+      if (_state.overlayedItemBy(key: item.key) != item) {
+        _state.disposeOverlayedItem(item);
+      }
     });
   }
 

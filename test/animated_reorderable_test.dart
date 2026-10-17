@@ -927,6 +927,26 @@ void main() {
     });
   });
 
+  testWidgets('removes an item that moves off-screen', (tester) async {
+    final notifiers = _undisposed('ChangeNotifier');
+    final list = _TestList(50);
+    await tester.pumpWidget(list.build());
+
+    list.state.reorderItem(0, destIndex: 40);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    list.removeAt(40);
+    await tester.pumpAndSettle();
+
+    expect(list.items.take(6), [1, 2, 3, 4, 5, 6]);
+    _expectEachItemOnce([1, 2, 3, 4, 5, 6]);
+    expect(_itemWithId(0), findsNothing);
+    expect(_trackedTickers(tester), 0);
+    await tester.pumpWidget(const SizedBox());
+    // The items' placeholder sizes.
+    expect(notifiers.whereType<ValueListenable<Size?>>(), isEmpty);
+  });
+
   group('two changes in a frame', () {
     for (final (name, count, change, items) in [
       (
