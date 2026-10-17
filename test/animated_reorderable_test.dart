@@ -918,6 +918,37 @@ void main() {
       expect(() => list.state.reorderItem(3, destIndex: 0), throwsRangeError);
     });
 
+    testWidgets('checks the destination of a reordered item', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      final reorders = <Permutations>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              // Keys any index, so only the check can stop a bad one.
+              keyGetter: (index) => ValueKey(index),
+              onReorder: reorders.add,
+              listView: ListView.builder(
+                itemCount: 3,
+                itemBuilder: (context, index) => Text('$index'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        () => key.currentState!.reorderItem(0, destIndex: 3),
+        throwsRangeError,
+      );
+      expect(
+        () => key.currentState!.reorderItem(0, destIndex: -1),
+        throwsRangeError,
+      );
+      expect(reorders, isEmpty);
+    });
+
     testWidgets('needs onReorder to reorder', (tester) async {
       final key = GlobalKey<AnimatedReorderableState>();
       await tester.pumpWidget(_labels(const ['a', 'b'], key: key));

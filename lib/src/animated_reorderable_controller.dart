@@ -194,6 +194,9 @@ class AnimatedReorderableController {
     if (index < 0 || index >= _state.itemCount!) {
       throw RangeError.value(index);
     }
+    if (destIndex < 0 || destIndex >= _state.itemCount!) {
+      throw RangeError.value(destIndex);
+    }
     if (!reorderableGetter(index)) {
       throw ('The item at index $index is not reorderable');
     }
