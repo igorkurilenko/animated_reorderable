@@ -4,5 +4,9 @@ analyzer:
   exclude:
     - build/**
 
+linter:
+  rules:
+    - only_throw_errors
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

@@ -54,51 +54,51 @@ NullableIndexedWidgetBuilder getChildBuilder(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(builder: var b) => b,
       SliverChildListDelegate(children: var xs) => (_, index) => xs[index],
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
+      _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
     };
 
 int? getChildCount(SliverChildDelegate delegate) => switch (delegate) {
   SliverChildBuilderDelegate(childCount: var c) => c,
   SliverChildListDelegate(children: var xs) => xs.length,
-  _ => throw 'Not implemented for ${delegate.runtimeType}',
+  _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
 };
 
 ChildIndexGetter? getChildIndexGetter(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(findChildIndexCallback: var g) => g,
       SliverChildListDelegate() => null,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
+      _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
     };
 
 bool getAddAutomaticKeepAlives(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(addAutomaticKeepAlives: var x) ||
       SliverChildListDelegate(addAutomaticKeepAlives: var x) => x,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
+      _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
     };
 
 bool getAddRepaintBoundaries(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(addRepaintBoundaries: var x) ||
       SliverChildListDelegate(addRepaintBoundaries: var x) => x,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
+      _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
     };
 
 bool getAddSemanticIndexes(SliverChildDelegate delegate) => switch (delegate) {
   SliverChildBuilderDelegate(addSemanticIndexes: var x) ||
   SliverChildListDelegate(addSemanticIndexes: var x) => x,
-  _ => throw 'Not implemented for ${delegate.runtimeType}',
+  _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
 };
 
 SemanticIndexCallback getSemanticIndexCallback(SliverChildDelegate delegate) =>
     switch (delegate) {
       SliverChildBuilderDelegate(semanticIndexCallback: var x) ||
       SliverChildListDelegate(semanticIndexCallback: var x) => x,
-      _ => throw 'Not implemented for ${delegate.runtimeType}',
+      _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
     };
 
 int getSemanticIndexOffset(SliverChildDelegate delegate) => switch (delegate) {
   SliverChildBuilderDelegate(semanticIndexOffset: var x) ||
   SliverChildListDelegate(semanticIndexOffset: var x) => x,
-  _ => throw 'Not implemented for ${delegate.runtimeType}',
+  _ => throw UnsupportedError('${delegate.runtimeType} is not supported'),
 };

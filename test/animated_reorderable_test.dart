@@ -1009,7 +1009,7 @@ void main() {
 
       expect(
         () => key.currentState!.reorderItem(0, destIndex: 1),
-        throwsA(anything),
+        throwsStateError,
       );
     });
 
@@ -1035,11 +1035,11 @@ void main() {
 
       expect(
         () => key.currentState!.reorderItem(1, destIndex: 0),
-        throwsA(anything),
+        throwsArgumentError,
       );
       expect(
         () => key.currentState!.reorderItem(0, destIndex: 1),
-        throwsA(anything),
+        throwsArgumentError,
       );
       expect(labels, ['a', 'b', 'c']);
     });
@@ -1060,7 +1060,28 @@ void main() {
         ),
       );
 
-      expect(() => key.currentState!.insertItem(0, noItem), throwsA(anything));
+      expect(() => key.currentState!.insertItem(0, noItem), throwsStateError);
+      expect(
+        () => key.currentState!.removeItem(0, noRemovedItem),
+        throwsStateError,
+      );
+    });
+
+    testWidgets('supports only the children delegates of the framework', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              keyGetter: (index) => ValueKey(index),
+              listView: ListView.custom(childrenDelegate: _OtherDelegate()),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isUnsupportedError);
     });
   });
 
@@ -1312,6 +1333,15 @@ Widget _withCallbacks(
       ),
     ),
   );
+}
+
+/// A children delegate that is not one of the framework's.
+class _OtherDelegate extends SliverChildDelegate {
+  @override
+  Widget? build(BuildContext context, int index) => null;
+
+  @override
+  bool shouldRebuild(covariant SliverChildDelegate oldDelegate) => false;
 }
 
 /// A list of ids shown as stateful items of a fixed extent.

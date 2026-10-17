@@ -78,11 +78,12 @@ class AnimatedReorderableController {
     Duration duration,
   ) {
     if (_state.itemCount == null) {
-      throw ('$runtimeType must be connected with a ${widgets.ListView} or ${widgets.GridView}');
+      throw StateError(
+        'Items can be inserted, removed and reordered only in a '
+        '${widgets.ListView} or ${widgets.GridView} with an item count',
+      );
     }
-    if (index < 0 || index > _state.itemCount!) {
-      throw RangeError.value(index);
-    }
+    RangeError.checkValueInInterval(index, 0, _state.itemCount!, 'index');
 
     final insertedItem = _state.insertItem(
       index: index,
@@ -122,11 +123,12 @@ class AnimatedReorderableController {
     int? zIndex,
   }) {
     if (_state.itemCount == null) {
-      throw ('$runtimeType must be connected with a ${widgets.ListView} or ${widgets.GridView}');
+      throw StateError(
+        'Items can be inserted, removed and reordered only in a '
+        '${widgets.ListView} or ${widgets.GridView} with an item count',
+      );
     }
-    if (index < 0 || index >= _state.itemCount!) {
-      throw RangeError.value(index);
-    }
+    IndexError.check(index, _state.itemCount!, name: 'index');
 
     final removedItem = _state.removeItem(index: index);
     if (removedItem == null) return;
@@ -188,22 +190,23 @@ class AnimatedReorderableController {
 
   void reorderItem(int index, {required int destIndex}) {
     if (onReorder == null) {
-      throw ('onReorder parameter must be not null to reorder');
+      throw StateError(
+        'Items can be reordered only with an onReorder callback',
+      );
     }
     if (_state.itemCount == null) {
-      throw ('$runtimeType must be connected with a ${widgets.ListView} or ${widgets.GridView}');
+      throw StateError(
+        'Items can be inserted, removed and reordered only in a '
+        '${widgets.ListView} or ${widgets.GridView} with an item count',
+      );
     }
-    if (index < 0 || index >= _state.itemCount!) {
-      throw RangeError.value(index);
-    }
-    if (destIndex < 0 || destIndex >= _state.itemCount!) {
-      throw RangeError.value(destIndex);
-    }
+    IndexError.check(index, _state.itemCount!, name: 'index');
+    IndexError.check(destIndex, _state.itemCount!, name: 'destIndex');
     if (!reorderableGetter(index)) {
-      throw ('The item at index $index is not reorderable');
+      throw ArgumentError.value(index, 'index', 'is not reorderable');
     }
     if (!reorderableGetter(destIndex)) {
-      throw ('The item at index $destIndex is not reorderable');
+      throw ArgumentError.value(destIndex, 'destIndex', 'is not reorderable');
     }
     if (index == destIndex) return;
 
