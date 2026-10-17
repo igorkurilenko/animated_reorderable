@@ -767,8 +767,6 @@ void main() {
     ]) {
       final forward = _unit(edge);
       final viewportExtent = scrollDirection == Axis.vertical ? 600.0 : 800.0;
-      double along(Offset offset) =>
-          offset.dx * forward.dx + offset.dy * forward.dy;
       _TestList createList() =>
           _TestList(50, scrollDirection: scrollDirection, reverse: reverse);
 
@@ -793,23 +791,47 @@ void main() {
       ) async {
         final list = createList();
         await tester.pumpWidget(list.build());
-        final slot = tester.getTopLeft(_itemWithId(0));
+        final slot = tester.getRect(_itemWithId(0));
 
         list.state.reorderItem(40, destIndex: 0);
-        final path = await _pathUntilSettled(tester, _itemWithId(40));
+        final path = await _pathUntilSettled(
+          tester,
+          _itemWithId(40),
+          // As big as its slot all the way.
+          onFrame: () => expect(tester.getSize(_itemWithId(40)), slot.size),
+        );
 
         // From just outside the overlay.
-        expect(along(path.first - slot), viewportExtent);
-        for (var i = 1; i < path.length; i++) {
-          expect(
-            along(path[i] - slot),
-            lessThanOrEqualTo(along(path[i - 1] - slot)),
-          );
-        }
-        expect(path.last, slot);
+        _expectStraightPath(
+          path,
+          slot.topLeft + forward * viewportExtent,
+          slot.topLeft,
+        );
         expect(list.items.indexOf(40), 0);
       });
     }
+
+    testWidgets('moves an item in along a padded list', (tester) async {
+      final list = _TestList(
+        50,
+        padding: const EdgeInsets.only(left: 300, right: 100),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getRect(_itemWithId(0));
+
+      list.state.reorderItem(40, destIndex: 0);
+      final path = await _pathUntilSettled(
+        tester,
+        _itemWithId(40),
+        onFrame: () => expect(tester.getSize(_itemWithId(40)), slot.size),
+      );
+
+      _expectStraightPath(
+        path,
+        slot.topLeft + const Offset(0, 600),
+        slot.topLeft,
+      );
+    });
   });
 
   group('scroll', () {
@@ -1270,6 +1292,7 @@ class _TestList {
     ),
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
+    this.padding,
     this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
   }) : items = List.generate(count, (i) => i);
@@ -1279,6 +1302,7 @@ class _TestList {
   final SliverGridDelegate gridDelegate;
   final Axis scrollDirection;
   final bool reverse;
+  final EdgeInsets? padding;
 
   /// The swipe direction of every item, or null for the default one.
   final AxisDirection? swipeToRemoveDirection;
@@ -1302,6 +1326,7 @@ class _TestList {
           gridView: GridView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
+            padding: padding,
             gridDelegate: gridDelegate,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),
@@ -1317,6 +1342,7 @@ class _TestList {
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
+            padding: padding,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),
           ),

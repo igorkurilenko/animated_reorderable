@@ -230,7 +230,7 @@ class AnimatedReorderableController {
           !_state.isOverlayed(key: itemAtIndex.key)) {
         final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: index,
-          anyRenderedItemIndex: _state.renderedItems.first.index,
+          anyRenderedItem: _state.renderedItems.first,
         );
 
         _state
@@ -253,7 +253,7 @@ class AnimatedReorderableController {
           !_state.isOverlayed(key: itemAtDestIndex.key)) {
         final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
           notRenderedItemIndex: destIndex,
-          anyRenderedItemIndex: _state.renderedItems.first.index,
+          anyRenderedItem: _state.renderedItems.first,
         );
 
         _state
@@ -431,48 +431,62 @@ class AnimatedReorderableController {
 
   widgets.Rect getFakeAnchorGeometryOfNotRenderedItem({
     required int notRenderedItemIndex,
-    required int anyRenderedItemIndex,
+    required RenderedItem anyRenderedItem,
     widgets.Size? itemSize,
   }) {
+    final gridLayout = _state.gridLayout;
     itemSize ??=
-        _state.gridLayout?.getChildSize(
-          notRenderedItemIndex,
-          scrollDirection,
-        ) ??
-        measureItemWidgetAt(index: notRenderedItemIndex);
+        gridLayout?.getChildSize(notRenderedItemIndex, scrollDirection) ??
+        // A list lays out all its items with the same constraints.
+        measureItemWidgetAt(
+          index: notRenderedItemIndex,
+          constraints: anyRenderedItem.constraints,
+        );
 
     // Just outside the overlay, which covers the list. It is the space the
     // overlayed items are positioned in, unlike the screen.
     final bounds = Offset.zero & overlayedItemsLayer!.size!;
+    // In line with a list's items, or in the middle of a grid.
+    final anyRenderedItemPosition = gridLayout == null
+        ? anyRenderedItem.globalPosition
+        : null;
+    final crossAxisPosition = anyRenderedItemPosition != null
+        ? overlayedItemsLayer!.globalToLocal(anyRenderedItemPosition)!
+        : bounds.center - Offset(itemSize.width / 2, itemSize.height / 2);
+    final before = notRenderedItemIndex < anyRenderedItem.index;
     final fakePosition = switch (scrollPosition!.axisDirection) {
-      AxisDirection.down =>
-        notRenderedItemIndex < anyRenderedItemIndex
-            ? bounds.topCenter - Offset(itemSize.width / 2, itemSize.height)
-            : bounds.bottomCenter - Offset(itemSize.width / 2, 0),
-      AxisDirection.right =>
-        notRenderedItemIndex < anyRenderedItemIndex
-            ? bounds.centerLeft - Offset(itemSize.width, itemSize.height / 2)
-            : bounds.centerRight - Offset(0, itemSize.height / 2),
-      AxisDirection.up =>
-        notRenderedItemIndex < anyRenderedItemIndex
-            ? bounds.bottomCenter - Offset(itemSize.width / 2, 0)
-            : bounds.topCenter - Offset(itemSize.width / 2, itemSize.height),
-      AxisDirection.left =>
-        notRenderedItemIndex < anyRenderedItemIndex
-            ? bounds.centerRight - Offset(0, itemSize.height / 2)
-            : bounds.centerLeft - Offset(itemSize.width, itemSize.height / 2),
+      AxisDirection.down => Offset(
+        crossAxisPosition.dx,
+        before ? bounds.top - itemSize.height : bounds.bottom,
+      ),
+      AxisDirection.right => Offset(
+        before ? bounds.left - itemSize.width : bounds.right,
+        crossAxisPosition.dy,
+      ),
+      AxisDirection.up => Offset(
+        crossAxisPosition.dx,
+        before ? bounds.bottom : bounds.top - itemSize.height,
+      ),
+      AxisDirection.left => Offset(
+        before ? bounds.right : bounds.left - itemSize.width,
+        crossAxisPosition.dy,
+      ),
     };
 
     return fakePosition & itemSize;
   }
 
-  Size measureItemWidgetAt({required int index}) => MeasureUtil.measureWidget(
-    context: scrollPosition!.context.storageContext,
-    builder: (context) => _childrenDelegate.originalBuilder(context, index)!,
-    constraints: scrollDirection == Axis.vertical
-        ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
-        : BoxConstraints(maxHeight: _state.constraints!.maxHeight),
-  );
+  Size measureItemWidgetAt({required int index, BoxConstraints? constraints}) =>
+      MeasureUtil.measureWidget(
+        context: scrollPosition!.context.storageContext,
+        builder: (context) =>
+            _childrenDelegate.originalBuilder(context, index)!,
+        constraints:
+            constraints ??
+            (scrollDirection == Axis.vertical
+                ? BoxConstraints(maxWidth: _state.constraints!.maxWidth)
+                : BoxConstraints(maxHeight: _state.constraints!.maxHeight)),
+      );
 
   Size getScreenSize() {
     final screenView =
@@ -586,7 +600,7 @@ extension ItemsLayerLyfecycleHandlers on AnimatedReorderableController {
             .toList()) {
       final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
         notRenderedItemIndex: overlayedItem.index,
-        anyRenderedItemIndex: _state.renderedItems.first.index,
+        anyRenderedItem: _state.renderedItems.first,
         itemSize: overlayedItem.size,
       );
 
