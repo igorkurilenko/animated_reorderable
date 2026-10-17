@@ -455,7 +455,7 @@ void main() {
         frames++;
       }
 
-      expect(builds, lessThanOrEqualTo(14));
+      expect(builds, lessThanOrEqualTo(10));
       expect(frames, 33);
     });
 
@@ -499,6 +499,64 @@ void main() {
 
       expect(tester.hasRunningAnimations, isTrue);
       expect(builds, 0);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('builds moving items with the latest item builder', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build(String label) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) => SizedBox(
+                height: _extent,
+                child: Text('$label ${items[index]}'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build('old'));
+      key.currentState!.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.pumpWidget(build('new'));
+
+      expect(tester.hasRunningAnimations, isTrue);
+      for (final id in [0, 1, 2, 3]) {
+        expect(find.text('new $id'), findsOneWidget, reason: 'item $id');
+      }
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('builds a moving item that is removed with its removed item '
+        'builder', (tester) async {
+      final grid = _TestList(9, grid: true);
+      await tester.pumpWidget(grid.build());
+      grid.state.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Item 2 moves, as a grid item with the constraints it fades out with.
+      final index = grid.items.indexOf(2);
+      grid.items.removeAt(index);
+      grid.state.removeItem(
+        index,
+        (context, animation) => const Text('removed'),
+      );
+      await tester.pump();
+
+      expect(find.text('removed'), findsOneWidget);
       await tester.pumpAndSettle();
     });
 
