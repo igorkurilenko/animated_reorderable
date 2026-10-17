@@ -4,12 +4,12 @@ import 'package:flutter/widgets.dart' as widgets;
 import '../animated_reorderable.dart';
 import 'const.dart';
 import 'controller/held_item_sessions.dart';
+import 'controller/item_widget_factory.dart';
 import 'controller/overlay_coordinator.dart';
 import 'controller/scroll_sync.dart';
 import 'model/model.dart' as model;
 import 'model/swipe_direction.dart';
 import 'util/gesture_recognizers.dart';
-import 'util/overridden_sliver_child_builder_delegate.dart';
 import 'util/scheduling.dart';
 import 'widget/item_widget.dart';
 import 'widget/items_layer.dart';
@@ -44,7 +44,7 @@ class AnimatedReorderableController implements ItemHost {
     onScroll: _shiftOverlayedItems,
     onAutoScroll: () => _drag?.reorderAndAutoScroll(),
   );
-  late OverriddenSliverChildBuilderDelegate _childrenDelegate;
+  late final itemWidgets = ItemWidgetFactory(items: _items, host: this);
   late final model.ItemRegistry _items;
   ItemsLayerState? _itemsLayer;
   OverlayCoordinator? _overlay;
@@ -229,7 +229,7 @@ class AnimatedReorderableController implements ItemHost {
         motionAnimationDuration: () => motionAnimationDuration,
         motionAnimationCurve: () => motionAnimationCurve,
         scrollDirection: () => scrollDirection,
-        itemBuilder: () => childrenDelegate.originalBuilder,
+        itemBuilder: () => itemWidgets.originalBuilder,
       );
 
   void detachOverlayedItemsLayer(OverlayedItemsLayerState layer) {
@@ -242,7 +242,7 @@ class AnimatedReorderableController implements ItemHost {
   model.Item createItem(int index) => model.Item(
     key: keyGetter(index),
     builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
-      (context, index) => childrenDelegate.originalBuilder(context, index),
+      (context, index) => itemWidgets.originalBuilder(context, index),
     ),
   );
 
@@ -423,35 +423,6 @@ class AnimatedReorderableController implements ItemHost {
       },
       onSwipeUpdate: (details, _) => session?.update(details),
       onSwipeEnd: (details, _) => session?.end(details),
-    );
-  }
-}
-
-extension ChildrenDelegate on AnimatedReorderableController {
-  OverriddenSliverChildBuilderDelegate get childrenDelegate =>
-      _childrenDelegate;
-  set childrenDelegate(OverriddenSliverChildBuilderDelegate value) =>
-      _childrenDelegate = value;
-
-  widgets.SliverChildDelegate overrideChildrenDelegate(
-    widgets.SliverChildDelegate delegate,
-  ) => childrenDelegate = OverriddenSliverChildBuilderDelegate.override(
-    delegate: delegate,
-    overriddenChildBuilder: buildItemWidget,
-    overriddenChildCountGetter: () => _items.itemCount,
-    fallbackChildIndexGetter: _items.childIndexGetter(),
-  );
-
-  widgets.Widget buildItemWidget(widgets.BuildContext context, int index) {
-    final item = _items.ensureItemAt(index: index);
-
-    return ItemWidget(
-      key: item.key,
-      index: index,
-      childKey: item.childKey,
-      builder: item.builder.build,
-      placeholderSize: item.placeholderSize,
-      host: this,
     );
   }
 }

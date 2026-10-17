@@ -763,7 +763,9 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
     itemExtent: widget.listView.itemExtent,
     prototypeItem: widget.listView.prototypeItem,
     itemExtentBuilder: widget.listView.itemExtentBuilder,
-    childrenDelegate: _controller.overrideChildrenDelegate(_childrenDelegate),
+    childrenDelegate: _controller.itemWidgets.overrideChildrenDelegate(
+      _childrenDelegate,
+    ),
     // ignore: deprecated_member_use
     cacheExtent: widget.listView.cacheExtent,
     scrollCacheExtent: widget.listView.scrollCacheExtent,
@@ -844,7 +846,9 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
       gridDelegate: widget.gridView.gridDelegate,
       onLayout: _controller.scrollSync.didLayOutGrid,
     ),
-    childrenDelegate: _controller.overrideChildrenDelegate(_childrenDelegate),
+    childrenDelegate: _controller.itemWidgets.overrideChildrenDelegate(
+      _childrenDelegate,
+    ),
     // ignore: deprecated_member_use
     cacheExtent: widget.gridView.cacheExtent,
     scrollCacheExtent: widget.gridView.scrollCacheExtent,
