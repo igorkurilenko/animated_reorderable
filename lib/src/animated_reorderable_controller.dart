@@ -205,51 +205,16 @@ class AnimatedReorderableController {
         newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
       );
 
-      if (!_state.isRendered(key: itemAtIndex.key) &&
-          !_state.isOverlayed(key: itemAtIndex.key)) {
-        final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
-          notRenderedItemIndex: index,
-          anyRenderedItem: _state.renderedItems.first,
-        );
-
-        _state
-            .putOverlayedItem(
-              model.OverlayedItem(
-                index: permutations.indexOf(itemAtIndex.key)!,
-                key: itemAtIndex.key,
-                position: fakeGeometry.topLeft,
-                constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
-                size: fakeGeometry.size,
-                builder: model.ItemBuilder.proxy(itemAtIndex),
-                childKey: itemAtIndex.childKey,
-                interactive: false,
-              ),
-            )
-            .addListener(overlayedItemsLayer!.rebuild);
-      }
-
-      if (!_state.isRendered(key: itemAtDestIndex.key) &&
-          !_state.isOverlayed(key: itemAtDestIndex.key)) {
-        final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
-          notRenderedItemIndex: destIndex,
-          anyRenderedItem: _state.renderedItems.first,
-        );
-
-        _state
-            .putOverlayedItem(
-              model.OverlayedItem(
-                index: permutations.indexOf(itemAtDestIndex.key)!,
-                key: itemAtDestIndex.key,
-                position: fakeGeometry.topLeft,
-                constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
-                size: fakeGeometry.size,
-                builder: model.ItemBuilder.proxy(itemAtDestIndex),
-                childKey: itemAtDestIndex.childKey,
-                interactive: false,
-              ),
-            )
-            .addListener(overlayedItemsLayer!.rebuild);
-      }
+      overlayNotRenderedItem(
+        itemAtIndex,
+        index: index,
+        newIndex: permutations.indexOf(itemAtIndex.key)!,
+      );
+      overlayNotRenderedItem(
+        itemAtDestIndex,
+        index: destIndex,
+        newIndex: permutations.indexOf(itemAtDestIndex.key)!,
+      );
     });
 
     itemsLayer!.rebuild(() => onReorder!.call(permutations));
@@ -364,6 +329,38 @@ class AnimatedReorderableController {
         ..index = newIndex(renderedItem)
         ..setInteractive(false, notify: false);
     }
+  }
+
+  /// Overlays [item], which was at [index] and is neither rendered nor
+  /// overlayed, just outside the overlay, so it can move in to its slot at
+  /// [newIndex] when the list lays out.
+  void overlayNotRenderedItem(
+    model.Item item, {
+    required int index,
+    required int newIndex,
+  }) {
+    if (_state.isRendered(key: item.key)) return;
+    if (_state.isOverlayed(key: item.key)) return;
+
+    final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
+      notRenderedItemIndex: index,
+      anyRenderedItem: _state.renderedItems.first,
+    );
+
+    _state
+        .putOverlayedItem(
+          model.OverlayedItem(
+            index: newIndex,
+            key: item.key,
+            position: fakeGeometry.topLeft,
+            constraints: widgets.BoxConstraints.tight(fakeGeometry.size),
+            size: fakeGeometry.size,
+            builder: model.ItemBuilder.proxy(item),
+            childKey: item.childKey,
+            interactive: false,
+          ),
+        )
+        .addListener(overlayedItemsLayer!.rebuild);
   }
 
   void registerRenderedItem(RenderedItem item) => _state.putRenderedItem(item);
