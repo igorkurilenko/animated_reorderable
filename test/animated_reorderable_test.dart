@@ -1033,6 +1033,108 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('drags an item without onReorder', (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              keyGetter: (index) => ValueKey(index),
+              onItemDragStart: (details, index) => calls.add('start $index'),
+              onItemDragEnd: (details, index) => calls.add('end $index'),
+              listView: ListView.builder(
+                itemCount: 5,
+                itemBuilder: (context, index) =>
+                    SizedBox(height: _extent, child: Text('$index')),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 6);
+
+      // It follows the pointer, as decorated, and takes no other item's
+      // place.
+      expect(tester.getTopLeft(find.text('0')).dy, closeTo(120, 1));
+      expect(tester.getTopLeft(find.text('1')).dy, 100);
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.text('0')).dy, 0);
+      expect(calls, ['start 0', 'end 0']);
+    });
+
+    for (final (name, decorator) in [
+      ('the default decorator', _keepDecorator),
+      ('no decorator', null),
+    ]) {
+      testWidgets('decorates a dragged item with $name', (tester) async {
+        Widget build() => MaterialApp(
+          home: Scaffold(
+            body: decorator == _keepDecorator
+                ? AnimatedReorderable.list(
+                    keyGetter: (index) => ValueKey(index),
+                    onReorder: (_) {},
+                    listView: _fiveLabels(),
+                  )
+                : AnimatedReorderable.list(
+                    keyGetter: (index) => ValueKey(index),
+                    onReorder: (_) {},
+                    draggedItemDecorator: null,
+                    listView: _fiveLabels(),
+                  ),
+          ),
+        );
+        await tester.pumpWidget(build());
+        final transitions = _transitionsAround(tester, find.text('0'));
+
+        final drag = await _holdAndDrag(tester, find.text('0'), 2);
+
+        expect(
+          _transitionsAround(tester, find.text('0')),
+          transitions + (decorator == null ? 0 : 2),
+        );
+        await drag.up();
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('decorates a swiped item with $name', (tester) async {
+        Widget build() => MaterialApp(
+          home: Scaffold(
+            body: decorator == _keepDecorator
+                ? AnimatedReorderable.list(
+                    keyGetter: (index) => ValueKey(index),
+                    onSwipeToRemove: (_) {},
+                    listView: _fiveLabels(),
+                  )
+                : AnimatedReorderable.list(
+                    keyGetter: (index) => ValueKey(index),
+                    onSwipeToRemove: (_) {},
+                    swipedItemDecorator: null,
+                    listView: _fiveLabels(),
+                  ),
+          ),
+        );
+        await tester.pumpWidget(build());
+        final transitions = _transitionsAround(tester, find.text('0'));
+
+        final swipe = await tester.startGesture(
+          tester.getCenter(find.text('0')),
+        );
+        await swipe.moveBy(const Offset(-30, 0));
+        await tester.pump();
+        await swipe.moveBy(const Offset(-30, 0));
+        await tester.pump();
+
+        expect(
+          _transitionsAround(tester, find.text('0')),
+          transitions + (decorator == null ? 0 : 2),
+        );
+        await swipe.up();
+        await tester.pumpAndSettle();
+      });
+    }
+
     testWidgets('does not move an item that is not reorderable', (
       tester,
     ) async {
@@ -1763,6 +1865,28 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
         ),
       ),
     );
+
+/// Stands for a decorator the test leaves at its default.
+Widget _keepDecorator(Widget child, int index, Animation<double> animation) =>
+    child;
+
+/// Five labels of the test's extent.
+ListView _fiveLabels() => ListView.builder(
+  itemCount: 5,
+  itemBuilder: (context, index) =>
+      SizedBox(height: _extent, child: Text('$index')),
+);
+
+/// How many scale and fade transitions are around [finder].
+int _transitionsAround(WidgetTester tester, Finder finder) => find
+    .ancestor(
+      of: finder,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is ScaleTransition || widget is FadeTransition,
+      ),
+    )
+    .evaluate()
+    .length;
 
 /// Holds the item at [finder] until a drag starts and drags it down by
 /// [steps] steps of 20 pixels, a frame each.
