@@ -13,6 +13,10 @@ class ControllerState {
   final _itemByKey = <Key, Item>{};
   final _itemKeyByIndex = SplayTreeMap<int, Key>();
   final _overlayedItemByKey = <Key, OverlayedItem>{};
+
+  /// The removed items that animate out. The overlay shows them, but not
+  /// by their keys: the list can show an item with the same key meanwhile.
+  final _outgoingItems = <OverlayedItem>[];
   final _renderedItemByKey = <Key, RenderedItem>{};
   OverlayedItem? draggedItem;
   OverlayedItem? swipedItem;
@@ -32,6 +36,8 @@ class ControllerState {
   Iterable<Item> get items => _itemByKey.values;
 
   Iterable<OverlayedItem> get overlayedItems => _overlayedItemByKey.values;
+
+  Iterable<OverlayedItem> get outgoingItems => _outgoingItems;
 
   Iterable<RenderedItem> get renderedItems => _renderedItemByKey.values;
 
@@ -94,6 +100,15 @@ class ControllerState {
     return removed;
   }
 
+  void addOutgoingItem(OverlayedItem x) {
+    _outgoingItems.add(x);
+    overlayChanges.notify();
+  }
+
+  void removeOutgoingItem(OverlayedItem x) {
+    if (_outgoingItems.remove(x)) overlayChanges.notify();
+  }
+
   void setZIndex(OverlayedItem item, int zIndex) {
     if (item.zIndex == zIndex) return;
     item.zIndex = zIndex;
@@ -112,7 +127,7 @@ class ControllerState {
       _itemKeyByIndex[i + 1] = _itemKeyByIndex[i]!;
     }
 
-    for (var overlayedItem in overlayedItems) {
+    for (var overlayedItem in [...overlayedItems, ..._outgoingItems]) {
       if (overlayedItem.index >= index) {
         overlayedItem.index++;
       }
@@ -143,7 +158,7 @@ class ControllerState {
     }
     _itemKeyByIndex.remove(lastIndex);
 
-    for (var overlayedItem in overlayedItems) {
+    for (var overlayedItem in [...overlayedItems, ..._outgoingItems]) {
       if (overlayedItem.index > index) {
         overlayedItem.index--;
       }
@@ -201,11 +216,12 @@ class ControllerState {
     for (var x in items) {
       x.dispose();
     }
-    for (var x in overlayedItems) {
+    for (var x in [...overlayedItems, ..._outgoingItems]) {
       x.dispose();
     }
     _itemByKey.clear();
     _overlayedItemByKey.clear();
+    _outgoingItems.clear();
     _itemKeyByIndex.clear();
     _renderedItemByKey.clear();
     draggedItem = null;

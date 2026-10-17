@@ -121,10 +121,11 @@ class AnimatedReorderableController implements ItemHost {
     );
 
     if (renderedItem == null) return;
-    final outgoingItem = _state.putOverlayedItemIfAbsent(
-      key: renderedItem.key,
-      ifAbsent: () => createOverlayedItem(renderedItem, item: removedItem),
-    );
+    // It leaves its key to an item the list may show with it.
+    final outgoingItem =
+        _state.removeOverlayedItem(key: renderedItem.key) ??
+        createOverlayedItem(renderedItem, item: removedItem);
+    _state.addOutgoingItem(outgoingItem);
     _state.setZIndex(outgoingItem, zIndex ?? outgoingItemZIndex);
     outgoingItem
       ..outgoing = true
@@ -140,9 +141,10 @@ class AnimatedReorderableController implements ItemHost {
           duration: duration,
           vsync: vsync,
         )
-        .whenComplete(
-          () => _state.removeOverlayedItem(key: removedItem.key)?.dispose(),
-        );
+        .whenComplete(() {
+          _state.removeOutgoingItem(outgoingItem);
+          outgoingItem.dispose();
+        });
   }
 
   void reorderItem(int index, {required int destIndex}) {
@@ -205,7 +207,7 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   Iterable<model.OverlayedItem> get overlayedItemsOrderedByZIndex =>
-      _state.overlayedItems.toList()
+      [..._state.overlayedItems, ..._state.outgoingItems]
         ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
   bool isDragged(model.RenderedItem item) => _state.isDragged(key: item.key);
@@ -386,7 +388,6 @@ class AnimatedReorderableController implements ItemHost {
 
   void unoverlay(model.OverlayedItem item) {
     if (_state.overlayedItemBy(key: item.key) != item) return;
-    if (item.outgoing) return;
     _state.removeOverlayedItem(key: item.key);
     _state.renderedItemBy(key: item.key)?.rebuild();
     addPostFrame(() {
@@ -535,7 +536,7 @@ class AnimatedReorderableController implements ItemHost {
   /// Moves the overlayed item of [item] to where the list laid [item] out.
   void reconcileItem(model.RenderedItem item) {
     final overlayedItem = _state.overlayedItemBy(key: item.key);
-    if (overlayedItem == null || overlayedItem.outgoing) return;
+    if (overlayedItem == null) return;
 
     // They change when the list resizes.
     final constraints = item.constraints;
@@ -646,10 +647,7 @@ extension ItemsLayerReconciliation on AnimatedReorderableController {
     fitOutgoingItemsToLayout();
 
     for (var overlayedItem
-        in _state.overlayedItems
-            .where(isNotRendered)
-            .where((x) => !x.outgoing)
-            .toList()) {
+        in _state.overlayedItems.where(isNotRendered).toList()) {
       final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
         notRenderedItemIndex: overlayedItem.index,
         anyRenderedItem: _state.renderedItems.first,
@@ -670,7 +668,7 @@ extension ItemsLayerReconciliation on AnimatedReorderableController {
   /// A removed item has no slot any more. It fades out in place, as wide
   /// as the list's slots (or as big as the grid's) after a resize.
   void fitOutgoingItemsToLayout() {
-    for (var item in _state.overlayedItems.where((x) => x.outgoing)) {
+    for (var item in _state.outgoingItems) {
       final slot =
           getRenderedItemAt(item.index) ?? _state.renderedItems.firstOrNull;
       final constraints = slot?.constraints;
@@ -842,9 +840,9 @@ extension ScrollHandler on AnimatedReorderableController {
     final delta = markScrollOffset();
 
     for (var x
-        in _state.overlayedItems
-            .where((x) => !_state.isDragged(key: x.key))
-            .where((x) => !_state.isSwiped(key: x.key))) {
+        in [..._state.overlayedItems, ..._state.outgoingItems]
+            .where((x) => x != _state.draggedItem)
+            .where((x) => x != _state.swipedItem)) {
       x.shift(-delta);
     }
   }

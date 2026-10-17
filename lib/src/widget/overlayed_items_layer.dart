@@ -54,7 +54,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
     children: [
       for (var item in controller.overlayedItemsOrderedByZIndex)
         OverlayedItemWidget(
-          key: ValueKey(item.key),
+          key: ObjectKey(item),
           item: item,
           onDragStart: controller.handleItemDragStart,
           onDragUpdate: controller.handleItemDragUpdate,

@@ -831,6 +831,44 @@ void main() {
     });
   });
 
+  group('insert again while removed', () {
+    Future<_TestList> reinsert(WidgetTester tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      list.removeAt(1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      list.insert(1, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      return list;
+    }
+
+    testWidgets('shows the item and the one animating out', (tester) async {
+      final list = await reinsert(tester);
+
+      expect(_itemWithId(1), findsNWidgets(2));
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 1, 2, 3, 4]);
+      _expectEachItemOnce(list.items);
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400]);
+      expect(_trackedTickers(tester), 0);
+    });
+
+    testWidgets('moves the item', (tester) async {
+      final list = await reinsert(tester);
+
+      list.state.reorderItem(1, destIndex: 3);
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 2, 3, 1, 4]);
+      _expectEachItemOnce(list.items);
+      expect(_tops(tester, list.items), [0, 100, 200, 300, 400]);
+      expect(_trackedTickers(tester), 0);
+    });
+  });
+
   group('swipe to remove', () {
     for (final (scrollDirection, direction) in [
       (Axis.vertical, AxisDirection.left),
