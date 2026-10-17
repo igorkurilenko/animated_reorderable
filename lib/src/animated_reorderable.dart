@@ -35,7 +35,7 @@ typedef AxisDirectionGetter = AxisDirection? Function(int index);
 /// void handleReorder(Permutations permutations) =>
 ///   permutations.apply(items);
 /// ```
-typedef ReorderCallback = void Function(Permutations permutations);
+typedef PermutationsCallback = void Function(Permutations permutations);
 
 /// A callback function that is called when an item is swiped for removal.
 ///

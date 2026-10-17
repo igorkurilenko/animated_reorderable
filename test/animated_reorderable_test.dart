@@ -2004,7 +2004,7 @@ void main() {
 Widget _labels(
   List<String> labels, {
   Key? key,
-  void Function(Permutations permutations)? onReorder,
+  PermutationsCallback? onReorder,
 }) => MaterialApp(
   home: Scaffold(
     body: AnimatedReorderable.list(

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart' hide ReorderCallback;
+import 'package:flutter/widgets.dart';
 
 import 'animated_reorderable.dart';
 import 'const.dart';
@@ -70,7 +70,7 @@ class ReorderOptions {
 
   /// Called when items are reordered. Without it, items can still be
   /// dragged, but do not take each other's places.
-  final ReorderCallback? onReorder;
+  final PermutationsCallback? onReorder;
 
   /// Whether the item at an index can be dragged. All can by default.
   final BoolGetter? draggableGetter;
