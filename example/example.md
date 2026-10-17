@@ -161,13 +161,17 @@ class _AnimatedReorderableListSampleState
           body: AnimatedReorderable.list(
             key: _animatedReorderableKey,
             keyGetter: (index) => ValueKey(_list[index]),
-            onReorder: (permutations) => _list.onReorder(permutations),
-            onSwipeToRemove: (index) {
-              final item = _list.removeAt(index);
-              if (item == _selectedItem) {
-                setState(() => _selectedItem = null);
-              }
-            },
+            reorder: ReorderOptions(
+              onReorder: (permutations) => _list.onReorder(permutations),
+            ),
+            swipeToRemove: SwipeToRemoveOptions(
+              onSwipeToRemove: (index) {
+                final item = _list.removeAt(index);
+                if (item == _selectedItem) {
+                  setState(() => _selectedItem = null);
+                }
+              },
+            ),
             listView: ListView.builder(
               shrinkWrap: true,
               itemCount: _list.length,
@@ -447,13 +451,17 @@ class _AnimatedReorderableGridSampleState
           body: AnimatedReorderable.grid(
             key: _animatedReorderableKey,
             keyGetter: (index) => ValueKey(_list[index]),
-            onReorder: (permutations) => _list.onReorder(permutations),
-            onSwipeToRemove: (index) {
-              final item = _list.removeAt(index);
-              if (item == _selectedItem) {
-                setState(() => _selectedItem = null);
-              }
-            },
+            reorder: ReorderOptions(
+              onReorder: (permutations) => _list.onReorder(permutations),
+            ),
+            swipeToRemove: SwipeToRemoveOptions(
+              onSwipeToRemove: (index) {
+                final item = _list.removeAt(index);
+                if (item == _selectedItem) {
+                  setState(() => _selectedItem = null);
+                }
+              },
+            ),
             gridView: GridView.builder(
               shrinkWrap: true,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

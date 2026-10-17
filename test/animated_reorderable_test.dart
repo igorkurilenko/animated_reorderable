@@ -573,6 +573,204 @@ void main() {
       });
     }
 
+    group('map to options', () {
+      bool draggable(int _) => true;
+      bool reorderable(int _) => false;
+      void onReorder(Permutations _) {}
+      AxisDirection? direction(int _) => AxisDirection.up;
+      void onSwipeToRemove(int _) {}
+      Widget dragged(Widget child, int _, Animation<double> _) => child;
+      Widget swiped(Widget child, int _, Animation<double> _) => child;
+      void dragStart(DragStartDetails _, int _) {}
+      void dragUpdate(DragUpdateDetails _, int _) {}
+      void dragEnd(DragEndDetails _, int _) {}
+      void swipeStart(DragStartDetails _, int _) {}
+      void swipeUpdate(DragUpdateDetails _, int _) {}
+      void swipeEnd(DragEndDetails _, int _) {}
+      MultiDragGestureRecognizer recognizer(BuildContext _) =>
+          ImmediateMultiDragGestureRecognizer();
+      const spring = SpringDescription(mass: 2, stiffness: 3, damping: 4);
+
+      void expectOptions(AnimatedReorderable widget) {
+        expect(widget.motion.duration, const Duration(milliseconds: 1));
+        expect(widget.motion.curve, Curves.bounceIn);
+        expect(widget.reorder.autoScrollerVelocityScalar, 0.1);
+        expect(widget.reorder.draggableGetter, same(draggable));
+        expect(widget.reorder.reorderableGetter, same(reorderable));
+        expect(widget.reorder.onReorder, same(onReorder));
+        expect(widget.reorder.gestureRecognizerFactory, same(recognizer));
+        expect(widget.reorder.decoration.decorator, same(dragged));
+        expect(
+          widget.reorder.decoration.duration,
+          const Duration(milliseconds: 2),
+        );
+        expect(widget.reorder.callbacks.onStart, same(dragStart));
+        expect(widget.reorder.callbacks.onUpdate, same(dragUpdate));
+        expect(widget.reorder.callbacks.onEnd, same(dragEnd));
+        expect(widget.swipeToRemove.directionGetter, same(direction));
+        expect(widget.swipeToRemove.extent, 0.2);
+        expect(widget.swipeToRemove.velocity, 0.3);
+        expect(widget.swipeToRemove.springDescription, spring);
+        expect(widget.swipeToRemove.onSwipeToRemove, same(onSwipeToRemove));
+        expect(widget.swipeToRemove.decoration.decorator, same(swiped));
+        expect(
+          widget.swipeToRemove.decoration.duration,
+          const Duration(milliseconds: 3),
+        );
+        expect(widget.swipeToRemove.callbacks.onStart, same(swipeStart));
+        expect(widget.swipeToRemove.callbacks.onUpdate, same(swipeUpdate));
+        expect(widget.swipeToRemove.callbacks.onEnd, same(swipeEnd));
+      }
+
+      void expectDeprecatedGetters(AnimatedReorderable widget) {
+        expect(widget.motionAnimationDuration, const Duration(milliseconds: 1));
+        expect(widget.motionAnimationCurve, Curves.bounceIn);
+        expect(widget.autoScrollerVelocityScalar, 0.1);
+        expect(widget.draggableGetter, same(draggable));
+        expect(widget.reorderableGetter, same(reorderable));
+        expect(widget.onReorder, same(onReorder));
+        expect(widget.reorderGestureRecognizerFactory, same(recognizer));
+        expect(widget.draggedItemDecorator, same(dragged));
+        expect(
+          widget.draggedItemDecorationAnimationDuration,
+          const Duration(milliseconds: 2),
+        );
+        expect(widget.onItemDragStart, same(dragStart));
+        expect(widget.onItemDragUpdate, same(dragUpdate));
+        expect(widget.onItemDragEnd, same(dragEnd));
+        expect(widget.swipeToRemoveDirectionGetter, same(direction));
+        expect(widget.swipeToRemoveExtent, 0.2);
+        expect(widget.swipeToRemoveVelocity, 0.3);
+        expect(widget.swipeToRemoveSpringDescription, spring);
+        expect(widget.onSwipeToRemove, same(onSwipeToRemove));
+        expect(widget.swipedItemDecorator, same(swiped));
+        expect(
+          widget.swipedItemDecorationAnimationDuration,
+          const Duration(milliseconds: 3),
+        );
+        expect(widget.onItemSwipeStart, same(swipeStart));
+        expect(widget.onItemSwipeUpdate, same(swipeUpdate));
+        expect(widget.onItemSwipeEnd, same(swipeEnd));
+      }
+
+      test('each parameter of a list', () {
+        final widget = AnimatedReorderable.list(
+          keyGetter: (index) => ValueKey(index),
+          motionAnimationDuration: const Duration(milliseconds: 1),
+          motionAnimationCurve: Curves.bounceIn,
+          autoScrollerVelocityScalar: 0.1,
+          draggableGetter: draggable,
+          reorderableGetter: reorderable,
+          onReorder: onReorder,
+          swipeToRemoveDirectionGetter: direction,
+          swipeToRemoveExtent: 0.2,
+          swipeToRemoveVelocity: 0.3,
+          swipeToRemoveSpringDescription: spring,
+          onSwipeToRemove: onSwipeToRemove,
+          draggedItemDecorator: dragged,
+          draggedItemDecorationAnimationDuration: const Duration(
+            milliseconds: 2,
+          ),
+          swipedItemDecorator: swiped,
+          swipedItemDecorationAnimationDuration: const Duration(
+            milliseconds: 3,
+          ),
+          onItemDragStart: dragStart,
+          onItemDragUpdate: dragUpdate,
+          onItemDragEnd: dragEnd,
+          onItemSwipeStart: swipeStart,
+          onItemSwipeUpdate: swipeUpdate,
+          onItemSwipeEnd: swipeEnd,
+          reorderGestureRecognizerFactory: recognizer,
+          listView: _fiveLabels(),
+        );
+
+        expectOptions(widget);
+        expectDeprecatedGetters(widget);
+      });
+
+      test('each parameter of a grid', () {
+        final widget = AnimatedReorderable.grid(
+          keyGetter: (index) => ValueKey(index),
+          motionAnimationDuration: const Duration(milliseconds: 1),
+          motionAnimationCurve: Curves.bounceIn,
+          autoScrollerVelocityScalar: 0.1,
+          draggableGetter: draggable,
+          reorderableGetter: reorderable,
+          onReorder: onReorder,
+          swipeToRemoveDirectionGetter: direction,
+          swipeToRemoveExtent: 0.2,
+          swipeToRemoveVelocity: 0.3,
+          swipeToRemoveSpringDescription: spring,
+          onSwipeToRemove: onSwipeToRemove,
+          draggedItemDecorator: dragged,
+          draggedItemDecorationAnimationDuration: const Duration(
+            milliseconds: 2,
+          ),
+          swipedItemDecorator: swiped,
+          swipedItemDecorationAnimationDuration: const Duration(
+            milliseconds: 3,
+          ),
+          onItemDragStart: dragStart,
+          onItemDragUpdate: dragUpdate,
+          onItemDragEnd: dragEnd,
+          onItemSwipeStart: swipeStart,
+          onItemSwipeUpdate: swipeUpdate,
+          onItemSwipeEnd: swipeEnd,
+          reorderGestureRecognizerFactory: recognizer,
+          gridView: GridView.count(crossAxisCount: 2),
+        );
+
+        expectOptions(widget);
+        expectDeprecatedGetters(widget);
+      });
+
+      test('and back from the options', () {
+        final widget = AnimatedReorderable.list(
+          keyGetter: (index) => ValueKey(index),
+          motion: const MotionOptions(
+            duration: Duration(milliseconds: 1),
+            curve: Curves.bounceIn,
+          ),
+          reorder: ReorderOptions(
+            onReorder: onReorder,
+            draggableGetter: draggable,
+            reorderableGetter: reorderable,
+            gestureRecognizerFactory: recognizer,
+            autoScrollerVelocityScalar: 0.1,
+            decoration: ItemDecoration(
+              decorator: dragged,
+              duration: const Duration(milliseconds: 2),
+            ),
+            callbacks: ItemDragCallbacks(
+              onStart: dragStart,
+              onUpdate: dragUpdate,
+              onEnd: dragEnd,
+            ),
+          ),
+          swipeToRemove: SwipeToRemoveOptions(
+            onSwipeToRemove: onSwipeToRemove,
+            directionGetter: direction,
+            extent: 0.2,
+            velocity: 0.3,
+            springDescription: spring,
+            decoration: ItemDecoration(
+              decorator: swiped,
+              duration: const Duration(milliseconds: 3),
+            ),
+            callbacks: ItemDragCallbacks(
+              onStart: swipeStart,
+              onUpdate: swipeUpdate,
+              onEnd: swipeEnd,
+            ),
+          ),
+          listView: _fiveLabels(),
+        );
+
+        expectDeprecatedGetters(widget);
+      });
+    });
+
     testWidgets('read the options they set', (tester) async {
       void onReorder(Permutations _) {}
       final widget = AnimatedReorderable.list(

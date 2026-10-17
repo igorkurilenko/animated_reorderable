@@ -79,9 +79,41 @@ class ReorderOptions {
   /// All can by default.
   final BoolGetter? reorderableGetter;
 
-  /// Creates the recognizer that starts dragging an item. By default it
-  /// starts after a long press: see
-  /// [AnimatedReorderable.reorderGestureRecognizerFactory].
+  /// A factory function that creates a [MultiDragGestureRecognizer] for handling
+  /// reordering gestures in an [AnimatedReorderable].
+  ///
+  /// By default, it uses [DelayedMultiDragGestureRecognizer], which introduces a delay
+  /// to detect a long press before initiating the drag. This behavior is useful in cases where
+  /// you want to distinguish between simple taps and drag gestures.
+  ///
+  /// Users can override this factory to:
+  /// - Customize the default delay for initiating drag gestures (e.g., changing the delay duration).
+  /// - Use different types of gesture recognizers (e.g., for specific user interactions or input devices).
+  ///
+  /// Default implementation:
+  /// ```dart
+  /// MultiDragGestureRecognizer createReorderDragGestureRecognizer(
+  ///   BuildContext context,
+  /// ) =>
+  ///   DelayedMultiDragGestureRecognizer()
+  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+  /// ```
+  ///
+  /// Example of customizing the delay duration to 250ms using [DelayedMultiDragGestureRecognizer]:
+  /// ```dart
+  /// gestureRecognizerFactory: (BuildContext context) {
+  ///   final recognizer = DelayedMultiDragGestureRecognizer()
+  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+  ///
+  ///   // Customize the delay duration to 250ms
+  ///   recognizer.delay = const Duration(milliseconds: 250);
+  ///
+  ///   return recognizer;
+  /// }
+  /// ```
+  ///
+  /// This factory allows for fine-tuned control over the gesture recognition system,
+  /// providing flexibility for various user interactions and devices.
   final MultiDragGestureRecognizerFactory? gestureRecognizerFactory;
 
   /// {@macro flutter.widgets.EdgeDraggingAutoScroller.velocityScalar}
