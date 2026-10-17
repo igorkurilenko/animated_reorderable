@@ -133,5 +133,22 @@ class Permutation {
   /// been moved. It is a zero-based index.
   final int to;
 
-  Permutation({required this.itemKey, required this.from, required this.to});
+  const Permutation({
+    required this.itemKey,
+    required this.from,
+    required this.to,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is Permutation &&
+      other.itemKey == itemKey &&
+      other.from == from &&
+      other.to == to;
+
+  @override
+  int get hashCode => Object.hash(itemKey, from, to);
+
+  @override
+  String toString() => 'Permutation(itemKey: $itemKey, from: $from, to: $to)';
 }

@@ -42,6 +42,31 @@ void main() {
     expect(permutations.length, 3);
   });
 
+  test('lists the moves it applies', () {
+    final list = ['a', 'b', 'c'];
+
+    expect(_moves(list, [(0, 2), (2, 1), (1, 0)]), const [
+      Permutation(itemKey: ValueKey('a'), from: 0, to: 2),
+      Permutation(itemKey: ValueKey('c'), from: 2, to: 1),
+      Permutation(itemKey: ValueKey('b'), from: 1, to: 0),
+    ]);
+  });
+
+  test('compares permutations by value', () {
+    const a = Permutation(itemKey: ValueKey('a'), from: 0, to: 2);
+    const b = Permutation(itemKey: ValueKey('b'), from: 0, to: 2);
+
+    expect(a, Permutation(itemKey: const ValueKey('a'), from: 0, to: 2));
+    expect(
+      a.hashCode,
+      Permutation(itemKey: const ValueKey('a'), from: 0, to: 2).hashCode,
+    );
+    expect(a, isNot(b));
+    expect(a, isNot(const Permutation(itemKey: ValueKey('a'), from: 1, to: 2)));
+    expect(a, isNot(const Permutation(itemKey: ValueKey('a'), from: 0, to: 1)));
+    expect('$a', "Permutation(itemKey: [<'a'>], from: 0, to: 2)");
+  });
+
   test('changes nothing when empty', () {
     final list = ['a', 'b'];
     final permutations = Permutations()..apply(list);
