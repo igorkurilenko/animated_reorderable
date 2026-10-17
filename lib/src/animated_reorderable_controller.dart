@@ -34,7 +34,9 @@ class AnimatedReorderableController implements ItemHost {
   widgets.ScrollController? _scrollController;
   widgets.EdgeDraggingAutoScroller? _autoScroller;
   late OverriddenSliverChildBuilderDelegate _childrenDelegate;
-  final model.ControllerState<ItemsLayerState, OverlayedItemsLayerState> _state;
+  final model.ControllerState _state;
+  ItemsLayerState? _itemsLayer;
+  OverlayedItemsLayerState? _overlayedItemsLayer;
 
   KeyGetter get keyGetter => widget.keyGetter;
   BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
@@ -227,15 +229,23 @@ class AnimatedReorderableController implements ItemHost {
 
   bool isNotRendered(model.OverlayedItem item) => !isRendered(item);
 
-  widgets.GlobalKey<ItemsLayerState> get itemsLayerKey => _state.itemsLayerKey;
+  ItemsLayerState? get itemsLayer => _itemsLayer;
 
-  widgets.GlobalKey<OverlayedItemsLayerState> get overlayedItemsLayerKey =>
-      _state.overlayedItemsLayerKey;
+  OverlayedItemsLayerState? get overlayedItemsLayer => _overlayedItemsLayer;
 
-  ItemsLayerState? get itemsLayer => _state.itemsLayerState;
+  /// The layers attach themselves while they are mounted.
+  void attachItemsLayer(ItemsLayerState layer) => _itemsLayer = layer;
 
-  OverlayedItemsLayerState? get overlayedItemsLayer =>
-      _state.overlayedItemsLayerState;
+  void detachItemsLayer(ItemsLayerState layer) {
+    if (_itemsLayer == layer) _itemsLayer = null;
+  }
+
+  void attachOverlayedItemsLayer(OverlayedItemsLayerState layer) =>
+      _overlayedItemsLayer = layer;
+
+  void detachOverlayedItemsLayer(OverlayedItemsLayerState layer) {
+    if (_overlayedItemsLayer == layer) _overlayedItemsLayer = null;
+  }
 
   bool didSwipeToRemove(
     model.OverlayedItem item, {

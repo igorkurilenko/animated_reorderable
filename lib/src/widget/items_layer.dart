@@ -23,6 +23,18 @@ class ItemsLayerState extends State<ItemsLayer> {
   AnimatedReorderableController get controller => widget.controller;
 
   @override
+  void initState() {
+    super.initState();
+    controller.attachItemsLayer(this);
+  }
+
+  @override
+  void dispose() {
+    controller.detachItemsLayer(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     addPostFrame(() => widget.didBuild?.call());
 

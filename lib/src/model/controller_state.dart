@@ -1,14 +1,7 @@
 part of 'model.dart';
 
-class ControllerState<
-  ItemsLayerState extends State<StatefulWidget>,
-  OverlayedItemsLayerState extends State<StatefulWidget>
-> {
+class ControllerState {
   ControllerState({this.itemCount});
-
-  GlobalKey<ItemsLayerState> _itemsLayerKey = GlobalKey<ItemsLayerState>();
-  GlobalKey<OverlayedItemsLayerState> _overlayedItemsLayerKey =
-      GlobalKey<OverlayedItemsLayerState>();
 
   final _itemByKey = <Key, Item>{};
   final _itemKeyByIndex = SplayTreeMap<int, Key>();
@@ -29,16 +22,6 @@ class ControllerState<
   /// axis extent.
   ({int index, double leadingEdge, double extent})? scrollAnchor;
   Offset scrollOffset = Offset.zero;
-
-  GlobalKey<ItemsLayerState> get itemsLayerKey => _itemsLayerKey;
-
-  ItemsLayerState? get itemsLayerState => itemsLayerKey.currentState;
-
-  GlobalKey<OverlayedItemsLayerState> get overlayedItemsLayerKey =>
-      _overlayedItemsLayerKey;
-
-  OverlayedItemsLayerState? get overlayedItemsLayerState =>
-      overlayedItemsLayerKey.currentState;
 
   Iterable<Item> get items => _itemByKey.values;
 
@@ -194,24 +177,6 @@ class ControllerState<
     return permutations;
   }
 
-  void reset() {
-    _itemsLayerKey = GlobalKey<ItemsLayerState>();
-    _overlayedItemsLayerKey = GlobalKey<OverlayedItemsLayerState>();
-    _itemByKey.clear();
-    _overlayedItemByKey.clear();
-    _itemKeyByIndex.clear();
-    _renderedItemByKey.clear();
-    draggedItem = null;
-    swipedItem = null;
-    itemUnderThePointerKey = null;
-    itemCount = null;
-    constraints = null;
-    scrollOffset = Offset.zero;
-    gridLayout = null;
-    gridPrecedingScrollExtent = 0.0;
-    scrollAnchor = null;
-  }
-
   void dispose() {
     for (var x in items) {
       x.dispose();
@@ -219,6 +184,11 @@ class ControllerState<
     for (var x in overlayedItems) {
       x.dispose();
     }
-    reset();
+    _itemByKey.clear();
+    _overlayedItemByKey.clear();
+    _itemKeyByIndex.clear();
+    _renderedItemByKey.clear();
+    draggedItem = null;
+    swipedItem = null;
   }
 }

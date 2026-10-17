@@ -676,7 +676,6 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
                 return false;
               },
               child: ItemsLayer(
-                key: _controller.itemsLayerKey,
                 controller: _controller,
                 collectionViewBuilder: buildCollectionView,
                 didBuild: _controller.handleDidBuildItemsLayer,
@@ -684,7 +683,6 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
             ),
           ),
           OverlayedItemsLayer(
-            key: _controller.overlayedItemsLayerKey,
             controller: _controller,
             clipBehavior: _clipBehavior,
           ),

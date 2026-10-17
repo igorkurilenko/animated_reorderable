@@ -144,12 +144,10 @@ void main() {
   });
 }
 
-typedef _State = ControllerState<State<StatefulWidget>, State<StatefulWidget>>;
-
 /// A state with the items of [ids] at their indexes, or only the ones
 /// whose ids are in [only].
-_State _stateOf(List<int> ids, {Set<int>? only}) {
-  final state = _State(itemCount: ids.length);
+ControllerState _stateOf(List<int> ids, {Set<int>? only}) {
+  final state = ControllerState(itemCount: ids.length);
   for (final (index, id) in ids.indexed) {
     if (only != null && !only.contains(id)) continue;
     state.putItem(_item(id));
@@ -161,7 +159,7 @@ _State _stateOf(List<int> ids, {Set<int>? only}) {
 /// Moves the item at [from] to [to]. The item at an index the state has no
 /// item for yet has the id of its index.
 Permutations _move(
-  _State state,
+  ControllerState state,
   int from,
   int to, {
   Set<int> fixed = const {},
@@ -174,7 +172,7 @@ Permutations _move(
 
 /// The ids of the items at the first [count] indexes. An index the state
 /// has no item for keeps the id of its index.
-List<int> _order(_State state, int count) => [
+List<int> _order(ControllerState state, int count) => [
   for (var index = 0; index < count; index++)
     switch (state.itemAt(index: index)?.key) {
       ValueKey<int>(:final value) => value,

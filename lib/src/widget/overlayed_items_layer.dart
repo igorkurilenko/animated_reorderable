@@ -23,6 +23,18 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
 
   AnimatedReorderableController get controller => widget.controller;
 
+  @override
+  void initState() {
+    super.initState();
+    controller.attachOverlayedItemsLayer(this);
+  }
+
+  @override
+  void dispose() {
+    controller.detachOverlayedItemsLayer(this);
+    super.dispose();
+  }
+
   Offset? globalToLocal(Offset point) =>
       canvasKey.currentContext?.findRenderBox()?.globalToLocal(point);
 
