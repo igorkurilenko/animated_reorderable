@@ -1,3 +1,42 @@
+## 2.0.0-dev.1
+
+2.0 removes what 1.6.0 deprecated. Upgrade to 1.6.0 first and fix its deprecation warnings. Three changes are left after that: drop the `null` from `insertItem(index, null)`, rename `ReorderCallback` to `PermutationsCallback`, and drop the type argument from `AnimatedReorderableState<…>`.
+
+### Breaking changes
+
+- `AnimatedReorderable.list` and `.grid` take only `keyGetter`, `motion`, `reorder`, `swipeToRemove`, `insertTransition` and the view. Each flat parameter moved to an option object:
+
+  | 1.x | 2.0 |
+  |---|---|
+  | `motionAnimationDuration`, `motionAnimationCurve` | `motion: MotionOptions(duration:, curve:)` |
+  | `onReorder`, `draggableGetter`, `reorderableGetter`, `autoScrollerVelocityScalar`, `reorderGestureRecognizerFactory` | `reorder: ReorderOptions(onReorder:, draggableGetter:, reorderableGetter:, autoScrollerVelocityScalar:, gestureRecognizerFactory:)` |
+  | `draggedItemDecorator`, `draggedItemDecorationAnimationDuration` | `reorder: ReorderOptions(decoration: ItemDecoration(decorator:, duration:))` |
+  | `onItemDragStart`, `onItemDragUpdate`, `onItemDragEnd` | `reorder: ReorderOptions(callbacks: ItemDragCallbacks(onStart:, onUpdate:, onEnd:))` |
+  | `onSwipeToRemove`, `swipeToRemoveDirectionGetter`, `swipeToRemoveExtent`, `swipeToRemoveVelocity`, `swipeToRemoveSpringDescription` | `swipeToRemove: SwipeToRemoveOptions(onSwipeToRemove:, directionGetter:, extent:, velocity:, springDescription:)` |
+  | `swipedItemDecorator`, `swipedItemDecorationAnimationDuration` | `swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(decorator:, duration:))` |
+  | `onItemSwipeStart`, `onItemSwipeUpdate`, `onItemSwipeEnd` | `swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onStart:, onUpdate:, onEnd:))` |
+
+- The getters of the same names on `AnimatedReorderable` are gone. Read the options instead, such as `widget.reorder.onReorder`.
+- `insertItem(index, builder)` is `insertItem(index)`. Move the builder's transition to `insertTransition`, which gets the item as its `child`:
+
+  ```dart
+  // 1.x
+  state.insertItem(index, (context, index, animation) =>
+      FadeTransition(opacity: animation, child: buildItem(index)));
+
+  // 2.0
+  AnimatedReorderable.list(
+    insertTransition: (child, index, animation) =>
+        FadeTransition(opacity: animation, child: child),
+    // …
+  );
+  state.insertItem(index);
+  ```
+
+- The `AnimatedReorderable` constructor and `AnimatedReorderableState.buildCollectionView` are gone. Use `AnimatedReorderable.list` and `.grid`.
+- `AnimatedReorderable` and `AnimatedReorderableState` are `final` classes, and `AnimatedReorderableState<T>` is `AnimatedReorderableState`.
+- `ReorderCallback` is `PermutationsCallback`, so that it no longer clashes with Flutter's `ReorderCallback`.
+
 ## 1.6.0
 
 ### Features
