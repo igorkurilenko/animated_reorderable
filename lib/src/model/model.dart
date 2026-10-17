@@ -9,7 +9,6 @@ import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
 import '../const.dart';
-import '../util/offset_animation.dart';
 import 'coordinates.dart';
 import 'swipe_direction.dart';
 
@@ -22,3 +21,4 @@ part 'item_decorator.dart';
 part 'item_registry.dart';
 part 'rendered_item.dart';
 part 'change_signal.dart';
+part 'item_motion.dart';

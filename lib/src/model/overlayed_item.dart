@@ -41,7 +41,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
   GlobalOffset? _globalPointerPosition;
-  OffsetAnimation? _motionAnimation;
+  ItemMotion? _motion;
   AnimatedItemDecoratorAdapter? _decorator;
 
   Key get key => item.key;
@@ -53,12 +53,8 @@ class OverlayedItem extends widgets.ChangeNotifier {
   OverlayOffset get position => _position;
 
   /// Where the item moves to, or where it is if it does not move.
-  OverlayOffset get anchorPosition => switch (_motionAnimation) {
-    final animation? => OverlayOffset(animation.end),
-    null => position,
-  };
-  widgets.AnimationStatus? get motionAnimationStatus =>
-      _motionAnimation?.controller.status;
+  OverlayOffset get anchorPosition => _motion?.target ?? position;
+  widgets.AnimationStatus? get motionAnimationStatus => _motion?.status;
 
   void setPosition(OverlayOffset value) {
     if (_position == value) return;
@@ -105,7 +101,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }
 
   void shift(Offset delta) {
-    _motionAnimation?.shift(delta);
+    _motion?.shift(delta);
     setPosition(position + delta);
   }
 
@@ -190,13 +186,12 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }) {
     if (position == this.position) return Future.value();
 
-    final controller = _motionTo(
-      position,
+    return _motionWith(vsync).animate(
+      from: this.position,
+      to: position,
       curve: curve,
-      vsync: vsync,
-    ).controller;
-    controller.duration = duration;
-    return controller.forward(from: 0.0);
+      duration: duration,
+    );
   }
 
   Future animateFlingTo(
@@ -208,40 +203,19 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }) {
     if (position == this.position) return Future.value();
 
-    final controller = _motionTo(
-      position,
-      curve: Curves.linear,
-      vsync: vsync,
-    ).controller;
-
-    final pixelsPerSecond = velocity.pixelsPerSecond;
-    final unitsPerSecondX = pixelsPerSecond.dx / screenSize.width;
-    final unitsPerSecondY = pixelsPerSecond.dy / screenSize.height;
-    final unitsPerSecond = Offset(unitsPerSecondX, unitsPerSecondY);
-    final unitVelocity = unitsPerSecond.distance;
-    final simulation = SpringSimulation(springDescription, 0, 1, -unitVelocity);
-
-    return controller.animateWith(simulation);
+    return _motionWith(vsync).fling(
+      from: this.position,
+      to: position,
+      velocity: velocity,
+      screenSize: screenSize,
+      springDescription: springDescription,
+    );
   }
 
-  /// The motion animation, set to move this item from where it is to
-  /// [position] along [curve].
-  OffsetAnimation _motionTo(
-    OverlayOffset position, {
-    required Curve curve,
-    required TickerProvider vsync,
-  }) =>
-      (_motionAnimation ??= OffsetAnimation(
-          controller: AnimationController(vsync: vsync)
-            ..addListener(
-              () => setPosition(OverlayOffset(_motionAnimation!.value)),
-            ),
-        ))
-        ..begin = this.position
-        ..end = position
-        ..curve = curve;
+  ItemMotion _motionWith(TickerProvider vsync) =>
+      _motion ??= ItemMotion(vsync: vsync, onMove: setPosition);
 
-  void stopMotion() => _motionAnimation?.controller.stop();
+  void stopMotion() => _motion?.stop();
 
   Future animateDecoration({
     AnimatedItemDecorator? decorator,
@@ -273,8 +247,8 @@ class OverlayedItem extends widgets.ChangeNotifier {
     _recognizer?.dispose();
     _recognizer = null;
     _swipe = null;
-    _motionAnimation?.dispose();
-    _motionAnimation = null;
+    _motion?.dispose();
+    _motion = null;
     _decorator?.dispose();
     _decorator = null;
     super.dispose();
