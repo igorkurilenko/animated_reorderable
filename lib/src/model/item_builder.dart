@@ -15,9 +15,6 @@ abstract class ItemBuilder {
     required widgets.AnimationController controller,
   }) => AnimatedRemovedItemBuilderAdapter(builder, controller: controller);
 
-  factory ItemBuilder.adaptOtherItemBuilder(Item item) =>
-      OtherItemBuilderAdapter(item: item);
-
   widgets.Widget? build(widgets.BuildContext context, int index);
 
   void dispose();
@@ -36,20 +33,6 @@ class NullableIndexedWidgetBuilderAdapter implements ItemBuilder {
   void dispose() {}
 }
 
-class OtherItemBuilderAdapter implements ItemBuilder {
-  OtherItemBuilderAdapter({required this.item});
-
-  final Item item;
-
-  @override
-  widgets.Widget? build(widgets.BuildContext context, int index) =>
-      item.builder.build(context, index);
-
-  /// The adapted [item] owns its builder and disposes it.
-  @override
-  void dispose() {}
-}
-
 abstract class AnimatedItemBuilder implements ItemBuilder {
   AnimatedItemBuilder({required this.controller});
 
@@ -60,12 +43,6 @@ abstract class AnimatedItemBuilder implements ItemBuilder {
     controller.stop();
     return result;
   }
-
-  TickerFuture forwardAnimation({double? from}) =>
-      controller.forward(from: from);
-
-  TickerFuture reverseAnimation({double? from}) =>
-      controller.reverse(from: from);
 
   @override
   void dispose() => controller.dispose();
@@ -93,7 +70,6 @@ class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
 
 extension ItemBuilderExt on ItemBuilder {
   AnimatedItemBuilder? get asAnimated => switch (this) {
-    (OtherItemBuilderAdapter b) => b.item.builder.asAnimated,
     (AnimatedItemBuilder b) => b,
     _ => null,
   };

@@ -1,19 +1,16 @@
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
-import '../util/misc.dart';
 
 class ItemsLayer extends StatefulWidget {
   const ItemsLayer({
     super.key,
     required this.controller,
     required this.collectionViewBuilder,
-    this.didBuild,
   });
 
   final AnimatedReorderableController controller;
   final WidgetBuilder collectionViewBuilder;
-  final VoidCallback? didBuild;
 
   @override
   State<ItemsLayer> createState() => ItemsLayerState();
@@ -23,8 +20,24 @@ class ItemsLayerState extends State<ItemsLayer> {
   AnimatedReorderableController get controller => widget.controller;
 
   @override
+  void initState() {
+    super.initState();
+    controller.attachItemsLayer(this);
+    controller.itemsChanges.addListener(_rebuild);
+  }
+
+  @override
+  void dispose() {
+    controller.itemsChanges.removeListener(_rebuild);
+    controller.detachItemsLayer(this);
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    addPostFrame(() => widget.didBuild?.call());
+    controller.didBuildItemsLayer();
 
     return widget.collectionViewBuilder(context);
   }

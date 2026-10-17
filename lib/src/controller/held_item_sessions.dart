@@ -1,0 +1,177 @@
+import 'package:flutter/widgets.dart';
+
+import '../options.dart';
+import '../model/model.dart';
+import '../util/scheduling.dart';
+import 'overlay_coordinator.dart';
+import 'scroll_sync.dart';
+
+/// A drag of an item, from its start to its end: the item follows the
+/// pointer, takes the place of the items it is dragged over and scrolls
+/// the view at its edges (GoF State).
+class DragSession {
+  DragSession({
+    required this.item,
+    required this.items,
+    required this.overlay,
+    required this.scrollSync,
+    required this.options,
+    required this.reorderItem,
+  });
+
+  final OverlayedItem item;
+  final ItemRegistry items;
+  final OverlayCoordinator overlay;
+  final ScrollSync scrollSync;
+
+  /// The latest options.
+  final ValueGetter<ReorderOptions> options;
+  final void Function(int index, {required int destIndex}) reorderItem;
+
+  /// The rendered item the pointer was over, so the dragged item takes its
+  /// place only once, when the pointer gets there.
+  Key? _itemUnderThePointerKey;
+
+  void start(DragStartDetails details) {
+    final options = this.options();
+    options.callbacks.onStart?.call(details, item.index);
+
+    item.stopMotion();
+
+    items.draggedItem = item;
+
+    overlay.lift(
+      item,
+      decorator: options.decoration.decorator,
+      decorationDuration: options.decoration.duration,
+    );
+  }
+
+  void update(DragUpdateDetails details) {
+    options().callbacks.onUpdate?.call(details, item.index);
+
+    item.shift(details.delta);
+
+    reorderAndAutoScroll();
+  }
+
+  void end(DragEndDetails details) {
+    options().callbacks.onEnd?.call(details, item.index);
+
+    items.draggedItem = null;
+
+    scrollSync.stopAutoScroll(forceStopAnimation: true);
+
+    overlay.flingBackToSlot(
+      item,
+      undecoration: item.animateUndecoration(),
+      velocity: details.velocity,
+    );
+  }
+
+  void reorderAndAutoScroll() {
+    _reorderIfOverAnotherItem();
+    scrollSync.autoScroll(overlay.globalRectOf(item));
+  }
+
+  void _reorderIfOverAnotherItem() {
+    final options = this.options();
+    final pointerPosition = item.globalPointerPosition;
+    if (options.onReorder == null || pointerPosition == null) return;
+    if (!(options.reorderableGetter?.call(item.index) ?? true)) return;
+
+    final renderedItem = items.renderedItemAt(position: pointerPosition);
+
+    if (renderedItem?.key == _itemUnderThePointerKey) return;
+    _itemUnderThePointerKey = renderedItem?.key;
+
+    if (renderedItem == null) return;
+    if (renderedItem.key == item.key) return;
+    if (!renderedItem.reorderable) return;
+
+    reorderItem(item.index, destIndex: renderedItem.index);
+
+    addPostFrame(
+      () => _itemUnderThePointerKey = items
+          .renderedItemAt(position: pointerPosition)
+          ?.key,
+    );
+  }
+}
+
+/// A swipe of an item, from its start to its end: the item follows the
+/// pointer along its swipe axis, and is flung out and removed or back to
+/// its slot at the end (GoF State).
+class SwipeSession {
+  SwipeSession({
+    required this.item,
+    required this.items,
+    required this.overlay,
+    required this.options,
+  });
+
+  final OverlayedItem item;
+  final ItemRegistry items;
+  final OverlayCoordinator overlay;
+
+  /// The latest options.
+  final ValueGetter<SwipeToRemoveOptions> options;
+
+  void start(DragStartDetails details) {
+    final options = this.options();
+    options.callbacks.onStart?.call(details, item.index);
+
+    item.stopMotion();
+
+    items.swipedItem = item;
+
+    overlay.lift(
+      item,
+      decorator: options.decoration.decorator,
+      decorationDuration: options.decoration.duration,
+    );
+  }
+
+  void update(DragUpdateDetails details) {
+    options().callbacks.onUpdate?.call(details, item.index);
+
+    item.shift(details.delta);
+  }
+
+  void end(DragEndDetails details) {
+    final options = this.options();
+    options.callbacks.onEnd?.call(details, item.index);
+
+    items.swipedItem = null;
+
+    final undecoration = item.animateUndecoration();
+    final swipeDirection = item.swipeToRemoveDirection;
+    final onSwipeToRemove = options.onSwipeToRemove;
+    final removes =
+        swipeDirection?.removes(
+          extent: item.swipeExtent,
+          velocity: details.velocity,
+          minExtent: options.extent,
+          minVelocity: options.velocity,
+        ) ??
+        false;
+
+    if (swipeDirection != null && onSwipeToRemove != null && removes) {
+      onSwipeToRemove(item.index);
+
+      overlay.flingOut(
+        item,
+        direction: swipeDirection,
+        velocity: details.velocity,
+        springDescription: options.springDescription,
+      );
+    } else {
+      overlay.flingBackToSlot(
+        item,
+        undecoration: undecoration,
+        velocity: details.velocity,
+        springDescription: options.springDescription,
+      );
+    }
+  }
+}

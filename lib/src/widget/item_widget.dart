@@ -1,108 +1,133 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../animated_reorderable.dart';
-import '../util/misc.dart';
+import '../model/model.dart' show GlobalOffset, RenderedItem;
+import '../model/swipe_direction.dart';
+import '../util/geometry.dart';
 
-typedef RenderedItem = _ItemWidgetState;
-typedef RenderedItemLifecycleCallback = void Function(RenderedItem item);
-typedef ItemGestureRecognizer = void Function(
-  RenderedItem item,
-  PointerDownEvent event,
-);
+/// What an item widget asks of the controller, and what it tells it.
+abstract interface class ItemHost {
+  bool isReorderable(int index);
+  bool isDraggable(int index);
+  SwipeDirection? swipeToRemoveDirectionAt(int index);
+
+  /// Puts [child], the subtree of the item at [index], in the transition
+  /// the item enters with, at [entrance].
+  Widget buildEntrance(Widget child, int index, Animation<double> entrance);
+
+  void didInitItem(RenderedItem item);
+  void didChangeItemIndex(RenderedItem item);
+
+  /// Called while [item] builds. The host waits for the frame to lay it
+  /// out before it looks at it.
+  void didBuildItem(RenderedItem item);
+  void didDeactivateItem(RenderedItem item);
+  void recognizeReorderDrag(RenderedItem item, PointerDownEvent event);
+  void recognizeSwipe(RenderedItem item, PointerDownEvent event);
+}
 
 class ItemWidget extends StatefulWidget {
   const ItemWidget({
     required super.key,
     required this.index,
-    required this.reorderableGetter,
-    required this.draggableGetter,
-    required this.overlayedSizeGetter,
     required this.childKey,
-    required this.swipeToRemoveDirectionGetter,
     required this.builder,
-    this.onInit,
-    this.didUpdate,
-    this.onDispose,
-    this.onDeactivate,
-    this.didBuild,
-    required this.recognizeReorderDrag,
-    required this.recognizeSwipeDrag,
+    required this.placeholderSize,
+    required this.entrance,
+    required this.host,
   });
 
   final int index;
-  final NullableIndexedWidgetBuilder builder;
-  final BoolGetter reorderableGetter;
-  final BoolGetter draggableGetter;
-
-  /// The size of the item while the overlay shows it, or null.
-  final Size? Function(Key key) overlayedSizeGetter;
   final GlobalKey childKey;
-  final AxisDirectionGetter? swipeToRemoveDirectionGetter;
-  final RenderedItemLifecycleCallback? onInit;
-  final RenderedItemLifecycleCallback? didUpdate;
-  final RenderedItemLifecycleCallback? onDispose;
-  final RenderedItemLifecycleCallback? onDeactivate;
-  final RenderedItemLifecycleCallback? didBuild;
-  final ItemGestureRecognizer recognizeReorderDrag;
-  final ItemGestureRecognizer recognizeSwipeDrag;
+  final NullableIndexedWidgetBuilder builder;
+
+  /// The size of the placeholder that stands in for the item while the
+  /// overlay shows it, or null.
+  final ValueListenable<Size?> placeholderSize;
+
+  /// How far the item has entered.
+  final Animation<double> entrance;
+  final ItemHost host;
 
   @override
   State<ItemWidget> createState() => _ItemWidgetState();
 }
 
-class _ItemWidgetState extends State<ItemWidget> {
+class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
+  ItemHost get host => widget.host;
+  @override
   int get index => widget.index;
+  @override
   Key get key => widget.key!;
-  NullableIndexedWidgetBuilder get builder => widget.builder;
-  bool get reorderable => widget.reorderableGetter(index);
-  bool get draggable => widget.draggableGetter(index);
-  Size? get overlayedSize => widget.overlayedSizeGetter(key);
-  bool get isOverlayed => overlayedSize != null;
-  AxisDirection? get swipeToRemoveDirection =>
-      widget.swipeToRemoveDirectionGetter?.call(index);
+  @override
+  bool get reorderable => host.isReorderable(index);
+  bool get draggable => host.isDraggable(index);
+  @override
+  SwipeDirection? get swipeToRemoveDirection =>
+      host.swipeToRemoveDirectionAt(index);
   bool get swipeable => swipeToRemoveDirection != null;
-  Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
+  @override
+  GlobalOffset? get globalPosition => switch (findRenderBox()) {
+    final box? => GlobalOffset(box.localToGlobal(Offset.zero)),
+    null => null,
+  };
+  @override
   Size? get size => findRenderBox()?.size;
+
+  @override
+  BoxConstraints? get constraints {
+    final renderBox = findRenderBox();
+    return renderBox != null && renderBox.hasSize
+        ? renderBox.constraints
+        : null;
+  }
+
+  @override
+  bool contains(GlobalOffset point) =>
+      findRenderBox()?.getGeometry().contains(point) ?? false;
 
   @override
   void initState() {
     super.initState();
-    widget.onInit?.call(this);
+    widget.placeholderSize.addListener(_rebuild);
+    host.didInitItem(this);
   }
 
   @override
   void didUpdateWidget(covariant ItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.index != widget.index) {
-      widget.didUpdate?.call(this);
+    if (oldWidget.placeholderSize != widget.placeholderSize) {
+      oldWidget.placeholderSize.removeListener(_rebuild);
+      widget.placeholderSize.addListener(_rebuild);
     }
-  }
-
-  @override
-  void dispose() {
-    widget.onDispose?.call(this);
-    super.dispose();
+    if (oldWidget.index != widget.index) host.didChangeItemIndex(this);
   }
 
   @override
   void deactivate() {
-    widget.onDeactivate?.call(this);
+    host.didDeactivateItem(this);
     super.deactivate();
   }
 
-  void rebuild() {
-    if (!mounted) return;
-    setState(() {});
+  @override
+  void dispose() {
+    widget.placeholderSize.removeListener(_rebuild);
+    super.dispose();
   }
+
+  /// It builds again as a whole, so the host reconciles it.
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
-    addPostFrame(() => widget.didBuild?.call(this));
+    host.didBuildItem(this);
 
     // While the overlay shows the item, its subtree lives there and a
     // placeholder keeps its place in the list.
-    final overlayedSize = this.overlayedSize;
-    if (overlayedSize != null) return SizedBox.fromSize(size: overlayedSize);
+    final placeholderSize = widget.placeholderSize.value;
+    if (placeholderSize != null) {
+      return SizedBox.fromSize(size: placeholderSize);
+    }
 
     final child = widget.builder(context, index);
     return Listener(
@@ -110,15 +135,19 @@ class _ItemWidgetState extends State<ItemWidget> {
       child: Listener(
         onPointerDown: draggable ? _recognizeDrag : null,
         child: child != null
-            ? KeyedSubtree(key: widget.childKey, child: child)
+            ? host.buildEntrance(
+                KeyedSubtree(key: widget.childKey, child: child),
+                index,
+                widget.entrance,
+              )
             : null,
       ),
     );
   }
 
   void _recognizeSwipe(PointerDownEvent event) =>
-      widget.recognizeSwipeDrag(this, event);
+      host.recognizeSwipe(this, event);
 
   void _recognizeDrag(PointerDownEvent event) =>
-      widget.recognizeReorderDrag(this, event);
+      host.recognizeReorderDrag(this, event);
 }

@@ -48,7 +48,9 @@
 ///   Widget build(BuildContext context) {
 ///     return AnimatedReorderable.list(
 ///       keyGetter: (index) => ValueKey(items[index]),
-///       onReorder: (permutations) => permutations.apply(items),
+///       reorder: ReorderOptions(
+///         onReorder: (permutations) => permutations.apply(items),
+///       ),
 ///       listView: ListView.builder(
 ///         itemCount: items.length,
 ///         itemBuilder: (context, index) => Card(
@@ -65,4 +67,6 @@
 library;
 
 export 'src/animated_reorderable.dart';
+export 'src/model/model.dart' show AnimatedItemDecorator;
 export 'src/model/permutations.dart';
+export 'src/options.dart';

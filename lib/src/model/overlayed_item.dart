@@ -13,102 +13,96 @@ typedef OverlayedItemDragEndCallback = void Function(
   OverlayedItem item,
 );
 
-class OverlayedItem extends Item {
+/// An item while the overlay shows it, above the list.
+class OverlayedItem extends widgets.ChangeNotifier {
   OverlayedItem({
-    required super.key,
-    required super.builder,
-    super.childKey,
+    required this.item,
     required this._position,
     required this._constraints,
+    required this._size,
     required this.index,
     this._interactive = true,
-    this.outgoing = false,
-    this._zIndex = defaultZIndex,
+    this.zIndex = defaultZIndex,
     this.recognizerFactory,
   });
 
+  /// The item the overlay shows. It builds the item's subtree, which keeps
+  /// its state as it moves between the list and the overlay.
+  final Item item;
   int index;
-  widgets.Offset _position;
+  OverlayOffset _position;
   widgets.BoxConstraints _constraints;
+
+  widgets.Size _size;
   bool _interactive;
-  bool outgoing;
-  int _zIndex;
+
+  int zIndex;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
-  widgets.Offset? _globalPointerPosition;
-  OffsetAnimation? _motionAnimation;
-  widgets.Widget? _widget;
+  GlobalOffset? _globalPointerPosition;
+  ItemMotion? _motion;
   AnimatedItemDecoratorAdapter? _decorator;
 
-  widgets.Offset get position => _position;
-  widgets.Offset get anchorPosition =>
-      _motionAnimation != null ? _motionAnimation!.end : position;
-  widgets.AnimationStatus? get motionAnimationStatus =>
-      _motionAnimation?.controller.status;
+  Key get key => item.key;
 
-  void setPosition(widgets.Offset value, {bool notify = true}) {
+  /// The size of the item itself, without its decoration, as the overlay
+  /// lays it out. The list's placeholder takes this size.
+  widgets.Size get size => _size;
+
+  OverlayOffset get position => _position;
+
+  /// Where the item moves to, or where it is if it does not move.
+  OverlayOffset get anchorPosition => _motion?.target ?? position;
+  widgets.AnimationStatus? get motionAnimationStatus => _motion?.status;
+
+  void setPosition(OverlayOffset value) {
     if (_position == value) return;
     _position = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
   widgets.BoxConstraints get constraints => _constraints;
 
-  void setConstraints(widgets.BoxConstraints value, {bool notify = true}) {
+  void setConstraints(widgets.BoxConstraints value) {
     if (_constraints == value) return;
     _constraints = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
   bool get interactive => _interactive;
 
-  void setInteractive(bool value, {bool notify = true}) {
+  void setInteractive(bool value) {
     if (interactive == value) return;
     _interactive = value;
-    if (notify) notifyListeners();
+    notifyListeners();
   }
 
-  Offset? get globalPointerPosition => _globalPointerPosition;
-
-  widgets.Widget? get widget => _widget;
+  GlobalOffset? get globalPointerPosition => _globalPointerPosition;
 
   bool get swiped => _swipe != null;
 
-  widgets.AxisDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
+  SwipeDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
 
   Offset get swipeOffset => _swipe?.swipeOffset ?? Offset.zero;
 
   double get swipeExtent => _swipe?.swipeExtent ?? 0.0;
 
-  widgets.Velocity get swipeVelocity =>
-      _swipe?.velocity ?? widgets.Velocity.zero;
-
-  widgets.Widget? build(widgets.BuildContext context) {
-    final child = builder.build(context, index);
-    _widget = child != null
-        ? widgets.KeyedSubtree(key: childKey, child: child)
-        : null;
-    return _decorator?.decorate(_widget, index) ?? _widget;
+  /// Builds the item inside its decoration. [wrap] goes between the two.
+  widgets.Widget? build(
+    widgets.BuildContext context, {
+    widgets.Widget Function(widgets.Widget item)? wrap,
+  }) {
+    final child = item.builder.build(context, index);
+    if (child == null) return null;
+    final keyed = widgets.KeyedSubtree(key: item.childKey, child: child);
+    final wrapped = wrap?.call(keyed) ?? keyed;
+    return _decorator?.decorate(wrapped, index) ?? wrapped;
   }
 
-  void shift(Offset delta, {bool notify = true}) {
-    _motionAnimation?.shift(delta);
-    setPosition(position + delta, notify: notify);
-  }
-
-  void scale(double scaleFactor, {bool notify = true}) {
-    _motionAnimation?.scale(scaleFactor);
-    if (scaleFactor == 1) return;
-    setPosition(position * scaleFactor, notify: false);
-    setConstraints(constraints * scaleFactor, notify: notify);
-  }
-
-  int get zIndex => _zIndex;
-  void setZIndex(int value, {bool notify = true}) {
-    if (_zIndex == value) return;
-    _zIndex = value;
-    if (notify) notifyListeners();
+  void shift(Offset delta) {
+    _motion?.shift(delta);
+    setPosition(position + delta);
   }
 
   void recognizeDrag(
@@ -118,41 +112,48 @@ class OverlayedItem extends Item {
     OverlayedItemDragUpdateCallback? onDragUpdate,
     OverlayedItemDragEndCallback? onDragEnd,
   }) {
-    _recognizer?.dispose();
+    // The item is no longer swiped once a drag may start, while a swipe
+    // replaces the previous one only when it starts.
     _swipe = null;
-
-    if (!interactive) return;
-    if (recognizerFactory == null) return;
-
-    _recognizer = recognizerFactory!.call(context)
-      ..onStart = (globalPosition) {
-        _globalPointerPosition = globalPosition;
-        onDragStart?.call(
-          DragStartDetails(
-            sourceTimeStamp: event.timeStamp,
-            globalPosition: globalPosition,
-            localPosition: event.localPosition,
-            kind: event.kind,
-          ),
-          this,
-        );
-
-        return _OverlayedItemDrag(
-          item: this,
-          onDragUpdate: onDragUpdate,
-          onDragEnd: onDragEnd,
-        );
-      }
-      ..addPointer(event);
+    _recognize(
+      event,
+      context: context,
+      onStart: onDragStart,
+      createDrag: () => _OverlayedItemDrag(
+        item: this,
+        onDragUpdate: onDragUpdate,
+        onDragEnd: onDragEnd,
+      ),
+    );
   }
 
   void recognizeSwipe(
     widgets.PointerDownEvent event, {
     required widgets.BuildContext context,
-    required widgets.AxisDirection swipeDirection,
+    required SwipeDirection swipeDirection,
     OverlayedItemDragStartCallback? onSwipeStart,
     OverlayedItemDragUpdateCallback? onSwipeUpdate,
     OverlayedItemDragEndCallback? onSwipeEnd,
+  }) => _recognize(
+    event,
+    context: context,
+    onStart: onSwipeStart,
+    createDrag: () => _swipe = _OverlayedItemSwipe(
+      item: this,
+      swipeDirection: swipeDirection,
+      onSwipeUpdate: onSwipeUpdate,
+      onSwipeEnd: onSwipeEnd,
+    ),
+  );
+
+  /// Lets the recognizer from [recognizerFactory] decide whether [event]
+  /// starts a drag of this item, and then the drag from [createDrag]
+  /// follows the pointer.
+  void _recognize(
+    widgets.PointerDownEvent event, {
+    required widgets.BuildContext context,
+    required OverlayedItemDragStartCallback? onStart,
+    required gestures.Drag Function() createDrag,
   }) {
     _recognizer?.dispose();
 
@@ -161,8 +162,8 @@ class OverlayedItem extends Item {
 
     _recognizer = recognizerFactory!.call(context)
       ..onStart = (globalPosition) {
-        _globalPointerPosition = globalPosition;
-        onSwipeStart?.call(
+        _globalPointerPosition = GlobalOffset(globalPosition);
+        onStart?.call(
           DragStartDetails(
             sourceTimeStamp: event.timeStamp,
             globalPosition: globalPosition,
@@ -172,38 +173,29 @@ class OverlayedItem extends Item {
           this,
         );
 
-        return _swipe = _OverlayedItemSwipe(
-          item: this,
-          swipeDirection: swipeDirection,
-          onSwipeUpdate: onSwipeUpdate,
-          onSwipeEnd: onSwipeEnd,
-        );
+        return createDrag();
       }
       ..addPointer(event);
   }
 
   Future animateTo(
-    Offset position, {
+    OverlayOffset position, {
     required TickerProvider vsync,
     required Duration duration,
     required Curve curve,
   }) {
     if (position == this.position) return Future.value();
 
-    _motionAnimation ??= OffsetAnimation(
-      controller: AnimationController(vsync: vsync, duration: duration)
-        ..addListener(() => setPosition(_motionAnimation!.value)),
+    return _motionWith(vsync).animate(
+      from: this.position,
+      to: position,
+      curve: curve,
+      duration: duration,
     );
-    _motionAnimation!.controller.duration = duration;
-    _motionAnimation!.begin = this.position;
-    _motionAnimation!.end = position;
-    _motionAnimation!.curve = curve;
-
-    return _motionAnimation!.controller.forward(from: 0.0);
   }
 
   Future animateFlingTo(
-    Offset position, {
+    OverlayOffset position, {
     required widgets.Velocity velocity,
     required Size screenSize,
     SpringDescription springDescription = defaultFlingSpringDescription,
@@ -211,25 +203,19 @@ class OverlayedItem extends Item {
   }) {
     if (position == this.position) return Future.value();
 
-    _motionAnimation ??= OffsetAnimation(
-      controller: AnimationController(vsync: vsync)
-        ..addListener(() => setPosition(_motionAnimation!.value)),
+    return _motionWith(vsync).fling(
+      from: this.position,
+      to: position,
+      velocity: velocity,
+      screenSize: screenSize,
+      springDescription: springDescription,
     );
-    _motionAnimation!.begin = this.position;
-    _motionAnimation!.end = position;
-    _motionAnimation!.curve = Curves.linear;
-
-    final pixelsPerSecond = velocity.pixelsPerSecond;
-    final unitsPerSecondX = pixelsPerSecond.dx / screenSize.width;
-    final unitsPerSecondY = pixelsPerSecond.dy / screenSize.height;
-    final unitsPerSecond = Offset(unitsPerSecondX, unitsPerSecondY);
-    final unitVelocity = unitsPerSecond.distance;
-    final simulation = SpringSimulation(springDescription, 0, 1, -unitVelocity);
-
-    return _motionAnimation!.controller.animateWith(simulation);
   }
 
-  void stopMotion() => _motionAnimation?.controller.stop();
+  ItemMotion _motionWith(TickerProvider vsync) =>
+      _motion ??= ItemMotion(vsync: vsync, onMove: setPosition);
+
+  void stopMotion() => _motion?.stop();
 
   Future animateDecoration({
     AnimatedItemDecorator? decorator,
@@ -246,6 +232,7 @@ class OverlayedItem extends Item {
         controller: AnimationController(duration: duration, vsync: vsync),
       );
     }
+    notifyListeners();
 
     return _decorator!.forwardAnimation();
   }
@@ -255,18 +242,13 @@ class OverlayedItem extends Item {
     _ => Future.value(),
   };
 
-  double stopDecorationAnimation() => switch (_decorator) {
-    (AnimatedItemDecoratorAdapter d) => d.stopDecoration(),
-    _ => 0.0,
-  };
-
   @override
   void dispose() {
     _recognizer?.dispose();
     _recognizer = null;
     _swipe = null;
-    _motionAnimation?.dispose();
-    _motionAnimation = null;
+    _motion?.dispose();
+    _motion = null;
     _decorator?.dispose();
     _decorator = null;
     super.dispose();
@@ -285,7 +267,7 @@ class _OverlayedItemDrag implements gestures.Drag {
 
   @override
   void update(widgets.DragUpdateDetails details) {
-    item._globalPointerPosition = details.globalPosition;
+    item._globalPointerPosition = GlobalOffset(details.globalPosition);
     onDragUpdate?.call(details, item);
   }
 
@@ -308,30 +290,26 @@ class _OverlayedItemSwipe implements gestures.Drag {
   });
 
   final OverlayedItem item;
-  final widgets.AxisDirection swipeDirection;
+  final SwipeDirection swipeDirection;
   OverlayedItemDragUpdateCallback? onSwipeUpdate;
   OverlayedItemDragEndCallback? onSwipeEnd;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
-  widgets.Velocity _velocity = widgets.Velocity.zero;
-
-  widgets.Velocity get velocity => _velocity;
 
   widgets.Offset get swipeOffset => _swipeOffset;
 
-  double get swipeExtent => _swipeOffset.dx != 0
-      ? _swipeOffset.dx / item.constraints.maxWidth
-      : _swipeOffset.dy / item.constraints.maxHeight;
+  double get swipeExtent =>
+      swipeDirection.along(_swipeOffset) / swipeDirection.extentOf(item.size);
 
   @override
   void update(widgets.DragUpdateDetails details) {
-    final delta = _restrictDirection(_restrictAxis(details.delta));
+    final delta = swipeDirection.restrict(details.delta, swiped: _swipeOffset);
     _swipeOffset += delta;
-    item._globalPointerPosition = details.globalPosition;
+    item._globalPointerPosition = GlobalOffset(details.globalPosition);
     onSwipeUpdate?.call(
       widgets.DragUpdateDetails(
         sourceTimeStamp: details.sourceTimeStamp,
         delta: delta,
-        primaryDelta: delta.dx != 0.0 ? delta.dx : delta.dy,
+        primaryDelta: swipeDirection.along(delta),
         globalPosition: details.globalPosition,
         localPosition: details.localPosition,
       ),
@@ -339,30 +317,8 @@ class _OverlayedItemSwipe implements gestures.Drag {
     );
   }
 
-  widgets.Offset _restrictAxis(widgets.Offset delta) =>
-      switch (swipeDirection) {
-        widgets.AxisDirection.left ||
-        widgets.AxisDirection.right => widgets.Offset(delta.dx, 0),
-        widgets.AxisDirection.down ||
-        widgets.AxisDirection.up => widgets.Offset(0, delta.dy),
-      };
-
-  widgets.Offset _restrictDirection(widgets.Offset delta) =>
-      switch (swipeDirection) {
-        widgets.AxisDirection.left when delta.dx > 0 && _swipeOffset.dx > 0 =>
-          widgets.Offset(delta.dx / 3, 0),
-        widgets.AxisDirection.right when delta.dx < 0 && _swipeOffset.dx < 0 =>
-          widgets.Offset(delta.dx / 3, 0),
-        widgets.AxisDirection.down when delta.dy < 0 && _swipeOffset.dy < 0 =>
-          widgets.Offset(0, delta.dy / 3),
-        widgets.AxisDirection.up when delta.dy > 0 && _swipeOffset.dy > 0 =>
-          widgets.Offset(0, delta.dy / 3),
-        _ => delta,
-      };
-
   @override
   void end(widgets.DragEndDetails details) {
-    _velocity = details.velocity;
     item._globalPointerPosition = null;
     onSwipeEnd?.call(details, item);
   }

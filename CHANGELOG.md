@@ -1,3 +1,42 @@
+## 1.6.0
+
+### Features
+
+- Configure `AnimatedReorderable.list` and `.grid` with option objects: `motion: MotionOptions(…)`, `reorder: ReorderOptions(…)` and `swipeToRemove: SwipeToRemoveOptions(…)`. `ItemDecoration` and `ItemDragCallbacks` group a held item's decoration and its callbacks.
+- Enter inserted items through `insertTransition`, the way `AnimatedList` gives its item builder an animation. Insert with `insertItem(index, null)`. Every item is built through the transition, so an item keeps its state when it has entered. An item inserted with a builder that wraps it, such as a `FadeTransition`, lost its state at the first rebuild after it entered.
+
+### Fixes
+
+- Stop leaking an animation on every frame while an item is dragged with the default decorator.
+- Fling swiped items with `swipeToRemoveSpringDescription`, which had no effect.
+- Use the `PrimaryScrollController` like a plain list or grid. Tapping the iOS status bar scrolls a wrapped list to the top again, and wrapping a view with `primary: true` no longer throws.
+- Move items to and from indexes the list doesn't show along the list, not the screen. They drifted when the list didn't start at the screen's left edge.
+- Keep moving items with the scroll after a clamp of the scroll offset, as after removing the last item of a list scrolled to its end.
+- Keep a fling going when the list rebuilds.
+- Keep the first visible item in place when the list resizes, instead of rescaling the scroll offset.
+- Lay out moving, removed and held items as the list would after a resize, instead of scaling them. Held items stay under the pointer.
+- Check `destIndex` in `reorderItem`. A reorder past the end corrupted the list's state.
+- Move items in from off-screen at their size, in line with the list's items.
+- Take a grid delegate of another type, instead of throwing a `TypeError`.
+- Show an item that is inserted again while it animates out, as an undo does.
+- Keep items in place across two inserts or removes in one frame. Two removes threw a `RangeError`.
+- Throw `StateError`, `ArgumentError`, `RangeError` and `UnsupportedError` instead of strings.
+
+### Deprecations
+
+These still work, and go in 2.0:
+
+- The flat parameters of `AnimatedReorderable.list` and `.grid`, such as `onReorder` and `onSwipeToRemove`, and the getters of the same names. Use the option objects.
+- The `AnimatedReorderable` constructor and `AnimatedReorderableState.buildCollectionView`. Use `AnimatedReorderable.list` and `.grid`.
+- The `builder` of `insertItem`. Use `insertTransition` and `insertItem(index, null)`.
+
+### Behavior changes
+
+- Item widgets use the latest settings rather than the ones they were built with.
+- A dragged item's placeholder follows the item's size.
+- `Permutation` compares by value.
+- The deprecated `AnimatedReorderable` constructor is no longer `const`.
+
 ## 1.5.0
 
 ### Fixes

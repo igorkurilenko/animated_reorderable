@@ -1,7 +1,7 @@
 part of 'model.dart';
 
-class Item extends widgets.ChangeNotifier {
-  Item({required this.key, required this._builder, widgets.GlobalKey? childKey})
+class Item {
+  Item({required this.key, required this.builder, widgets.GlobalKey? childKey})
     : childKey = childKey ?? widgets.GlobalKey();
 
   final Key key;
@@ -9,21 +9,23 @@ class Item extends widgets.ChangeNotifier {
   /// Keys the item's subtree, so the subtree keeps its state while it moves
   /// between the list and the overlay.
   final widgets.GlobalKey childKey;
-  ItemBuilder _builder;
+  ItemBuilder builder;
 
-  ItemBuilder get builder => _builder;
+  /// The size of the item's placeholder in the list while the overlay
+  /// shows the item, or null while the list shows the item itself.
+  final placeholderSize = widgets.ValueNotifier<widgets.Size?>(null);
 
-  T setBuilder<T extends ItemBuilder>(T value, {bool notify = true}) {
-    if (_builder == value) return value;
-    _builder = value;
-    if (notify) notifyListeners();
-    return value;
-  }
+  /// How far the item has entered: it runs forward while the item enters,
+  /// and is complete otherwise. The insert transition builds every item
+  /// with it, as [widgets.AnimatedList] builds its items, so an item looks
+  /// the same to its subtree before, while and after it enters.
+  final entrance = ProxyAnimation(kAlwaysCompleteAnimation);
+  AnimationController? _entranceController;
 
-  @override
   void dispose() {
+    _entranceController?.dispose();
     builder.dispose();
-    super.dispose();
+    placeholderSize.dispose();
   }
 
   @override
@@ -31,6 +33,31 @@ class Item extends widgets.ChangeNotifier {
 }
 
 extension ItemAnimations on Item {
+  /// Runs the item's [Item.entrance] forward from the start.
+  void enter({required TickerProvider vsync, required Duration duration}) {
+    stopEntrance();
+    final controller = _entranceController = AnimationController(
+      vsync: vsync,
+      duration: duration,
+    );
+    entrance.parent = controller;
+    controller.forward().whenComplete(() {
+      if (_entranceController == controller) stopEntrance();
+    });
+  }
+
+  /// Completes the item's [Item.entrance] at once, and returns how far it
+  /// had got.
+  double stopEntrance() {
+    final controller = _entranceController;
+    if (controller == null) return 1.0;
+    _entranceController = null;
+    final value = controller.value;
+    entrance.parent = kAlwaysCompleteAnimation;
+    controller.dispose();
+    return value;
+  }
+
   Future animateItemBuilder({
     required widgets.AnimatedItemBuilder builder,
     required TickerProvider vsync,
@@ -40,13 +67,13 @@ extension ItemAnimations on Item {
     final originalBuilder = this.builder;
     final controller = AnimationController(vsync: vsync, duration: duration);
 
-    setBuilder(
-      ItemBuilder.adaptAnimatedItemBuilder(builder, controller: controller),
-      notify: false,
+    this.builder = ItemBuilder.adaptAnimatedItemBuilder(
+      builder,
+      controller: controller,
     );
 
     return controller.forward(from: from).whenComplete(() {
-      setBuilder(originalBuilder);
+      this.builder = originalBuilder;
       controller.dispose();
     });
   }
@@ -56,16 +83,17 @@ extension ItemAnimations on Item {
     required TickerProvider vsync,
     required Duration duration,
   }) {
-    final from = this.builder.asAnimated?.stopAnimation() ?? 1.0;
+    final replaced = this.builder;
+    final entered = stopEntrance();
+    final from = replaced.asAnimated?.stopAnimation() ?? entered;
     final controller = AnimationController(vsync: vsync, duration: duration);
 
-    setBuilder(
-      ItemBuilder.adaptAnimatedRemovedItemBuilder(
-        builder,
-        controller: controller,
-      ),
-      notify: false,
+    this.builder = ItemBuilder.adaptAnimatedRemovedItemBuilder(
+      builder,
+      controller: controller,
     );
+    // A removed item is not built with its other builders again.
+    replaced.dispose();
 
     return controller.reverse(from: from);
   }
