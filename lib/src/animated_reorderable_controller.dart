@@ -617,17 +617,15 @@ extension ItemsLayerLifecycleHandlers on AnimatedReorderableController {
   }
 }
 
-extension OverlayedItemDragHandlers on AnimatedReorderableController {
-  void handleItemDragStart(
-    widgets.DragStartDetails details,
-    model.OverlayedItem item,
-  ) {
-    onItemDragStart?.call(details, item.index);
-
-    item.stopMotion();
-
-    _state.draggedItem = item;
-
+/// What dragged and swiped items have in common.
+extension HeldItemMotion on AnimatedReorderableController {
+  /// Lifts [item] above the other items, into the overlay if it is not
+  /// there yet, and decorates it with [decorator].
+  void lift(
+    model.OverlayedItem item, {
+    required model.AnimatedItemDecorator? decorator,
+    required Duration decorationDuration,
+  }) {
     if (!_state.isOverlayed(key: item.key)) {
       overlayedItemsLayer?.rebuild(
         () =>
@@ -639,9 +637,50 @@ extension OverlayedItemDragHandlers on AnimatedReorderableController {
     }
 
     item.animateDecoration(
-      decorator: draggedItemDecorator,
-      duration: draggedItemDecorationAnimationDuration,
+      decorator: decorator,
+      duration: decorationDuration,
       vsync: vsync,
+    );
+  }
+
+  /// Flings [item] back to its slot in the list, and takes it out of the
+  /// overlay once it is there and [undecoration] is done.
+  void flingBackToSlot(
+    model.OverlayedItem item, {
+    required Future undecoration,
+    required Velocity velocity,
+    widgets.SpringDescription springDescription = defaultFlingSpringDescription,
+  }) {
+    Future.wait([
+      undecoration,
+      item.animateFlingTo(
+        overlayedItemsLayer!.globalToLocal(
+          _state.renderedItemBy(key: item.key)!.globalPosition!,
+        )!,
+        velocity: velocity,
+        screenSize: getScreenSize(),
+        springDescription: springDescription,
+        vsync: vsync,
+      ),
+    ]).whenComplete(() => unoverlay(item));
+  }
+}
+
+extension OverlayedItemDragHandlers on AnimatedReorderableController {
+  void handleItemDragStart(
+    widgets.DragStartDetails details,
+    model.OverlayedItem item,
+  ) {
+    onItemDragStart?.call(details, item.index);
+
+    item.stopMotion();
+
+    _state.draggedItem = item;
+
+    lift(
+      item,
+      decorator: draggedItemDecorator,
+      decorationDuration: draggedItemDecorationAnimationDuration,
     );
   }
 
@@ -666,17 +705,11 @@ extension OverlayedItemDragHandlers on AnimatedReorderableController {
 
     stopAutoScroll(forceStopAnimation: true);
 
-    Future.wait([
-      item.animateUndecoration(),
-      item.animateFlingTo(
-        overlayedItemsLayer!.globalToLocal(
-          _state.renderedItemBy(key: item.key)!.globalPosition!,
-        )!,
-        velocity: details.velocity,
-        screenSize: getScreenSize(),
-        vsync: vsync,
-      ),
-    ]).whenComplete(() => unoverlay(item));
+    flingBackToSlot(
+      item,
+      undecoration: item.animateUndecoration(),
+      velocity: details.velocity,
+    );
   }
 }
 
@@ -691,20 +724,10 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
     _state.swipedItem = item;
 
-    if (!_state.isOverlayed(key: item.key)) {
-      overlayedItemsLayer?.rebuild(
-        () =>
-            _state.putOverlayedItem(item)..setZIndex(maxZIndex, notify: false),
-      );
-      _state.renderedItemBy(key: item.key)?.rebuild();
-    } else {
-      item.setZIndex(maxZIndex);
-    }
-
-    item.animateDecoration(
+    lift(
+      item,
       decorator: swipedItemDecorator,
-      duration: swipedItemDecorationAnimationDuration,
-      vsync: vsync,
+      decorationDuration: swipedItemDecorationAnimationDuration,
     );
   }
 
@@ -725,8 +748,7 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
 
     _state.swipedItem = null;
 
-    final undecorateFuture = item.animateUndecoration();
-    final screenSize = getScreenSize();
+    final undecoration = item.animateUndecoration();
     final bounds = overlayedItemsLayer!.size!;
 
     if (didSwipeToRemove(item, velocity: details.velocity)) {
@@ -740,23 +762,17 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
           AxisDirection.down => Offset(item.position.dx, bounds.height),
         },
         velocity: details.velocity,
-        screenSize: screenSize,
+        screenSize: getScreenSize(),
         springDescription: swipeToRemoveSpringDescription,
         vsync: vsync,
       );
     } else {
-      Future.wait([
-        undecorateFuture,
-        item.animateFlingTo(
-          overlayedItemsLayer!.globalToLocal(
-            _state.renderedItemBy(key: item.key)!.globalPosition!,
-          )!,
-          velocity: details.velocity,
-          screenSize: screenSize,
-          springDescription: swipeToRemoveSpringDescription,
-          vsync: vsync,
-        ),
-      ]).whenComplete(() => unoverlay(item));
+      flingBackToSlot(
+        item,
+        undecoration: undecoration,
+        velocity: details.velocity,
+        springDescription: swipeToRemoveSpringDescription,
+      );
     }
   }
 }
