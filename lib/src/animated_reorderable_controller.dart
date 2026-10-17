@@ -1,11 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
 
 import '../animated_reorderable.dart';
 import 'const.dart';
+import 'controller/scroll_sync.dart';
 import 'model/model.dart' as model;
 import 'model/swipe_direction.dart';
 import 'util/geometry.dart';
@@ -31,8 +30,19 @@ class AnimatedReorderableController implements ItemHost {
   Axis scrollDirection;
   final widgets.TickerProvider vsync;
 
-  widgets.ScrollController? _scrollController;
-  widgets.EdgeDraggingAutoScroller? _autoScroller;
+  late final scrollSync = ScrollSync(
+    isOwnPosition: (position) {
+      final itemsLayer = _itemsLayer;
+      return itemsLayer != null &&
+          position.context.storageContext
+                  .findAncestorStateOfType<ItemsLayerState>() ==
+              itemsLayer;
+    },
+    velocityScalar: () => autoScrollerVelocityScalar,
+    itemCount: () => _state.itemCount ?? 0,
+    onScroll: _shiftOverlayedItems,
+    onAutoScroll: reorderAndAutoScrollIfNecessary,
+  );
   late OverriddenSliverChildBuilderDelegate _childrenDelegate;
   final model.ControllerState _state;
   ItemsLayerState? _itemsLayer;
@@ -198,7 +208,7 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   void dispose() {
-    _scrollController?.removeListener(handleScroll);
+    scrollSync.dispose();
     _state.dispose();
   }
 
@@ -355,9 +365,31 @@ class AnimatedReorderableController implements ItemHost {
     }
   }
 
+  widgets.ScrollPosition? get scrollPosition => scrollSync.scrollPosition;
+
+  /// The overlayed items move with the content as the view scrolls, except
+  /// the held ones, which stay under the pointer.
+  void _shiftOverlayedItems(Offset delta) {
+    for (var x
+        in [..._state.overlayedItems, ..._state.outgoingItems]
+            .where((x) => x != _state.draggedItem)
+            .where((x) => x != _state.swipedItem)) {
+      x.shift(-delta);
+    }
+  }
+
   void reorderAndAutoScrollIfNecessary() {
     reorderDraggedItemIfNecessary();
     autoScrollIfNecessary();
+  }
+
+  void autoScrollIfNecessary() {
+    final item = _state.draggedItem;
+    if (item == null) return;
+
+    scrollSync.autoScroll(
+      overlayedItemsLayer!.localToGlobal(item.position) & item.size,
+    );
   }
 
   void reorderDraggedItemIfNecessary() {
@@ -399,7 +431,7 @@ class AnimatedReorderableController implements ItemHost {
     required model.RenderedItem anyRenderedItem,
     widgets.Size? itemSize,
   }) {
-    final gridLayout = _state.gridLayout;
+    final gridLayout = scrollSync.gridLayout;
     itemSize ??=
         gridLayout?.getChildSize(notRenderedItemIndex, scrollDirection) ??
         // A list lays out all its items with the same constraints.
@@ -755,7 +787,7 @@ extension OverlayedItemDragHandlers on AnimatedReorderableController {
 
     _state.draggedItem = null;
 
-    stopAutoScroll(forceStopAnimation: true);
+    scrollSync.stopAutoScroll(forceStopAnimation: true);
 
     flingBackToSlot(
       item,
@@ -832,79 +864,6 @@ extension OverlayedItemSwipeHandlers on AnimatedReorderableController {
   }
 }
 
-extension ScrollHandler on AnimatedReorderableController {
-  void handleScroll() {
-    final delta = markScrollOffset();
-
-    for (var x
-        in [..._state.overlayedItems, ..._state.outgoingItems]
-            .where((x) => x != _state.draggedItem)
-            .where((x) => x != _state.swipedItem)) {
-      x.shift(-delta);
-    }
-  }
-}
-
-extension SliverGridLayoutChangeHandler on AnimatedReorderableController {
-  void handleSliverGridLayoutChange(
-    SliverGridLayout layout,
-    SliverConstraints constraints,
-  ) {
-    _state.gridLayout = layout;
-    _state.gridPrecedingScrollExtent = constraints.precedingScrollExtent;
-  }
-}
-
-/// A grid's layout changes with its cross axis, so a grid keeps its first
-/// visible item in place when the cross axis resizes. A list needs nothing:
-/// its items keep their scroll offsets, as in a plain [widgets.ListView].
-extension GridScrollAnchoring on AnimatedReorderableController {
-  /// Remembers the first visible item before the grid lays out again.
-  void anchorFirstVisibleGridItem() {
-    final layout = _state.gridLayout;
-    final itemCount = _state.itemCount ?? 0;
-    final scrollPosition = this.scrollPosition;
-    if (layout == null || itemCount == 0) return;
-    if (scrollPosition == null || !scrollPosition.hasPixels) return;
-
-    final scrollOffset =
-        scrollPosition.pixels - _state.gridPrecedingScrollExtent;
-    final index = math.min(
-      layout.getMinChildIndexForScrollOffset(math.max(0.0, scrollOffset)),
-      itemCount - 1,
-    );
-    final geometry = layout.getGeometryForChildIndex(index);
-    _state.scrollAnchor = (
-      index: index,
-      leadingEdge: geometry.scrollOffset - scrollOffset,
-      extent: geometry.mainAxisExtent,
-    );
-    addPostFrame(() => _state.scrollAnchor = null);
-
-    // Makes the viewport ask its physics for a correction even if the
-    // grid's scroll extent stays the same.
-    scrollPosition.correctBy(0.0);
-  }
-
-  /// The scroll offset that keeps the anchored item in place in the grid's
-  /// new layout. The grid has laid out by the time its viewport asks.
-  double? anchoredScrollOffset(widgets.ScrollMetrics position) {
-    final anchor = _state.scrollAnchor;
-    final layout = _state.gridLayout;
-    if (anchor == null || layout == null) return null;
-    _state.scrollAnchor = null;
-
-    final geometry = layout.getGeometryForChildIndex(anchor.index);
-    // An item partly scrolled away keeps the same part of it hidden.
-    final leadingEdge = anchor.leadingEdge < 0 && anchor.extent > 0
-        ? anchor.leadingEdge * geometry.mainAxisExtent / anchor.extent
-        : anchor.leadingEdge;
-    return _state.gridPrecedingScrollExtent +
-        geometry.scrollOffset -
-        leadingEdge;
-  }
-}
-
 extension ChildrenDelegate on AnimatedReorderableController {
   OverriddenSliverChildBuilderDelegate get childrenDelegate =>
       _childrenDelegate;
@@ -931,75 +890,5 @@ extension ChildrenDelegate on AnimatedReorderableController {
       placeholderSize: item.placeholderSize,
       host: this,
     );
-  }
-}
-
-extension Scrolling on AnimatedReorderableController {
-  widgets.ScrollController? get scrollController => _scrollController;
-
-  set scrollController(widgets.ScrollController? value) {
-    if (_scrollController == value) return;
-    addPostFrame(() {
-      setupAutoscroller();
-      markScrollOffset();
-    });
-    _scrollController?.removeListener(handleScroll);
-    (_scrollController = value)?.addListener(handleScroll);
-  }
-
-  /// The position of the wrapped view's own [widgets.Scrollable]. The scroll
-  /// controller can be shared, like the [widgets.PrimaryScrollController],
-  /// so it can have other positions too.
-  widgets.ScrollPosition? get scrollPosition {
-    final itemsLayer = this.itemsLayer;
-    if (itemsLayer == null) return null;
-    return _scrollController?.positions
-        .where(
-          (position) =>
-              position.context.storageContext
-                  .findAncestorStateOfType<ItemsLayerState>() ==
-              itemsLayer,
-        )
-        .firstOrNull;
-  }
-
-  void setupAutoscroller() {
-    final scrollPosition = this.scrollPosition;
-    if (scrollPosition == null) return;
-
-    _autoScroller = widgets.EdgeDraggingAutoScroller(
-      scrollPosition.context as widgets.ScrollableState,
-      velocityScalar: autoScrollerVelocityScalar,
-      onScrollViewScrolled: () => reorderAndAutoScrollIfNecessary(),
-    );
-  }
-
-  void autoScrollIfNecessary() {
-    final item = _state.draggedItem;
-    if (item == null) return;
-
-    final position = overlayedItemsLayer!.localToGlobal(item.position);
-    _autoScroller?.startAutoScrollIfNecessary(
-      (position & item.size).deflate(autoScrollEdgeInset),
-    );
-  }
-
-  void stopAutoScroll({bool forceStopAnimation = false}) {
-    _autoScroller?.stopAutoScroll();
-
-    final scrollPosition = this.scrollPosition;
-    if (forceStopAnimation && scrollPosition != null) {
-      scrollPosition.jumpTo(scrollPosition.pixels);
-    }
-  }
-
-  Offset markScrollOffset() {
-    final scrollPosition = this.scrollPosition;
-    if (scrollPosition == null) return Offset.zero;
-
-    final scrollOffset = scrollPosition.toRelativeOffset();
-    final delta = scrollOffset - _state.scrollOffset;
-    _state.scrollOffset = scrollOffset;
-    return delta;
   }
 }

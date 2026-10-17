@@ -3,7 +3,6 @@ library;
 import 'dart:collection';
 
 import 'package:flutter/physics.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter/gestures.dart' as gestures;
 import 'package:flutter/widgets.dart';

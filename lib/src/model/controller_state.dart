@@ -22,16 +22,6 @@ class ControllerState {
   OverlayedItem? swipedItem;
   Key? itemUnderThePointerKey;
   int? itemCount;
-  SliverGridLayout? gridLayout;
-
-  /// The scroll extent before the grid, like its padding.
-  double gridPrecedingScrollExtent = 0.0;
-
-  /// The first visible item of the grid before its cross axis resized:
-  /// its index, its leading edge relative to the viewport's and its main
-  /// axis extent.
-  ({int index, double leadingEdge, double extent})? scrollAnchor;
-  Offset scrollOffset = Offset.zero;
 
   Iterable<Item> get items => _itemByKey.values;
 

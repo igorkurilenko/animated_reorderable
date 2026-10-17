@@ -522,7 +522,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    _controller.scrollController = _effectiveScrollController;
+    _controller.scrollSync.scrollController = _effectiveScrollController;
   }
 
   @override
@@ -532,7 +532,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     _controller
       ..widget = widget
       ..scrollDirection = _scrollDirection
-      ..scrollController = _effectiveScrollController;
+      ..scrollSync.scrollController = _effectiveScrollController;
   }
 
   /// The wrapped view's controller or, if the view is primary, the
@@ -663,7 +663,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     scrollDirection: _scrollDirection,
     // A grid keeps its first visible item in place when its cross axis
     // resizes.
-    onResize: _controller.anchorFirstVisibleGridItem,
+    onResize: _controller.scrollSync.anchorFirstVisibleGridItem,
     // The layers build again with the new constraints, so the overlayed
     // items fit the new layout.
     builder: (context) => Stack(
@@ -677,7 +677,9 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
           // the correction twice. On ordinary scrolls this is a no-op.
           child: NotificationListener<ScrollMetricsNotification>(
             onNotification: (notification) {
-              if (notification.depth == 0) _controller.markScrollOffset();
+              if (notification.depth == 0) {
+                _controller.scrollSync.markScrollOffset();
+              }
               return false;
             },
             child: ItemsLayer(
@@ -753,7 +755,7 @@ class _ListViewState extends AnimatedReorderableState<_ListView> {
     key: widget.listView.key,
     scrollDirection: _scrollDirection,
     reverse: widget.listView.reverse,
-    controller: _controller.scrollController,
+    controller: _controller.scrollSync.scrollController,
     primary: false,
     physics: widget.listView.physics,
     shrinkWrap: widget.listView.shrinkWrap,
@@ -830,17 +832,17 @@ class _GridViewState extends AnimatedReorderableState<_GridView> {
     key: widget.gridView.key,
     scrollDirection: _scrollDirection,
     reverse: widget.gridView.reverse,
-    controller: _controller.scrollController,
+    controller: _controller.scrollSync.scrollController,
     primary: false,
     physics: AnchoredScrollPhysics(
-      anchor: _controller.anchoredScrollOffset,
+      anchor: _controller.scrollSync.anchoredScrollOffset,
       parent: widget.gridView.physics,
     ),
     shrinkWrap: widget.gridView.shrinkWrap,
     padding: widget.gridView.padding,
     gridDelegate: SliverGridLayoutNotifier(
       gridDelegate: widget.gridView.gridDelegate,
-      onLayout: _controller.handleSliverGridLayoutChange,
+      onLayout: _controller.scrollSync.didLayOutGrid,
     ),
     childrenDelegate: _controller.overrideChildrenDelegate(_childrenDelegate),
     // ignore: deprecated_member_use
