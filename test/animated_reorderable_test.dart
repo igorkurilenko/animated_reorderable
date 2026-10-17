@@ -1049,6 +1049,24 @@ void main() {
   });
 
   group('two changes in a frame', () {
+    testWidgets('removes an item and inserts one at the end of a grid', (
+      tester,
+    ) async {
+      final list = _TestList(4, grid: true);
+      await tester.pumpWidget(list.build());
+
+      list
+        ..removeAt(2)
+        ..insert(3, 9);
+      // Each frame shows every item as itself, moving or not.
+      do {
+        await tester.pump(const Duration(milliseconds: 50));
+        _expectEachItemOnce(list.items);
+      } while (tester.binding.hasScheduledFrame);
+
+      expect(list.items, [0, 1, 3, 9]);
+    });
+
     for (final (name, count, change, items) in [
       (
         'inserts two items',
