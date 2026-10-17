@@ -114,32 +114,19 @@ class OverlayedItem extends Item {
     OverlayedItemDragUpdateCallback? onDragUpdate,
     OverlayedItemDragEndCallback? onDragEnd,
   }) {
-    _recognizer?.dispose();
+    // The item is no longer swiped once a drag may start, while a swipe
+    // replaces the previous one only when it starts.
     _swipe = null;
-
-    if (!interactive) return;
-    if (recognizerFactory == null) return;
-
-    _recognizer = recognizerFactory!.call(context)
-      ..onStart = (globalPosition) {
-        _globalPointerPosition = globalPosition;
-        onDragStart?.call(
-          DragStartDetails(
-            sourceTimeStamp: event.timeStamp,
-            globalPosition: globalPosition,
-            localPosition: event.localPosition,
-            kind: event.kind,
-          ),
-          this,
-        );
-
-        return _OverlayedItemDrag(
-          item: this,
-          onDragUpdate: onDragUpdate,
-          onDragEnd: onDragEnd,
-        );
-      }
-      ..addPointer(event);
+    _recognize(
+      event,
+      context: context,
+      onStart: onDragStart,
+      createDrag: () => _OverlayedItemDrag(
+        item: this,
+        onDragUpdate: onDragUpdate,
+        onDragEnd: onDragEnd,
+      ),
+    );
   }
 
   void recognizeSwipe(
@@ -149,6 +136,26 @@ class OverlayedItem extends Item {
     OverlayedItemDragStartCallback? onSwipeStart,
     OverlayedItemDragUpdateCallback? onSwipeUpdate,
     OverlayedItemDragEndCallback? onSwipeEnd,
+  }) => _recognize(
+    event,
+    context: context,
+    onStart: onSwipeStart,
+    createDrag: () => _swipe = _OverlayedItemSwipe(
+      item: this,
+      swipeDirection: swipeDirection,
+      onSwipeUpdate: onSwipeUpdate,
+      onSwipeEnd: onSwipeEnd,
+    ),
+  );
+
+  /// Lets the recognizer from [recognizerFactory] decide whether [event]
+  /// starts a drag of this item, and then the drag from [createDrag]
+  /// follows the pointer.
+  void _recognize(
+    widgets.PointerDownEvent event, {
+    required widgets.BuildContext context,
+    required OverlayedItemDragStartCallback? onStart,
+    required gestures.Drag Function() createDrag,
   }) {
     _recognizer?.dispose();
 
@@ -158,7 +165,7 @@ class OverlayedItem extends Item {
     _recognizer = recognizerFactory!.call(context)
       ..onStart = (globalPosition) {
         _globalPointerPosition = globalPosition;
-        onSwipeStart?.call(
+        onStart?.call(
           DragStartDetails(
             sourceTimeStamp: event.timeStamp,
             globalPosition: globalPosition,
@@ -168,12 +175,7 @@ class OverlayedItem extends Item {
           this,
         );
 
-        return _swipe = _OverlayedItemSwipe(
-          item: this,
-          swipeDirection: swipeDirection,
-          onSwipeUpdate: onSwipeUpdate,
-          onSwipeEnd: onSwipeEnd,
-        );
+        return createDrag();
       }
       ..addPointer(event);
   }
@@ -186,16 +188,13 @@ class OverlayedItem extends Item {
   }) {
     if (position == this.position) return Future.value();
 
-    _motionAnimation ??= OffsetAnimation(
-      controller: AnimationController(vsync: vsync, duration: duration)
-        ..addListener(() => setPosition(_motionAnimation!.value)),
-    );
-    _motionAnimation!.controller.duration = duration;
-    _motionAnimation!.begin = this.position;
-    _motionAnimation!.end = position;
-    _motionAnimation!.curve = curve;
-
-    return _motionAnimation!.controller.forward(from: 0.0);
+    final controller = _motionTo(
+      position,
+      curve: curve,
+      vsync: vsync,
+    ).controller;
+    controller.duration = duration;
+    return controller.forward(from: 0.0);
   }
 
   Future animateFlingTo(
@@ -207,13 +206,11 @@ class OverlayedItem extends Item {
   }) {
     if (position == this.position) return Future.value();
 
-    _motionAnimation ??= OffsetAnimation(
-      controller: AnimationController(vsync: vsync)
-        ..addListener(() => setPosition(_motionAnimation!.value)),
-    );
-    _motionAnimation!.begin = this.position;
-    _motionAnimation!.end = position;
-    _motionAnimation!.curve = Curves.linear;
+    final controller = _motionTo(
+      position,
+      curve: Curves.linear,
+      vsync: vsync,
+    ).controller;
 
     final pixelsPerSecond = velocity.pixelsPerSecond;
     final unitsPerSecondX = pixelsPerSecond.dx / screenSize.width;
@@ -222,8 +219,23 @@ class OverlayedItem extends Item {
     final unitVelocity = unitsPerSecond.distance;
     final simulation = SpringSimulation(springDescription, 0, 1, -unitVelocity);
 
-    return _motionAnimation!.controller.animateWith(simulation);
+    return controller.animateWith(simulation);
   }
+
+  /// The motion animation, set to move this item from where it is to
+  /// [position] along [curve].
+  OffsetAnimation _motionTo(
+    Offset position, {
+    required Curve curve,
+    required TickerProvider vsync,
+  }) =>
+      (_motionAnimation ??= OffsetAnimation(
+          controller: AnimationController(vsync: vsync)
+            ..addListener(() => setPosition(_motionAnimation!.value)),
+        ))
+        ..begin = this.position
+        ..end = position
+        ..curve = curve;
 
   void stopMotion() => _motionAnimation?.controller.stop();
 
