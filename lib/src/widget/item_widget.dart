@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 import '../model/model.dart' show RenderedItem;
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
-import '../util/scheduling.dart';
 
 /// What an item widget asks of the controller, and what it tells it.
 abstract interface class ItemHost {
@@ -16,6 +15,9 @@ abstract interface class ItemHost {
 
   void didInitItem(RenderedItem item);
   void didChangeItemIndex(RenderedItem item);
+
+  /// Called while [item] builds. The host waits for the frame to lay it
+  /// out before it looks at it.
   void didBuildItem(RenderedItem item);
   void didDeactivateItem(RenderedItem item);
   void recognizeReorderDrag(RenderedItem item, PointerDownEvent event);
@@ -97,7 +99,7 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
 
   @override
   Widget build(BuildContext context) {
-    addPostFrame(() => host.didBuildItem(this));
+    host.didBuildItem(this);
 
     // While the overlay shows the item, its subtree lives there and a
     // placeholder keeps its place in the list.

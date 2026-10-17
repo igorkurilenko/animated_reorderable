@@ -38,6 +38,14 @@ class AnimatedReorderableController implements ItemHost {
   ItemsLayerState? _itemsLayer;
   OverlayedItemsLayerState? _overlayedItemsLayer;
 
+  /// Whether the items layer was built since the last reconcile pass.
+  bool _itemsLayerBuilt = false;
+
+  /// The items built since the last reconcile pass, in the order they were
+  /// built.
+  final _builtItems = <model.RenderedItem>{};
+  bool _reconcileScheduled = false;
+
   KeyGetter get keyGetter => widget.keyGetter;
   BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
   double get autoScrollerVelocityScalar => widget.autoScrollerVelocityScalar;
@@ -514,6 +522,37 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   void didBuildItem(model.RenderedItem item) {
+    _builtItems.add(item);
+    _scheduleReconcile();
+  }
+
+  void didBuildItemsLayer() {
+    _itemsLayerBuilt = true;
+    _scheduleReconcile();
+  }
+
+  void _scheduleReconcile() {
+    if (_reconcileScheduled) return;
+    _reconcileScheduled = true;
+    addPostFrame(_reconcile);
+  }
+
+  /// Brings the overlay in line with what was built, once the frame has
+  /// laid it out: first the items layer, then the items in the order they
+  /// were built.
+  void _reconcile() {
+    _reconcileScheduled = false;
+    if (_itemsLayerBuilt) {
+      _itemsLayerBuilt = false;
+      reconcileItemsLayer();
+    }
+    final builtItems = _builtItems.toList();
+    _builtItems.clear();
+    builtItems.forEach(reconcileItem);
+  }
+
+  /// Moves the overlayed item of [item] to where the list laid [item] out.
+  void reconcileItem(model.RenderedItem item) {
     final overlayedItem = _state.overlayedItemBy(key: item.key);
     if (overlayedItem == null || overlayedItem.outgoing) return;
 
@@ -619,8 +658,10 @@ extension DraggedItemPlacement on AnimatedReorderableController {
   }
 }
 
-extension ItemsLayerLifecycleHandlers on AnimatedReorderableController {
-  void handleDidBuildItemsLayer() {
+extension ItemsLayerReconciliation on AnimatedReorderableController {
+  /// Fits removed items to the layout and moves the overlayed items that
+  /// the list did not build out of sight.
+  void reconcileItemsLayer() {
     fitOutgoingItemsToLayout();
 
     for (var overlayedItem

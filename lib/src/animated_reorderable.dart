@@ -678,7 +678,6 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
               child: ItemsLayer(
                 controller: _controller,
                 collectionViewBuilder: buildCollectionView,
-                didBuild: _controller.handleDidBuildItemsLayer,
               ),
             ),
           ),
