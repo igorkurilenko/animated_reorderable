@@ -947,6 +947,107 @@ void main() {
     expect(notifiers.whereType<ValueListenable<Size?>>(), isEmpty);
   });
 
+  group('drag', () {
+    Future<TestGesture> hold(WidgetTester tester, Offset position) async {
+      final drag = await tester.startGesture(position);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      return drag;
+    }
+
+    testWidgets('scrolls the list while an item is held at its edge', (
+      tester,
+    ) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+      // The item reaches past the bottom of the list.
+      final drag = await _holdAndDrag(tester, find.text('0'), 26);
+      final pixels = _scrollPosition(tester).pixels;
+
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(_scrollPosition(tester).pixels, greaterThan(pixels + 200));
+      // It takes the place of the items scrolled under it.
+      expect(list.items.indexOf(0), greaterThan(7));
+      await drag.up();
+      final released = _scrollPosition(tester).pixels;
+      await tester.pumpAndSettle();
+      expect(_scrollPosition(tester).pixels, released);
+    });
+
+    testWidgets('takes the place of an item once while over it', (
+      tester,
+    ) async {
+      final heights = [50.0, 200.0, 100.0, 100.0];
+      final items = [0, 1, 2, 3];
+      var reorders = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              keyGetter: (index) => ValueKey(items[index]),
+              onReorder: (permutations) {
+                reorders++;
+                permutations.apply(items);
+              },
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: heights[items[index]],
+                  child: Text('${items[index]}'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final drag = await hold(tester, const Offset(10, 25));
+
+      // Over the tall item, which then moves up under the pointer.
+      await drag.moveBy(const Offset(0, 50));
+      await tester.pump();
+      await drag.moveBy(const Offset(0, 5));
+      await tester.pump();
+
+      expect(reorders, 1);
+      expect(items, [1, 0, 2, 3]);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('takes the place of an item it comes back to', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      final drag = await hold(tester, const Offset(10, 50));
+
+      // Over item 2, which then moves up past the pointer.
+      await drag.moveBy(const Offset(0, 200));
+      await tester.pump();
+      expect(list.items, [1, 2, 0, 3, 4]);
+      await drag.moveBy(const Offset(0, -60));
+      await tester.pump();
+
+      expect(list.items, [1, 0, 2, 3, 4]);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('does not move an item that is not reorderable', (
+      tester,
+    ) async {
+      final list = _TestList(5)..reorderableGetter = (index) => index != 0;
+      await tester.pumpWidget(list.build());
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 11);
+      await drag.up();
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 1, 2, 3, 4]);
+      expect(list.reorders, 0);
+    });
+  });
+
   group('two changes in a frame', () {
     for (final (name, count, change, items) in [
       (
@@ -1846,7 +1947,11 @@ class _TestList {
   AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
   BoolGetter? draggableGetter;
+  BoolGetter? reorderableGetter;
   final key = GlobalKey<AnimatedReorderableState>();
+
+  /// How many times the list was reordered.
+  int reorders = 0;
 
   /// How many times each item's state was created.
   final inits = <int, int>{};
@@ -1874,11 +1979,15 @@ class _TestList {
       : AnimatedReorderable.list(
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
-          onReorder: (permutations) => permutations.apply(items),
+          onReorder: (permutations) {
+            reorders++;
+            permutations.apply(items);
+          },
           onSwipeToRemove: removeAt,
           swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
           swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
           draggableGetter: draggableGetter,
+          reorderableGetter: reorderableGetter,
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
