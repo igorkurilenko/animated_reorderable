@@ -100,11 +100,6 @@ class ItemRegistry {
     return x;
   }
 
-  OverlayedItem putOverlayedItemIfAbsent({
-    required Key key,
-    required OverlayedItem Function() ifAbsent,
-  }) => putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
-
   OverlayedItem? removeOverlayedItem({required Key key}) {
     final removed = _overlayedItemByKey.remove(key);
     if (removed == null) return null;
