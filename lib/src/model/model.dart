@@ -10,9 +10,9 @@ import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
 import '../const.dart';
-import '../widget/item_widget.dart' show RenderedItem;
-import '../util/misc.dart';
+import '../util/geometry.dart';
 import '../util/offset_animation.dart';
+import '../widget/item_widget.dart' show RenderedItem;
 
 part 'item.dart';
 part 'overlayed_item.dart';

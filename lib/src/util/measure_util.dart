@@ -1,6 +1,7 @@
-import 'package:animated_reorderable/src/util/misc.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+
+import 'geometry.dart';
 
 // TODO: find a more optimized way to measure widgets
 

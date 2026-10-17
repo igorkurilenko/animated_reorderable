@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
-import '../util/misc.dart';
+import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';
 
 class OverlayedItemsLayer extends StatefulWidget {

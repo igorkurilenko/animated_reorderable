@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
-import '../util/misc.dart';
+import '../util/scheduling.dart';
 
 class ItemsLayer extends StatefulWidget {
   const ItemsLayer({

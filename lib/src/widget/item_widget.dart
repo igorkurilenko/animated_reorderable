@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
-import '../util/misc.dart';
+import '../util/geometry.dart';
+import '../util/scheduling.dart';
 
 typedef RenderedItem = _ItemWidgetState;
 typedef RenderedItemLifecycleCallback = void Function(RenderedItem item);

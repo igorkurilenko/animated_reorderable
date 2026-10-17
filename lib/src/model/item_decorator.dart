@@ -6,6 +6,21 @@ typedef AnimatedItemDecorator = widgets.Widget Function(
   Animation<double> animation,
 );
 
+/// Scales an item up a little and fades it a little while it is held.
+widgets.Widget defaultDraggedItemDecorator(
+  widgets.Widget child,
+  int index,
+  Animation<double> animation,
+) => ScaleTransition(
+  scale: animation
+      .drive(CurveTween(curve: Curves.easeInOut))
+      .drive(Tween(begin: 1.0, end: 1.05)),
+  child: FadeTransition(
+    opacity: animation.drive(Tween(begin: 1, end: 0.7)),
+    child: child,
+  ),
+);
+
 class AnimatedItemDecoratorAdapter {
   AnimatedItemDecoratorAdapter(this.decorator, {required this.controller});
 
