@@ -3,8 +3,6 @@ import 'package:flutter/widgets.dart';
 
 import '../util/gesture_recognizers.dart';
 
-typedef SwipeDirectionGetter = SwipeDirection? Function(int index);
-
 /// The direction an item is swiped in to remove it, and the rules of
 /// swiping that way.
 enum SwipeDirection {

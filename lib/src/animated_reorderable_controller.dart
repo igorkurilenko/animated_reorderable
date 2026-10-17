@@ -17,7 +17,7 @@ import 'widget/item_widget.dart';
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
-class AnimatedReorderableController {
+class AnimatedReorderableController implements ItemHost {
   AnimatedReorderableController({
     required this.widget,
     required this.scrollDirection,
@@ -38,17 +38,6 @@ class AnimatedReorderableController {
 
   KeyGetter get keyGetter => widget.keyGetter;
   BoolGetter get reorderableGetter => widget.reorderableGetter ?? (_) => true;
-  BoolGetter get draggableGetter => widget.draggableGetter ?? (_) => true;
-  SwipeDirectionGetter get swipeToRemoveDirectionGetter {
-    if (widget.onSwipeToRemove == null) return (_) => null;
-    final getter = widget.swipeToRemoveDirectionGetter;
-    if (getter == null) return (_) => SwipeDirection.across(scrollDirection);
-    return (index) => switch (getter(index)) {
-      final direction? => SwipeDirection.of(direction),
-      null => null,
-    };
-  }
-
   double get autoScrollerVelocityScalar => widget.autoScrollerVelocityScalar;
   double get swipeToRemoveExtent => widget.swipeToRemoveExtent;
   double get swipeToRemoveVelocity => widget.swipeToRemoveVelocity;
@@ -478,24 +467,43 @@ class AnimatedReorderableController {
 
   model.RenderedItem? getRenderedItemAt(int index) =>
       _state.renderedItems.where((x) => x.index == index).firstOrNull;
-}
 
-extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
-  void handleRenderedItemInit(model.RenderedItem item) =>
-      registerRenderedItem(item);
+  @override
+  bool isReorderable(int index) => reorderableGetter(index);
 
-  void handleRenderedItemDidUpdate(model.RenderedItem item) {
+  @override
+  bool isDraggable(int index) => widget.draggableGetter?.call(index) ?? true;
+
+  @override
+  SwipeDirection? swipeToRemoveDirectionAt(int index) {
+    if (widget.onSwipeToRemove == null) return null;
+    final getter = widget.swipeToRemoveDirectionGetter;
+    if (getter == null) return SwipeDirection.across(scrollDirection);
+    return switch (getter(index)) {
+      final direction? => SwipeDirection.of(direction),
+      null => null,
+    };
+  }
+
+  @override
+  Size? overlayedSizeOf(widgets.Key key) =>
+      _state.overlayedItemBy(key: key)?.size;
+
+  @override
+  void didInitItem(model.RenderedItem item) => registerRenderedItem(item);
+
+  @override
+  void didChangeItemIndex(model.RenderedItem item) {
     unregisterRenderedItem(item);
     registerRenderedItem(item);
   }
 
-  void handleRenderedItemDispose(model.RenderedItem item) =>
+  @override
+  void didDeactivateItem(model.RenderedItem item) =>
       unregisterRenderedItem(item);
 
-  void handleRenderedItemDeactivate(model.RenderedItem item) =>
-      unregisterRenderedItem(item);
-
-  void handleRenderedItemDidBuild(model.RenderedItem item) {
+  @override
+  void didBuildItem(model.RenderedItem item) {
     final overlayedItem = _state.overlayedItemBy(key: item.key);
     if (overlayedItem == null || overlayedItem.outgoing) return;
 
@@ -536,6 +544,39 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
     } else if (!(overlayedItem.motionAnimationStatus?.isAnimating ?? false)) {
       unoverlay(overlayedItem);
     }
+  }
+
+  @override
+  void recognizeReorderDrag(model.RenderedItem item, PointerDownEvent event) =>
+      createOverlayedItem(
+        item,
+        recognizerFactory: reorderGestureRecognizerFactory,
+      ).recognizeDrag(
+        event,
+        context: item.context,
+        onDragStart: (details, overlayedItem) {
+          overlayedItem.recognizerFactory =
+              createImmediateDragGestureRecognizer;
+          handleItemDragStart(details, overlayedItem);
+        },
+        onDragUpdate: handleItemDragUpdate,
+        onDragEnd: handleItemDragEnd,
+      );
+
+  @override
+  void recognizeSwipe(model.RenderedItem item, PointerDownEvent event) {
+    final swipeDirection = item.swipeToRemoveDirection!;
+    createOverlayedItem(
+      item,
+      recognizerFactory: swipeDirection.recognizerFactory,
+    ).recognizeSwipe(
+      event,
+      context: item.context,
+      swipeDirection: swipeDirection,
+      onSwipeStart: handleItemSwipeStart,
+      onSwipeUpdate: handleItemSwipeUpdate,
+      onSwipeEnd: handleItemSwipeEnd,
+    );
   }
 }
 
@@ -878,47 +919,9 @@ extension ChildrenDelegate on AnimatedReorderableController {
     return ItemWidget(
       key: item.key,
       index: index,
-      reorderableGetter: reorderableGetter,
-      draggableGetter: draggableGetter,
-      swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-      overlayedSizeGetter: (key) => _state.overlayedItemBy(key: key)?.size,
       childKey: item.childKey,
       builder: item.builder.build,
-      onInit: handleRenderedItemInit,
-      didUpdate: handleRenderedItemDidUpdate,
-      onDispose: handleRenderedItemDispose,
-      onDeactivate: handleRenderedItemDeactivate,
-      didBuild: handleRenderedItemDidBuild,
-      recognizeReorderDrag: (renderedItem, event) {
-        createOverlayedItem(
-          renderedItem,
-          recognizerFactory: reorderGestureRecognizerFactory,
-        ).recognizeDrag(
-          event,
-          context: context,
-          onDragStart: (details, overlayedItem) {
-            overlayedItem.recognizerFactory =
-                createImmediateDragGestureRecognizer;
-            handleItemDragStart(details, overlayedItem);
-          },
-          onDragUpdate: handleItemDragUpdate,
-          onDragEnd: handleItemDragEnd,
-        );
-      },
-      recognizeSwipeDrag: (renderedItem, event) {
-        final swipeDirection = renderedItem.swipeToRemoveDirection!;
-        createOverlayedItem(
-          renderedItem,
-          recognizerFactory: swipeDirection.recognizerFactory,
-        ).recognizeSwipe(
-          event,
-          context: context,
-          swipeDirection: swipeDirection,
-          onSwipeStart: handleItemSwipeStart,
-          onSwipeUpdate: handleItemSwipeUpdate,
-          onSwipeEnd: handleItemSwipeEnd,
-        );
-      },
+      host: this,
     );
   }
 }
