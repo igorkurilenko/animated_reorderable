@@ -5,12 +5,6 @@ import 'package:flutter/widgets.dart';
 void addPostFrame(VoidCallback cb) =>
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) => cb());
 
-extension AnimationStatusExtension on AnimationStatus {
-  bool get idle => !animating;
-  bool get animating =>
-      this == AnimationStatus.forward || this == AnimationStatus.reverse;
-}
-
 extension StateExtension on State {
   bool contains(Offset point) =>
       findRenderBox()?.getGeometry().contains(point) ?? false;
@@ -31,25 +25,15 @@ extension RenderBoxExtension on RenderBox {
 }
 
 extension ScrollPositionExtension on ScrollPosition {
-  bool get reverse => axisDirection.reverse;
-  bool get vertical => axisDirection.vertical;
-  double get relativePixels => reverse ? -pixels : pixels;
-  Offset toRelativeOffset() =>
-      vertical ? Offset(0, relativePixels) : Offset(relativePixels, 0);
-}
-
-extension AxisDirectionExtension on AxisDirection {
-  Axis get axis => axisDirectionToAxis(this);
-  bool get vertical => axis == Axis.vertical;
-  bool get reverse => this == AxisDirection.up || this == AxisDirection.left;
-}
-
-extension IterableExtension<T> on Iterable<T> {
-  T? firstWhereOrNull(bool Function(T element) test) {
-    for (var element in this) {
-      if (test(element)) return element;
-    }
-    return null;
+  /// The scroll offset as the distance the content moved on the screen.
+  Offset toRelativeOffset() {
+    final pixels = axisDirectionIsReversed(axisDirection)
+        ? -this.pixels
+        : this.pixels;
+    return switch (axisDirectionToAxis(axisDirection)) {
+      Axis.vertical => Offset(0, pixels),
+      Axis.horizontal => Offset(pixels, 0),
+    };
   }
 }
 

@@ -492,7 +492,7 @@ class AnimatedReorderableController {
   }
 
   RenderedItem? getRenderedItemAt(int index) =>
-      _state.renderedItems.firstWhereOrNull((x) => x.index == index);
+      _state.renderedItems.where((x) => x.index == index).firstOrNull;
 }
 
 extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
@@ -547,7 +547,7 @@ extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
             curve: motionAnimationCurve,
           )
           .whenComplete(() => unoverlay(overlayedItem));
-    } else if (overlayedItem.motionAnimationStatus?.idle ?? true) {
+    } else if (!(overlayedItem.motionAnimationStatus?.isAnimating ?? false)) {
       unoverlay(overlayedItem);
     }
   }
@@ -944,12 +944,14 @@ extension Scrolling on AnimatedReorderableController {
   widgets.ScrollPosition? get scrollPosition {
     final itemsLayer = this.itemsLayer;
     if (itemsLayer == null) return null;
-    return _scrollController?.positions.firstWhereOrNull(
-      (position) =>
-          position.context.storageContext
-              .findAncestorStateOfType<ItemsLayerState>() ==
-          itemsLayer,
-    );
+    return _scrollController?.positions
+        .where(
+          (position) =>
+              position.context.storageContext
+                  .findAncestorStateOfType<ItemsLayerState>() ==
+              itemsLayer,
+        )
+        .firstOrNull;
   }
 
   void setupAutoscroller() {
