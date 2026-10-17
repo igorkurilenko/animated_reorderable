@@ -46,6 +46,12 @@
 - Lift an item that is held again while it flies back to its slot above the other items flying back. It could stay under an item let go after it.
 - Keep moving items on course while the list scrolls by fractions of a pixel. Rounding left them a hair off their slots, so they started their move over at every rebuild, from rest.
 
+## 1.6.1
+
+### Fixes
+
+- Move an item on when its place moves just as it gets where it was moving, as a drag back and forth can make it. It jumped to its new place in one frame.
+
 ## 1.6.0
 
 ### Features
