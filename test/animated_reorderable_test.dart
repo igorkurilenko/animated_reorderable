@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
 
+/// The package's default motion duration.
+const _motionDuration = Duration(milliseconds: 500);
+
 /// The package's default fling spring.
 const _defaultSpring = SpringDescription(mass: 1, stiffness: 500, damping: 75);
 
@@ -791,6 +794,50 @@ void main() {
       expect(center.dy, moreOrLessEquals(2.5 * _extent));
       await swipe.up();
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item to its slot when an item above it grows by a '
+        'pixel', (tester) async {
+      final items = [0, 1, 2, 3, 4];
+      final heights = {0: _extent};
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build() => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) => SizedBox(
+                height: heights[items[index]] ?? _extent,
+                child: Text('${items[index]}'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build());
+      key.currentState!.reorderItem(1, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      heights[0] = _extent + 1;
+      await tester.pumpWidget(build());
+      final tops = <double>[];
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('1')).dy);
+      }
+
+      expect(tops.last, 3 * _extent + 1);
+      // It eases into the slot rather than jumps there as it lands.
+      final steps = [
+        for (var i = 1; i < tops.length; i++) (tops[i] - tops[i - 1]).abs(),
+      ].where((step) => step > 0);
+      expect(steps.last, lessThan(0.5));
     });
   });
 
@@ -1762,6 +1809,26 @@ void main() {
         expect(tester.getTopLeft(_itemWithId(0)) - position, shift);
         await tester.pumpAndSettle();
         expect(list.items.indexOf(0), 3);
+      });
+    }
+
+    for (final step in [0.1, 1 / 3]) {
+      testWidgets('keeps moving items on course while the list scrolls by '
+          '${step.toStringAsFixed(2)} px a frame and rebuilds', (tester) async {
+        final list = _TestList(30);
+        await tester.pumpWidget(list.build());
+        final position = _scrollPosition(tester);
+        list.state.reorderItem(2, destIndex: 5);
+
+        // Rounding leaves the moving items a hair off their slots.
+        final frames = _motionDuration.inMilliseconds ~/ 16 + 3;
+        for (var i = 0; i < frames; i++) {
+          position.jumpTo(position.pixels + step);
+          await tester.pump(const Duration(milliseconds: 16));
+          if (i.isOdd) await tester.pumpWidget(list.build());
+        }
+
+        expect(tester.hasRunningAnimations, isFalse);
       });
     }
   });
