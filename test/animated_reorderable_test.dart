@@ -59,6 +59,68 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('disposes the animations of held and interrupted items', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      list.removeAt(0);
+      await tester.pumpAndSettle();
+      final drag = await _holdAndDrag(tester, find.text('0'), 11);
+      await drag.up();
+      await tester.pumpAndSettle();
+      await tester.fling(find.text('2'), const Offset(-400, 0), 2000);
+      await tester.pumpAndSettle();
+
+      expect(list.items, [1, 0, 3, 4]);
+      expect(_trackedTickers(tester), 0);
+    });
+
+    testWidgets('can be disposed while an item is dragged', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 6);
+      await tester.pumpWidget(const SizedBox());
+      await drag.moveBy(const Offset(0, 20));
+      await drag.up();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('can be disposed while a removed item fades out', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.removeAt(1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(const SizedBox());
+
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('can be disposed while a swiped item flies out', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpWidget(const SizedBox());
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('disposes the animations of the default drag decoration', (
       tester,
     ) async {
@@ -172,6 +234,200 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(calls, ['second']);
+    });
+  });
+
+  group('latest configuration', () {
+    testWidgets('swipes items in the latest direction', (tester) async {
+      final list = _TestList(5, swipeToRemoveDirection: AxisDirection.left);
+      await tester.pumpWidget(list.build());
+      list.swipeToRemoveDirection = AxisDirection.right;
+      await tester.pumpWidget(list.build());
+
+      await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 1, 2, 3, 4]);
+
+      await tester.fling(find.text('1'), const Offset(400, 0), 2000);
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 2, 3, 4]);
+    });
+
+    testWidgets('drags only the latest draggable items', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      list.draggableGetter = (index) => index != 0;
+      await tester.pumpWidget(list.build());
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 11);
+      await drag.up();
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 1, 2, 3, 4]);
+    });
+
+    testWidgets('decorates dragged items with the latest decorator', (
+      tester,
+    ) async {
+      Widget build(String name) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            keyGetter: (index) => ValueKey(index),
+            onReorder: (_) {},
+            draggedItemDecorator: (child, index, animation) =>
+                KeyedSubtree(key: ValueKey(name), child: child),
+            listView: ListView.builder(
+              itemCount: 5,
+              itemBuilder: (context, index) =>
+                  SizedBox(height: _extent, child: Text('$index')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build('first'));
+      await tester.pumpWidget(build('second'));
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 2);
+
+      expect(find.byKey(const ValueKey('second')), findsOneWidget);
+      expect(find.byKey(const ValueKey('first')), findsNothing);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('reports to the latest callbacks', (tester) async {
+      final first = <String>[];
+      final second = <String>[];
+      await tester.pumpWidget(_withCallbacks(first));
+      await tester.pumpWidget(
+        _withCallbacks(
+          second,
+          onSwipeToRemove: (index) => second.add('remove $index'),
+        ),
+      );
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 2);
+      await drag.up();
+      await tester.pumpAndSettle();
+      await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
+      await tester.pumpAndSettle();
+
+      expect(first, isEmpty);
+      expect(second, containsAll(['drag end 0', 'swipe end 1', 'remove 1']));
+    });
+  });
+
+  group('rendered items', () {
+    testWidgets('tells which items are rendered', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      expect(list.state.isItemRendered(0), isTrue);
+      expect(list.state.isItemRendered(40), isFalse);
+    });
+
+    testWidgets('gives the build context of a rendered item', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      final context = list.state.getRenderedItemBuildContext(2)!;
+
+      expect(
+        find.descendant(
+          of: find.byElementPredicate((element) => element == context),
+          matching: find.byType(_Item),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        context.findAncestorStateOfType<AnimatedReorderableState>(),
+        list.state,
+      );
+      expect(tester.getTopLeft(find.text('2')).dy, 200);
+      expect(list.state.getRenderedItemBuildContext(40), isNull);
+    });
+  });
+
+  group('z-order', () {
+    testWidgets('lifts a dragged item above the moving items', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 11);
+
+      expect(_paintOrder(tester).last, 0);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('shows a removed item under the moving items', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.removeAt(1);
+      await tester.pump();
+
+      expect(_paintOrder(tester).first, 1);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('shows a removed item at its z-index', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.items.removeAt(1);
+      list.state.removeItem(
+        1,
+        (context, animation) => list.buildItem(1),
+        zIndex: 1,
+      );
+      await tester.pump();
+
+      expect(_paintOrder(tester).last, 1);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('builds', () {
+    // Pins the count the package has today, so a change that builds
+    // moving items more often shows up.
+    testWidgets('builds moving items at most once a frame', (tester) async {
+      var builds = 0;
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              onReorder: (permutations) => permutations.apply(items),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  builds++;
+                  return SizedBox(
+                    height: _extent,
+                    child: Text('${items[index]}'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      builds = 0;
+
+      key.currentState!.reorderItem(0, destIndex: 3);
+      var frames = 0;
+      await tester.pump();
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(const Duration(milliseconds: 16));
+        frames++;
+      }
+
+      expect(builds, lessThanOrEqualTo(138));
+      expect(frames, 33);
     });
   });
 
@@ -1219,6 +1475,27 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
       ),
     );
 
+/// Holds the item at [finder] until a drag starts and drags it down by
+/// [steps] steps of 20 pixels, a frame each.
+Future<TestGesture> _holdAndDrag(
+  WidgetTester tester,
+  Finder finder,
+  int steps,
+) async {
+  final drag = await tester.startGesture(tester.getCenter(finder));
+  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+  for (var i = 0; i < steps; i++) {
+    await drag.moveBy(const Offset(0, 20));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  return drag;
+}
+
+/// The ids of the items from the bottom one up.
+List<int> _paintOrder(WidgetTester tester) => [
+  for (final item in tester.widgetList<_Item>(find.byType(_Item))) item.id,
+];
+
 Finder _itemWithId(int id) =>
     find.byWidgetPredicate((widget) => widget is _Item && widget.id == id);
 
@@ -1396,8 +1673,9 @@ class _TestList {
   final EdgeInsets? padding;
 
   /// The swipe direction of every item, or null for the default one.
-  final AxisDirection? swipeToRemoveDirection;
+  AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
+  BoolGetter? draggableGetter;
   final key = GlobalKey<AnimatedReorderableState>();
 
   /// How many times each item's state was created.
@@ -1430,6 +1708,7 @@ class _TestList {
           onSwipeToRemove: removeAt,
           swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
           swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
+          draggableGetter: draggableGetter,
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
@@ -1460,6 +1739,8 @@ class _TestList {
     for (final state in tester.stateList<_ItemState>(find.byType(_Item)))
       state.widget.id: state,
   };
+
+  Widget buildItem(int id) => _item(id);
 
   Widget _item(int id) => _Item(
     id: id,
