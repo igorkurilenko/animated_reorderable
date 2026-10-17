@@ -148,6 +148,15 @@ class OverlayCoordinator {
         .whenComplete(() => items.removeOutgoingItem(outgoingItem));
   }
 
+  /// Takes [item] out of the overlay once it gets where it moved, unless
+  /// the list has yet to lay it out at its index: its place moves as it
+  /// gets there, and the reconcile after the layout moves it on.
+  void land(OverlayedItem item) {
+    final renderedItem = items.renderedItemBy(key: item.key);
+    if (renderedItem != null && renderedItem.index != item.index) return;
+    unoverlay(item);
+  }
+
   void unoverlay(OverlayedItem item) {
     if (items.overlayedItemBy(key: item.key) != item) return;
     items.removeOverlayedItem(key: item.key);
@@ -266,7 +275,7 @@ class OverlayCoordinator {
             duration: motionAnimationDuration(),
             curve: motionAnimationCurve(),
           )
-          .whenComplete(() => unoverlay(overlayedItem));
+          .whenComplete(() => land(overlayedItem));
     } else if (!(overlayedItem.motionAnimationStatus?.isAnimating ?? false)) {
       unoverlay(overlayedItem);
     }
@@ -295,7 +304,7 @@ class OverlayCoordinator {
             duration: motionAnimationDuration(),
             curve: motionAnimationCurve(),
           )
-          .whenComplete(() => unoverlay(overlayedItem));
+          .whenComplete(() => land(overlayedItem));
     }
   }
 
@@ -392,7 +401,7 @@ class OverlayCoordinator {
         springDescription: springDescription,
         vsync: vsync,
       ),
-    ]).whenComplete(() => unoverlay(item));
+    ]).whenComplete(() => land(item));
   }
 
   /// Flings [item], which is swiped away, out of the overlay through its

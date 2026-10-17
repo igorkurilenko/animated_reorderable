@@ -1,3 +1,9 @@
+## 1.6.1
+
+### Fixes
+
+- Move an item on when its place moves just as it gets where it was moving, as a drag back and forth can make it. It jumped to its new place in one frame.
+
 ## 1.6.0
 
 ### Features

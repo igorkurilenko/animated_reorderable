@@ -1777,6 +1777,84 @@ void main() {
     }
   });
 
+  group('landing', () {
+    // The default motion duration.
+    const motionDuration = Duration(milliseconds: 500);
+
+    /// The tops of the item [finder] finds over [frames] frames.
+    Future<List<double>> track(
+      WidgetTester tester,
+      Finder finder,
+      int frames,
+    ) async {
+      final tops = <double>[];
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(finder).dy);
+      }
+      return tops;
+    }
+
+    /// How far an item at [tops], one a frame, moves each frame.
+    List<double> steps(List<double> tops) => [
+      for (var i = 1; i < tops.length; i++) tops[i] - tops[i - 1],
+    ];
+
+    testWidgets('moves an item on when its place moves as it gets there', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      list.state.reorderItem(0, destIndex: 1);
+      await tester.pump();
+      // It moves from this frame on, and is in its new place at the end.
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(motionDuration);
+      final tops = [tester.getTopLeft(_itemWithId(1)).dy];
+
+      // Its move ends on the next frame, before the list lays it out in
+      // the place it moves to now.
+      list.state.reorderItem(1, destIndex: 0);
+      tops.addAll(await track(tester, _itemWithId(1), 40));
+
+      expect(tops.first, 0);
+      expect(tops.last, _extent);
+      expect(steps(tops), everyElement(inInclusiveRange(0, 10)));
+    });
+
+    testWidgets('moves an item let go on when its place moves as it gets '
+        'back', (tester) async {
+      /// Lets item 0 go a little way from its slot, and counts the frames
+      /// it takes to fly back, or flies it back for [frames] frames.
+      Future<(_TestList, int)> letGo({int? frames}) async {
+        final list = _TestList(5);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(list.build());
+        final drag = await _holdAndDrag(tester, find.text('0'), 1);
+        await drag.up();
+        var flown = 0;
+        while (frames == null ? tester.hasRunningAnimations : flown < frames) {
+          await tester.pump(const Duration(milliseconds: 16));
+          flown++;
+        }
+        return (list, flown);
+      }
+
+      final (_, frames) = await letGo();
+      final (list, _) = await letGo(frames: frames - 1);
+      final tops = [tester.getTopLeft(_itemWithId(0)).dy];
+      // It gets back on the next frame, before the list lays it out in the
+      // place it moves to now.
+      list.state.reorderItem(1, destIndex: 0);
+      tops.addAll(await track(tester, _itemWithId(0), 40));
+
+      expect(tops.first, moreOrLessEquals(0, epsilon: 0.5));
+      expect(tops.last, _extent);
+      // Up the last bit of the way back, then down to the new place.
+      expect(steps(tops), everyElement(inInclusiveRange(-0.5, 10)));
+    });
+  });
+
   group('swipe to remove', () {
     for (final (scrollDirection, direction) in [
       (Axis.vertical, AxisDirection.left),
