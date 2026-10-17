@@ -512,7 +512,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     _controller = AnimatedReorderableController(
       widget: widget,
       scrollDirection: _scrollDirection,
-      itemCount: getChildCount(_childrenDelegate),
+      itemCount: childrenDelegateSettingsOf(_childrenDelegate).childCount,
       vsync: this,
     );
   }
