@@ -30,7 +30,6 @@ class _AnimatedReorderableListSampleState
     _list = ListModel<Item>(
       animatedReorderableKey: _animatedReorderableKey,
       initialItems: List.generate(4, (i) => _createItem(i)),
-      insertedItemBuilder: _buildInsertedItem,
       removedItemBuilder: _buildRemovedItem,
     );
     _nextItemId = 4;
@@ -50,18 +49,17 @@ class _AnimatedReorderableListSampleState
     },
   );
 
-  // Used to build list items that have been inserted.
+  /// The transition items enter with when they are inserted.
   ///
-  /// Used to build an item after it has been inserted into the list.
-  /// The widget will be used by the [AnimatedReorderableState.insertItem] method's
-  /// [AnimatedItemBuilder] parameter.
-  Widget _buildInsertedItem(
-    BuildContext context,
+  /// Every item is built through it, with an animation that is complete
+  /// unless the item is entering, so items keep their state.
+  Widget _insertTransition(
+    Widget child,
     int index,
     Animation<double> animation,
   ) => ScaleTransition(
     scale: animation,
-    child: FadeTransition(opacity: animation, child: _buildItem(_list[index])),
+    child: FadeTransition(opacity: animation, child: child),
   );
 
   /// The builder function used to build grid items that have been removed.
@@ -148,6 +146,7 @@ class _AnimatedReorderableListSampleState
       body: AnimatedReorderable.list(
         key: _animatedReorderableKey,
         keyGetter: (index) => ValueKey(_list[index]),
+        insertTransition: _insertTransition,
         reorder: ReorderOptions(
           onReorder: (permutations) => _list.onReorder(permutations),
         ),
@@ -182,13 +181,11 @@ typedef RemovedItemBuilder<T> = Widget Function(
 class ListModel<E> {
   ListModel({
     required this.animatedReorderableKey,
-    required this.insertedItemBuilder,
     required this.removedItemBuilder,
     Iterable<E>? initialItems,
   }) : _items = List<E>.from(initialItems ?? <E>[]);
 
   final GlobalKey<AnimatedReorderableState> animatedReorderableKey;
-  final AnimatedItemBuilder insertedItemBuilder;
   final RemovedItemBuilder<E> removedItemBuilder;
   final List<E> _items;
 
@@ -197,7 +194,7 @@ class ListModel<E> {
 
   void insert(int index, E item) {
     _items.insert(index, item);
-    _animatedReorderableList!.insertItem(index, insertedItemBuilder);
+    _animatedReorderableList!.insertItem(index, null);
   }
 
   E removeAt(int index) {

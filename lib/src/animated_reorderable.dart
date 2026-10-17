@@ -706,7 +706,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
 /// animates items when they are inserted, removed or reordered.
 ///
 /// When an item is inserted with [insertItem] an animation begins running. The
-/// animation is passed to the [insertItem] `builder` parameter.
+/// item enters through the [AnimatedReorderable.insertTransition] with it.
 ///
 /// When an item is removed with [removeItem] its animation is reversed.
 /// The removed item's animation is passed to the [removeItem] `builder`
@@ -726,9 +726,11 @@ abstract class AnimatedReorderable extends StatefulWidget {
 ///
 /// @override
 /// Widget build(BuildContext context) {
-///   return AnimatedReorderable(
+///   return AnimatedReorderable.list(
 ///     key: animatedReorderableKey,
 ///     keyGetter: (index) => ValueKey(_items[index]),
+///     insertTransition: (child, index, animation) =>
+///         FadeTransition(opacity: animation, child: child),
 ///     listView: ListView.builder(
 ///     //  ...
 ///     ),
@@ -739,9 +741,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
 ///
 /// void _updateList() {
 ///   _items.insert(123, newItem);
-///   animatedReorderableKey.currentState!.insertItem(123, builder:  (context, index, animation) {
-///   //  ...
-///   });
+///   animatedReorderableKey.currentState!.insertItem(123, null);
 /// }
 /// ```
 ///
