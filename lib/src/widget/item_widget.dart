@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
+import '../model/model.dart' show RenderedItem;
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 import '../util/scheduling.dart';
 
-typedef RenderedItem = _ItemWidgetState;
 typedef RenderedItemLifecycleCallback = void Function(RenderedItem item);
 typedef ItemGestureRecognizer = void Function(
   RenderedItem item,
@@ -52,21 +52,27 @@ class ItemWidget extends StatefulWidget {
   State<ItemWidget> createState() => _ItemWidgetState();
 }
 
-class _ItemWidgetState extends State<ItemWidget> {
+class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
+  @override
   int get index => widget.index;
+  @override
   Key get key => widget.key!;
   NullableIndexedWidgetBuilder get builder => widget.builder;
+  @override
   bool get reorderable => widget.reorderableGetter(index);
   bool get draggable => widget.draggableGetter(index);
   Size? get overlayedSize => widget.overlayedSizeGetter(key);
   bool get isOverlayed => overlayedSize != null;
+  @override
   SwipeDirection? get swipeToRemoveDirection =>
       widget.swipeToRemoveDirectionGetter?.call(index);
   bool get swipeable => swipeToRemoveDirection != null;
+  @override
   Offset? get globalPosition => findRenderBox()?.localToGlobal(Offset.zero);
+  @override
   Size? get size => findRenderBox()?.size;
 
-  /// The constraints the list lays the item out with.
+  @override
   BoxConstraints? get constraints {
     final renderBox = findRenderBox();
     return renderBox != null && renderBox.hasSize
@@ -100,6 +106,11 @@ class _ItemWidgetState extends State<ItemWidget> {
     super.deactivate();
   }
 
+  @override
+  bool contains(Offset point) =>
+      findRenderBox()?.getGeometry().contains(point) ?? false;
+
+  @override
   void rebuild() {
     if (!mounted) return;
     setState(() {});

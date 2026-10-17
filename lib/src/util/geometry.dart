@@ -2,8 +2,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 extension StateGeometry on State {
-  bool contains(Offset point) =>
-      findRenderBox()?.getGeometry().contains(point) ?? false;
   RenderBox? findRenderBox() => mounted ? context.findRenderBox() : null;
 }
 

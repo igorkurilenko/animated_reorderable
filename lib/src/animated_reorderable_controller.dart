@@ -226,13 +226,13 @@ class AnimatedReorderableController {
       _state.overlayedItems.toList()
         ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
 
-  bool isDragged(RenderedItem item) => _state.isDragged(key: item.key);
+  bool isDragged(model.RenderedItem item) => _state.isDragged(key: item.key);
 
-  bool isSwiped(RenderedItem item) => _state.isSwiped(key: item.key);
+  bool isSwiped(model.RenderedItem item) => _state.isSwiped(key: item.key);
 
-  bool isNotDragged(RenderedItem item) => !isDragged(item);
+  bool isNotDragged(model.RenderedItem item) => !isDragged(item);
 
-  bool isNotSwiped(RenderedItem item) => !isSwiped(item);
+  bool isNotSwiped(model.RenderedItem item) => !isSwiped(item);
 
   bool isRendered(model.OverlayedItem item) => _state.isRendered(key: item.key);
 
@@ -278,7 +278,7 @@ class AnimatedReorderableController {
   );
 
   model.OverlayedItem createOverlayedItem(
-    RenderedItem renderedItem, {
+    model.RenderedItem renderedItem, {
     MultiDragGestureRecognizerFactory? recognizerFactory,
     model.ItemBuilder? builder,
     widgets.GlobalKey? childKey,
@@ -304,7 +304,7 @@ class AnimatedReorderableController {
   /// Overlays the rendered items, except [except] and the held ones, so
   /// they can move to their slots at [newIndex] when the list lays out.
   void overlayRenderedItems({
-    required int Function(RenderedItem item) newIndex,
+    required int Function(model.RenderedItem item) newIndex,
     widgets.Key? except,
   }) {
     for (var renderedItem
@@ -353,9 +353,10 @@ class AnimatedReorderableController {
         .addListener(overlayedItemsLayer!.rebuild);
   }
 
-  void registerRenderedItem(RenderedItem item) => _state.putRenderedItem(item);
+  void registerRenderedItem(model.RenderedItem item) =>
+      _state.putRenderedItem(item);
 
-  void unregisterRenderedItem(RenderedItem item) {
+  void unregisterRenderedItem(model.RenderedItem item) {
     final registeredRenderedItem = _state.renderedItemBy(key: item.key);
     if (registeredRenderedItem == item) {
       _state.removeRenderedItemBy(key: item.key);
@@ -408,7 +409,7 @@ class AnimatedReorderableController {
 
   widgets.Rect getFakeAnchorGeometryOfNotRenderedItem({
     required int notRenderedItemIndex,
-    required RenderedItem anyRenderedItem,
+    required model.RenderedItem anyRenderedItem,
     widgets.Size? itemSize,
   }) {
     final gridLayout = _state.gridLayout;
@@ -475,25 +476,26 @@ class AnimatedReorderableController {
     return getRenderedItemAt(index) != null;
   }
 
-  RenderedItem? getRenderedItemAt(int index) =>
+  model.RenderedItem? getRenderedItemAt(int index) =>
       _state.renderedItems.where((x) => x.index == index).firstOrNull;
 }
 
 extension RenderedItemLifecycleHandlers on AnimatedReorderableController {
-  void handleRenderedItemInit(RenderedItem item) => registerRenderedItem(item);
+  void handleRenderedItemInit(model.RenderedItem item) =>
+      registerRenderedItem(item);
 
-  void handleRenderedItemDidUpdate(RenderedItem item) {
+  void handleRenderedItemDidUpdate(model.RenderedItem item) {
     unregisterRenderedItem(item);
     registerRenderedItem(item);
   }
 
-  void handleRenderedItemDispose(RenderedItem item) =>
+  void handleRenderedItemDispose(model.RenderedItem item) =>
       unregisterRenderedItem(item);
 
-  void handleRenderedItemDeactivate(RenderedItem item) =>
+  void handleRenderedItemDeactivate(model.RenderedItem item) =>
       unregisterRenderedItem(item);
 
-  void handleRenderedItemDidBuild(RenderedItem item) {
+  void handleRenderedItemDidBuild(model.RenderedItem item) {
     final overlayedItem = _state.overlayedItemBy(key: item.key);
     if (overlayedItem == null || overlayedItem.outgoing) return;
 
