@@ -24,7 +24,9 @@ class _ListViewExampleState extends State<ListViewExample> {
     // Define the onReorder callback to synchronize the order
     // of items. The callback takes permutations that need to be
     // applied to the collection of items.
-    onReorder: (permutations) => permutations.apply(items),
+    reorder: ReorderOptions(
+      onReorder: (permutations) => permutations.apply(items),
+    ),
 
     listView: ListView.builder(
       itemCount: items.length,

@@ -273,9 +273,13 @@ void main() {
         home: Scaffold(
           body: AnimatedReorderable.list(
             keyGetter: (index) => ValueKey(index),
-            onReorder: (_) {},
-            draggedItemDecorator: (child, index, animation) =>
-                KeyedSubtree(key: ValueKey(name), child: child),
+            reorder: ReorderOptions(
+              onReorder: (_) {},
+              decoration: ItemDecoration(
+                decorator: (child, index, animation) =>
+                    KeyedSubtree(key: ValueKey(name), child: child),
+              ),
+            ),
             listView: ListView.builder(
               itemCount: 5,
               itemBuilder: (context, index) =>
@@ -401,7 +405,9 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              onReorder: (permutations) => permutations.apply(items),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) {
@@ -428,6 +434,158 @@ void main() {
 
       expect(builds, lessThanOrEqualTo(138));
       expect(frames, 33);
+    });
+  });
+
+  group('deprecated parameters', () {
+    Widget list({
+      void Function(Permutations permutations)? onReorder,
+      ReorderOptions? reorder,
+      SwipeToRemoveCallback? onSwipeToRemove,
+      AxisDirectionGetter? swipeToRemoveDirectionGetter,
+      AnimatedItemDecorator? draggedItemDecorator = _keepDecorator,
+      AnimatedItemDecorator? swipedItemDecorator = _keepDecorator,
+      List<String>? calls,
+      Key? key,
+    }) => MaterialApp(
+      home: Scaffold(
+        body: AnimatedReorderable.list(
+          key: key,
+          keyGetter: (index) => ValueKey(index),
+          onReorder: onReorder,
+          reorder: reorder,
+          onSwipeToRemove: onSwipeToRemove,
+          swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
+          // The default, as when it is left out.
+          draggedItemDecorator: draggedItemDecorator == _keepDecorator
+              ? const ItemDecoration().decorator
+              : draggedItemDecorator,
+          swipedItemDecorator: swipedItemDecorator == _keepDecorator
+              ? const ItemDecoration().decorator
+              : swipedItemDecorator,
+          onItemDragStart: (_, index) => calls?.add('drag start $index'),
+          onItemDragEnd: (_, index) => calls?.add('drag end $index'),
+          onItemSwipeStart: (_, index) => calls?.add('swipe start $index'),
+          onItemSwipeEnd: (_, index) => calls?.add('swipe end $index'),
+          listView: _fiveLabels(),
+        ),
+      ),
+    );
+
+    testWidgets('reorder with onReorder', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      final reorders = <Permutations>[];
+      await tester.pumpWidget(list(key: key, onReorder: reorders.add));
+
+      key.currentState!.reorderItem(0, destIndex: 2);
+      await tester.pumpAndSettle();
+
+      expect(reorders, hasLength(1));
+    });
+
+    testWidgets('ignore the parameters of given options', (tester) async {
+      final key = GlobalKey<AnimatedReorderableState>();
+      final calls = <String>[];
+      await tester.pumpWidget(
+        list(
+          key: key,
+          onReorder: (_) => calls.add('deprecated'),
+          reorder: ReorderOptions(onReorder: (_) => calls.add('options')),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 2);
+      await tester.pumpAndSettle();
+
+      expect(calls, ['options']);
+    });
+
+    testWidgets('swipe items away in their direction', (tester) async {
+      final removed = <int>[];
+      await tester.pumpWidget(
+        list(
+          onSwipeToRemove: removed.add,
+          swipeToRemoveDirectionGetter: (_) => AxisDirection.right,
+        ),
+      );
+
+      await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
+      await tester.pumpAndSettle();
+      expect(removed, isEmpty);
+
+      await tester.fling(find.text('1'), const Offset(400, 0), 2000);
+      await tester.pumpAndSettle();
+      expect(removed, [1]);
+    });
+
+    testWidgets('report drags and swipes', (tester) async {
+      final calls = <String>[];
+      await tester.pumpWidget(
+        list(onReorder: (_) {}, onSwipeToRemove: (_) {}, calls: calls),
+      );
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 2);
+      await drag.up();
+      await tester.pumpAndSettle();
+      await tester.fling(find.text('3'), const Offset(-400, 0), 2000);
+      await tester.pumpAndSettle();
+
+      expect(calls, [
+        'drag start 0',
+        'drag end 0',
+        'swipe start 3',
+        'swipe end 3',
+      ]);
+    });
+
+    for (final (name, decorator, added) in [
+      ('the default decorator', _keepDecorator, 2),
+      ('no decorator', null, 0),
+    ]) {
+      testWidgets('decorate dragged and swiped items with $name', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          list(
+            onReorder: (_) {},
+            onSwipeToRemove: (_) {},
+            draggedItemDecorator: decorator,
+            swipedItemDecorator: decorator,
+          ),
+        );
+        final transitions = _transitionsAround(tester, find.text('0'));
+
+        final drag = await _holdAndDrag(tester, find.text('0'), 2);
+        expect(_transitionsAround(tester, find.text('0')), transitions + added);
+        await drag.up();
+        await tester.pumpAndSettle();
+
+        final swipe = await tester.startGesture(
+          tester.getCenter(find.text('1')),
+        );
+        await swipe.moveBy(const Offset(-30, 0));
+        await tester.pump();
+        await swipe.moveBy(const Offset(-30, 0));
+        await tester.pump();
+        expect(_transitionsAround(tester, find.text('1')), transitions + added);
+        await swipe.up();
+        await tester.pumpAndSettle();
+      });
+    }
+
+    testWidgets('read the options they set', (tester) async {
+      void onReorder(Permutations _) {}
+      final widget = AnimatedReorderable.list(
+        keyGetter: (index) => ValueKey(index),
+        onReorder: onReorder,
+        swipeToRemoveExtent: 0.3,
+        listView: _fiveLabels(),
+      );
+
+      expect(widget.onReorder, onReorder);
+      expect(widget.reorder.onReorder, onReorder);
+      expect(widget.swipeToRemoveExtent, 0.3);
+      expect(widget.swipeToRemove.extent, 0.3);
     });
   });
 
@@ -621,7 +779,9 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              onReorder: (permutations) => permutations.apply(items),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
               listView: ListView.builder(
                 itemCount: items.length,
                 // Taller when narrow, as wrapping text would be.
@@ -704,7 +864,7 @@ void main() {
           home: Scaffold(
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(index),
-              onReorder: (_) {},
+              reorder: const ReorderOptions(onReorder: _ignore),
               listView: ListView.builder(
                 itemCount: 5,
                 itemBuilder: (context, index) => ValueListenableBuilder(
@@ -987,10 +1147,12 @@ void main() {
           home: Scaffold(
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(items[index]),
-              onReorder: (permutations) {
-                reorders++;
-                permutations.apply(items);
-              },
+              reorder: ReorderOptions(
+                onReorder: (permutations) {
+                  reorders++;
+                  permutations.apply(items);
+                },
+              ),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => SizedBox(
@@ -1040,8 +1202,12 @@ void main() {
           home: Scaffold(
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(index),
-              onItemDragStart: (details, index) => calls.add('start $index'),
-              onItemDragEnd: (details, index) => calls.add('end $index'),
+              reorder: ReorderOptions(
+                callbacks: ItemDragCallbacks(
+                  onStart: (details, index) => calls.add('start $index'),
+                  onEnd: (details, index) => calls.add('end $index'),
+                ),
+              ),
               listView: ListView.builder(
                 itemCount: 5,
                 itemBuilder: (context, index) =>
@@ -1074,13 +1240,15 @@ void main() {
             body: decorator == _keepDecorator
                 ? AnimatedReorderable.list(
                     keyGetter: (index) => ValueKey(index),
-                    onReorder: (_) {},
+                    reorder: const ReorderOptions(onReorder: _ignore),
                     listView: _fiveLabels(),
                   )
                 : AnimatedReorderable.list(
                     keyGetter: (index) => ValueKey(index),
-                    onReorder: (_) {},
-                    draggedItemDecorator: null,
+                    reorder: const ReorderOptions(
+                      onReorder: _ignore,
+                      decoration: ItemDecoration.none,
+                    ),
                     listView: _fiveLabels(),
                   ),
           ),
@@ -1104,13 +1272,17 @@ void main() {
             body: decorator == _keepDecorator
                 ? AnimatedReorderable.list(
                     keyGetter: (index) => ValueKey(index),
-                    onSwipeToRemove: (_) {},
+                    swipeToRemove: const SwipeToRemoveOptions(
+                      onSwipeToRemove: _ignore,
+                    ),
                     listView: _fiveLabels(),
                   )
                 : AnimatedReorderable.list(
                     keyGetter: (index) => ValueKey(index),
-                    onSwipeToRemove: (_) {},
-                    swipedItemDecorator: null,
+                    swipeToRemove: const SwipeToRemoveOptions(
+                      onSwipeToRemove: _ignore,
+                      decoration: ItemDecoration.none,
+                    ),
                     listView: _fiveLabels(),
                   ),
           ),
@@ -1658,7 +1830,7 @@ void main() {
               key: key,
               // Keys any index, so only the check can stop a bad one.
               keyGetter: (index) => ValueKey(index),
-              onReorder: reorders.add,
+              reorder: ReorderOptions(onReorder: reorders.add),
               listView: ListView.builder(
                 itemCount: 3,
                 itemBuilder: (context, index) => Text('$index'),
@@ -1698,8 +1870,10 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(labels[index]),
-              reorderableGetter: (index) => index != 1,
-              onReorder: (permutations) => permutations.apply(labels),
+              reorder: ReorderOptions(
+                reorderableGetter: (index) => index != 1,
+                onReorder: (permutations) => permutations.apply(labels),
+              ),
               listView: ListView.builder(
                 itemCount: labels.length,
                 itemBuilder: (context, index) => Text(labels[index]),
@@ -1839,7 +2013,7 @@ Widget _labels(
     body: AnimatedReorderable.list(
       key: key,
       keyGetter: (index) => ValueKey(labels[index]),
-      onReorder: onReorder,
+      reorder: ReorderOptions(onReorder: onReorder),
       listView: ListView.builder(
         itemCount: labels.length,
         itemBuilder: (context, index) => Text(labels[index]),
@@ -1865,6 +2039,9 @@ Widget _scrollable({ScrollController? controller, bool? primary}) =>
         ),
       ),
     );
+
+/// A callback that does nothing.
+void _ignore(Object? _) {}
 
 /// Stands for a decorator the test leaves at its default.
 Widget _keepDecorator(Widget child, int index, Animation<double> animation) =>
@@ -1999,7 +2176,9 @@ class _ChildrenList {
       body: AnimatedReorderable.list(
         key: key,
         keyGetter: (index) => ValueKey(items[index]),
-        onReorder: (permutations) => permutations.apply(items),
+        reorder: ReorderOptions(
+          onReorder: (permutations) => permutations.apply(items),
+        ),
         listView: builder
             ? ListView.builder(
                 itemCount: items.length,
@@ -2034,16 +2213,24 @@ Widget _withCallbacks(
     home: Scaffold(
       body: AnimatedReorderable.list(
         keyGetter: (index) => ValueKey(labels[index]),
-        onReorder: (permutations) => permutations.apply(labels),
-        onSwipeToRemove: onSwipeToRemove,
-        onItemDragStart: (details, index) => calls.add('drag start $index'),
-        onItemDragUpdate: (details, index) =>
-            calls.add(update('drag', details, index)),
-        onItemDragEnd: (details, index) => calls.add('drag end $index'),
-        onItemSwipeStart: (details, index) => calls.add('swipe start $index'),
-        onItemSwipeUpdate: (details, index) =>
-            calls.add(update('swipe', details, index)),
-        onItemSwipeEnd: (details, index) => calls.add('swipe end $index'),
+        reorder: ReorderOptions(
+          onReorder: (permutations) => permutations.apply(labels),
+          callbacks: ItemDragCallbacks(
+            onStart: (details, index) => calls.add('drag start $index'),
+            onUpdate: (details, index) =>
+                calls.add(update('drag', details, index)),
+            onEnd: (details, index) => calls.add('drag end $index'),
+          ),
+        ),
+        swipeToRemove: SwipeToRemoveOptions(
+          onSwipeToRemove: onSwipeToRemove,
+          callbacks: ItemDragCallbacks(
+            onStart: (details, index) => calls.add('swipe start $index'),
+            onUpdate: (details, index) =>
+                calls.add(update('swipe', details, index)),
+            onEnd: (details, index) => calls.add('swipe end $index'),
+          ),
+        ),
         listView: ListView.builder(
           itemCount: labels.length,
           itemBuilder: (context, index) =>
@@ -2106,9 +2293,13 @@ class _TestList {
       ? AnimatedReorderable.grid(
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
-          onReorder: (permutations) => permutations.apply(items),
-          onSwipeToRemove: removeAt,
-          swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
+          reorder: ReorderOptions(
+            onReorder: (permutations) => permutations.apply(items),
+          ),
+          swipeToRemove: SwipeToRemoveOptions(
+            onSwipeToRemove: removeAt,
+            directionGetter: _swipeToRemoveDirectionGetter,
+          ),
           gridView: GridView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
@@ -2121,15 +2312,19 @@ class _TestList {
       : AnimatedReorderable.list(
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
-          onReorder: (permutations) {
-            reorders++;
-            permutations.apply(items);
-          },
-          onSwipeToRemove: removeAt,
-          swipeToRemoveDirectionGetter: _swipeToRemoveDirectionGetter,
-          swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-          draggableGetter: draggableGetter,
-          reorderableGetter: reorderableGetter,
+          reorder: ReorderOptions(
+            onReorder: (permutations) {
+              reorders++;
+              permutations.apply(items);
+            },
+            draggableGetter: draggableGetter,
+            reorderableGetter: reorderableGetter,
+          ),
+          swipeToRemove: SwipeToRemoveOptions(
+            onSwipeToRemove: removeAt,
+            directionGetter: _swipeToRemoveDirectionGetter,
+            springDescription: swipeToRemoveSpringDescription,
+          ),
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,

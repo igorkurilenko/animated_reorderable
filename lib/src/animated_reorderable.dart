@@ -91,71 +91,315 @@ typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
 /// [GlobalKey] or use the static [of] method from an item's input callback.
 abstract class AnimatedReorderable extends StatefulWidget {
   /// Creates an [AnimatedReorderable] for a [ListView].
+  ///
+  /// [motion], [reorder] and [swipeToRemove] configure it. The other
+  /// parameters are deprecated, and are ignored where the options they
+  /// belong to are given.
   factory AnimatedReorderable.list({
     Key? key,
     required KeyGetter keyGetter,
+    MotionOptions? motion,
+    ReorderOptions? reorder,
+    SwipeToRemoveOptions? swipeToRemove,
+    @Deprecated(
+      'Use motion: MotionOptions(duration: …) instead. It goes in 2.0.',
+    )
     Duration motionAnimationDuration = defaultMotionAnimationDuration,
+    @Deprecated('Use motion: MotionOptions(curve: …) instead. It goes in 2.0.')
     Curve motionAnimationCurve = defaultMotionAnimationCurve,
+    @Deprecated(
+      'Use reorder: ReorderOptions(autoScrollerVelocityScalar: …) instead. It goes in 2.0.',
+    )
     double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
+    @Deprecated(
+      'Use reorder: ReorderOptions(draggableGetter: …) instead. It goes in 2.0.',
+    )
     BoolGetter? draggableGetter,
+    @Deprecated(
+      'Use reorder: ReorderOptions(reorderableGetter: …) instead. It goes in 2.0.',
+    )
     BoolGetter? reorderableGetter,
+    @Deprecated(
+      'Use reorder: ReorderOptions(onReorder: …) instead. It goes in 2.0.',
+    )
     ReorderCallback? onReorder,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(directionGetter: …) instead. It goes in 2.0.',
+    )
     AxisDirectionGetter? swipeToRemoveDirectionGetter,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(extent: …) instead. It goes in 2.0.',
+    )
     double swipeToRemoveExtent = defaultSwipeToRemoveExtent,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(velocity: …) instead. It goes in 2.0.',
+    )
     double swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(springDescription: …) instead. It goes in 2.0.',
+    )
     SpringDescription swipeToRemoveSpringDescription =
         defaultFlingSpringDescription,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(onSwipeToRemove: …) instead. It goes in 2.0.',
+    )
     SwipeToRemoveCallback? onSwipeToRemove,
+    @Deprecated(
+      'Use reorder: ReorderOptions(decoration: ItemDecoration(decorator: …)) instead. It goes in 2.0.',
+    )
     model.AnimatedItemDecorator? draggedItemDecorator =
         model.defaultDraggedItemDecorator,
+    @Deprecated(
+      'Use reorder: ReorderOptions(decoration: ItemDecoration(duration: …)) instead. It goes in 2.0.',
+    )
     Duration draggedItemDecorationAnimationDuration =
         defaultDraggedItemDecorationAnimationDuration,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(decorator: …)) instead. It goes in 2.0.',
+    )
     model.AnimatedItemDecorator? swipedItemDecorator =
         model.defaultDraggedItemDecorator,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(duration: …)) instead. It goes in 2.0.',
+    )
     Duration swipedItemDecorationAnimationDuration =
         defaultSwipedItemDecorationAnimationDuration,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onStart: …)) instead. It goes in 2.0.',
+    )
     ItemDragStartCallback? onItemDragStart,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onUpdate: …)) instead. It goes in 2.0.',
+    )
     ItemDragUpdateCallback? onItemDragUpdate,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onEnd: …)) instead. It goes in 2.0.',
+    )
     ItemDragEndCallback? onItemDragEnd,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onStart: …)) instead. It goes in 2.0.',
+    )
     ItemDragStartCallback? onItemSwipeStart,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onUpdate: …)) instead. It goes in 2.0.',
+    )
     ItemDragUpdateCallback? onItemSwipeUpdate,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onEnd: …)) instead. It goes in 2.0.',
+    )
     ItemDragEndCallback? onItemSwipeEnd,
+    @Deprecated(
+      'Use reorder: ReorderOptions(gestureRecognizerFactory: …) instead. It goes in 2.0.',
+    )
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
     required ListView listView,
   }) => _ListView(
     key: key,
     keyGetter: keyGetter,
-    motionAnimationDuration: motionAnimationDuration,
-    motionAnimationCurve: motionAnimationCurve,
-    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-    draggableGetter: draggableGetter,
-    reorderableGetter: reorderableGetter,
-    onReorder: onReorder,
-    swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-    swipeToRemoveExtent: swipeToRemoveExtent,
-    swipeToRemoveVelocity: swipeToRemoveVelocity,
-    swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-    onSwipeToRemove: onSwipeToRemove,
-    draggedItemDecorator: draggedItemDecorator,
-    draggedItemDecorationAnimationDuration:
-        draggedItemDecorationAnimationDuration,
-    swipedItemDecorator: swipedItemDecorator,
-    swipedItemDecorationAnimationDuration:
-        swipedItemDecorationAnimationDuration,
-    onItemDragStart: onItemDragStart,
-    onItemDragUpdate: onItemDragUpdate,
-    onItemDragEnd: onItemDragEnd,
-    onItemSwipeStart: onItemSwipeStart,
-    onItemSwipeUpdate: onItemSwipeUpdate,
-    onItemSwipeEnd: onItemSwipeEnd,
-    reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
+    motion:
+        motion ??
+        MotionOptions(
+          duration: motionAnimationDuration,
+          curve: motionAnimationCurve,
+        ),
+    reorder:
+        reorder ??
+        ReorderOptions(
+          onReorder: onReorder,
+          draggableGetter: draggableGetter,
+          reorderableGetter: reorderableGetter,
+          gestureRecognizerFactory: reorderGestureRecognizerFactory,
+          autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+          decoration: ItemDecoration(
+            decorator: draggedItemDecorator,
+            duration: draggedItemDecorationAnimationDuration,
+          ),
+          callbacks: ItemDragCallbacks(
+            onStart: onItemDragStart,
+            onUpdate: onItemDragUpdate,
+            onEnd: onItemDragEnd,
+          ),
+        ),
+    swipeToRemove:
+        swipeToRemove ??
+        SwipeToRemoveOptions(
+          onSwipeToRemove: onSwipeToRemove,
+          directionGetter: swipeToRemoveDirectionGetter,
+          extent: swipeToRemoveExtent,
+          velocity: swipeToRemoveVelocity,
+          springDescription: swipeToRemoveSpringDescription,
+          decoration: ItemDecoration(
+            decorator: swipedItemDecorator,
+            duration: swipedItemDecorationAnimationDuration,
+          ),
+          callbacks: ItemDragCallbacks(
+            onStart: onItemSwipeStart,
+            onUpdate: onItemSwipeUpdate,
+            onEnd: onItemSwipeEnd,
+          ),
+        ),
     listView: listView,
   );
 
   /// Creates an [AnimatedReorderable] for a [GridView].
+  ///
+  /// [motion], [reorder] and [swipeToRemove] configure it. The other
+  /// parameters are deprecated, and are ignored where the options they
+  /// belong to are given.
   factory AnimatedReorderable.grid({
     Key? key,
     required KeyGetter keyGetter,
+    MotionOptions? motion,
+    ReorderOptions? reorder,
+    SwipeToRemoveOptions? swipeToRemove,
+    @Deprecated(
+      'Use motion: MotionOptions(duration: …) instead. It goes in 2.0.',
+    )
+    Duration motionAnimationDuration = defaultMotionAnimationDuration,
+    @Deprecated('Use motion: MotionOptions(curve: …) instead. It goes in 2.0.')
+    Curve motionAnimationCurve = defaultMotionAnimationCurve,
+    @Deprecated(
+      'Use reorder: ReorderOptions(autoScrollerVelocityScalar: …) instead. It goes in 2.0.',
+    )
+    double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
+    @Deprecated(
+      'Use reorder: ReorderOptions(draggableGetter: …) instead. It goes in 2.0.',
+    )
+    BoolGetter? draggableGetter,
+    @Deprecated(
+      'Use reorder: ReorderOptions(reorderableGetter: …) instead. It goes in 2.0.',
+    )
+    BoolGetter? reorderableGetter,
+    @Deprecated(
+      'Use reorder: ReorderOptions(onReorder: …) instead. It goes in 2.0.',
+    )
+    ReorderCallback? onReorder,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(directionGetter: …) instead. It goes in 2.0.',
+    )
+    AxisDirectionGetter? swipeToRemoveDirectionGetter,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(extent: …) instead. It goes in 2.0.',
+    )
+    double swipeToRemoveExtent = defaultSwipeToRemoveExtent,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(velocity: …) instead. It goes in 2.0.',
+    )
+    double swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(springDescription: …) instead. It goes in 2.0.',
+    )
+    SpringDescription swipeToRemoveSpringDescription =
+        defaultFlingSpringDescription,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(onSwipeToRemove: …) instead. It goes in 2.0.',
+    )
+    SwipeToRemoveCallback? onSwipeToRemove,
+    @Deprecated(
+      'Use reorder: ReorderOptions(decoration: ItemDecoration(decorator: …)) instead. It goes in 2.0.',
+    )
+    model.AnimatedItemDecorator? draggedItemDecorator =
+        model.defaultDraggedItemDecorator,
+    @Deprecated(
+      'Use reorder: ReorderOptions(decoration: ItemDecoration(duration: …)) instead. It goes in 2.0.',
+    )
+    Duration draggedItemDecorationAnimationDuration =
+        defaultDraggedItemDecorationAnimationDuration,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(decorator: …)) instead. It goes in 2.0.',
+    )
+    model.AnimatedItemDecorator? swipedItemDecorator =
+        model.defaultDraggedItemDecorator,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(duration: …)) instead. It goes in 2.0.',
+    )
+    Duration swipedItemDecorationAnimationDuration =
+        defaultSwipedItemDecorationAnimationDuration,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onStart: …)) instead. It goes in 2.0.',
+    )
+    ItemDragStartCallback? onItemDragStart,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onUpdate: …)) instead. It goes in 2.0.',
+    )
+    ItemDragUpdateCallback? onItemDragUpdate,
+    @Deprecated(
+      'Use reorder: ReorderOptions(callbacks: ItemDragCallbacks(onEnd: …)) instead. It goes in 2.0.',
+    )
+    ItemDragEndCallback? onItemDragEnd,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onStart: …)) instead. It goes in 2.0.',
+    )
+    ItemDragStartCallback? onItemSwipeStart,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onUpdate: …)) instead. It goes in 2.0.',
+    )
+    ItemDragUpdateCallback? onItemSwipeUpdate,
+    @Deprecated(
+      'Use swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onEnd: …)) instead. It goes in 2.0.',
+    )
+    ItemDragEndCallback? onItemSwipeEnd,
+    @Deprecated(
+      'Use reorder: ReorderOptions(gestureRecognizerFactory: …) instead. It goes in 2.0.',
+    )
+    MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
+    required GridView gridView,
+  }) => _GridView(
+    key: key,
+    keyGetter: keyGetter,
+    motion:
+        motion ??
+        MotionOptions(
+          duration: motionAnimationDuration,
+          curve: motionAnimationCurve,
+        ),
+    reorder:
+        reorder ??
+        ReorderOptions(
+          onReorder: onReorder,
+          draggableGetter: draggableGetter,
+          reorderableGetter: reorderableGetter,
+          gestureRecognizerFactory: reorderGestureRecognizerFactory,
+          autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+          decoration: ItemDecoration(
+            decorator: draggedItemDecorator,
+            duration: draggedItemDecorationAnimationDuration,
+          ),
+          callbacks: ItemDragCallbacks(
+            onStart: onItemDragStart,
+            onUpdate: onItemDragUpdate,
+            onEnd: onItemDragEnd,
+          ),
+        ),
+    swipeToRemove:
+        swipeToRemove ??
+        SwipeToRemoveOptions(
+          onSwipeToRemove: onSwipeToRemove,
+          directionGetter: swipeToRemoveDirectionGetter,
+          extent: swipeToRemoveExtent,
+          velocity: swipeToRemoveVelocity,
+          springDescription: swipeToRemoveSpringDescription,
+          decoration: ItemDecoration(
+            decorator: swipedItemDecorator,
+            duration: swipedItemDecorationAnimationDuration,
+          ),
+          callbacks: ItemDragCallbacks(
+            onStart: onItemSwipeStart,
+            onUpdate: onItemSwipeUpdate,
+            onEnd: onItemSwipeEnd,
+          ),
+        ),
+    gridView: gridView,
+  );
+
+  /// Creates an [AnimatedReorderable] from its settings, for a subclass.
+  @Deprecated(
+    'Use AnimatedReorderable.list or AnimatedReorderable.grid instead. '
+    'It goes in 2.0.',
+  )
+  AnimatedReorderable({
+    super.key,
+    required this.keyGetter,
     Duration motionAnimationDuration = defaultMotionAnimationDuration,
     Curve motionAnimationCurve = defaultMotionAnimationCurve,
     double autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
@@ -168,12 +412,10 @@ abstract class AnimatedReorderable extends StatefulWidget {
     SpringDescription swipeToRemoveSpringDescription =
         defaultFlingSpringDescription,
     SwipeToRemoveCallback? onSwipeToRemove,
-    model.AnimatedItemDecorator? draggedItemDecorator =
-        model.defaultDraggedItemDecorator,
+    model.AnimatedItemDecorator? draggedItemDecorator,
     Duration draggedItemDecorationAnimationDuration =
         defaultDraggedItemDecorationAnimationDuration,
-    model.AnimatedItemDecorator? swipedItemDecorator =
-        model.defaultDraggedItemDecorator,
+    model.AnimatedItemDecorator? swipedItemDecorator,
     Duration swipedItemDecorationAnimationDuration =
         defaultSwipedItemDecorationAnimationDuration,
     ItemDragStartCallback? onItemDragStart,
@@ -183,183 +425,105 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
-    required GridView gridView,
-  }) => _GridView(
-    key: key,
-    keyGetter: keyGetter,
-    motionAnimationDuration: motionAnimationDuration,
-    motionAnimationCurve: motionAnimationCurve,
-    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-    draggableGetter: draggableGetter,
-    reorderableGetter: reorderableGetter,
-    onReorder: onReorder,
-    swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-    swipeToRemoveExtent: swipeToRemoveExtent,
-    swipeToRemoveVelocity: swipeToRemoveVelocity,
-    swipeToRemoveSpringDescription: swipeToRemoveSpringDescription,
-    onSwipeToRemove: onSwipeToRemove,
-    draggedItemDecorator: draggedItemDecorator,
-    draggedItemDecorationAnimationDuration:
-        draggedItemDecorationAnimationDuration,
-    swipedItemDecorator: swipedItemDecorator,
-    swipedItemDecorationAnimationDuration:
-        swipedItemDecorationAnimationDuration,
-    onItemDragStart: onItemDragStart,
-    onItemDragUpdate: onItemDragUpdate,
-    onItemDragEnd: onItemDragEnd,
-    onItemSwipeStart: onItemSwipeStart,
-    onItemSwipeUpdate: onItemSwipeUpdate,
-    onItemSwipeEnd: onItemSwipeEnd,
-    reorderGestureRecognizerFactory: reorderGestureRecognizerFactory,
-    gridView: gridView,
-  );
+  }) : motion = MotionOptions(
+         duration: motionAnimationDuration,
+         curve: motionAnimationCurve,
+       ),
+       reorder = ReorderOptions(
+         onReorder: onReorder,
+         draggableGetter: draggableGetter,
+         reorderableGetter: reorderableGetter,
+         gestureRecognizerFactory: reorderGestureRecognizerFactory,
+         autoScrollerVelocityScalar: autoScrollerVelocityScalar,
+         decoration: ItemDecoration(
+           decorator: draggedItemDecorator,
+           duration: draggedItemDecorationAnimationDuration,
+         ),
+         callbacks: ItemDragCallbacks(
+           onStart: onItemDragStart,
+           onUpdate: onItemDragUpdate,
+           onEnd: onItemDragEnd,
+         ),
+       ),
+       swipeToRemove = SwipeToRemoveOptions(
+         onSwipeToRemove: onSwipeToRemove,
+         directionGetter: swipeToRemoveDirectionGetter,
+         extent: swipeToRemoveExtent,
+         velocity: swipeToRemoveVelocity,
+         springDescription: swipeToRemoveSpringDescription,
+         decoration: ItemDecoration(
+           decorator: swipedItemDecorator,
+           duration: swipedItemDecorationAnimationDuration,
+         ),
+         callbacks: ItemDragCallbacks(
+           onStart: onItemSwipeStart,
+           onUpdate: onItemSwipeUpdate,
+           onEnd: onItemSwipeEnd,
+         ),
+       );
 
-  const AnimatedReorderable({
+  const AnimatedReorderable._({
     super.key,
     required this.keyGetter,
-    this.draggableGetter,
-    this.reorderableGetter,
-    this.onReorder,
-    this.swipeToRemoveDirectionGetter,
-    this.swipeToRemoveSpringDescription = defaultFlingSpringDescription,
-    this.swipeToRemoveExtent = defaultSwipeToRemoveExtent,
-    this.swipeToRemoveVelocity = defaultSwipeToRemoveVelocity,
-    this.onSwipeToRemove,
-    this.draggedItemDecorator,
-    this.draggedItemDecorationAnimationDuration =
-        defaultDraggedItemDecorationAnimationDuration,
-    this.swipedItemDecorator,
-    this.swipedItemDecorationAnimationDuration =
-        defaultSwipedItemDecorationAnimationDuration,
-    this.motionAnimationDuration = defaultMotionAnimationDuration,
-    this.motionAnimationCurve = defaultMotionAnimationCurve,
-    this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
-    this.onItemDragStart,
-    this.onItemDragUpdate,
-    this.onItemDragEnd,
-    this.onItemSwipeStart,
-    this.onItemSwipeUpdate,
-    this.onItemSwipeEnd,
-    this.reorderGestureRecognizerFactory,
+    required this.motion,
+    required this.reorder,
+    required this.swipeToRemove,
   });
 
   /// A function that provides the unique key for each item in the list or grid.
   final KeyGetter keyGetter;
 
   /// How items move to their new places.
-  MotionOptions get motion => MotionOptions(
-    duration: motionAnimationDuration,
-    curve: motionAnimationCurve,
-  );
+  final MotionOptions motion;
 
   /// How items are dragged and reordered.
-  ReorderOptions get reorder => ReorderOptions(
-    onReorder: onReorder,
-    draggableGetter: draggableGetter,
-    reorderableGetter: reorderableGetter,
-    gestureRecognizerFactory: reorderGestureRecognizerFactory,
-    autoScrollerVelocityScalar: autoScrollerVelocityScalar,
-    decoration: ItemDecoration(
-      decorator: draggedItemDecorator,
-      duration: draggedItemDecorationAnimationDuration,
-    ),
-    callbacks: ItemDragCallbacks(
-      onStart: onItemDragStart,
-      onUpdate: onItemDragUpdate,
-      onEnd: onItemDragEnd,
-    ),
-  );
+  final ReorderOptions reorder;
 
   /// How items are swiped away to remove them.
-  SwipeToRemoveOptions get swipeToRemove => SwipeToRemoveOptions(
-    onSwipeToRemove: onSwipeToRemove,
-    directionGetter: swipeToRemoveDirectionGetter,
-    extent: swipeToRemoveExtent,
-    velocity: swipeToRemoveVelocity,
-    springDescription: swipeToRemoveSpringDescription,
-    decoration: ItemDecoration(
-      decorator: swipedItemDecorator,
-      duration: swipedItemDecorationAnimationDuration,
-    ),
-    callbacks: ItemDragCallbacks(
-      onStart: onItemSwipeStart,
-      onUpdate: onItemSwipeUpdate,
-      onEnd: onItemSwipeEnd,
-    ),
-  );
-
-  /// A function that determines whether an item at a given index is draggable.
-  ///
-  /// If not provided all items are draggable by default.
-  final BoolGetter? draggableGetter;
-
-  /// A function that determines whether an item at a given index is reorderable.
-  ///
-  /// If not provided all items are reorderable by default.
-  final BoolGetter? reorderableGetter;
-
-  /// A callback function called when items are reordered.
-  final ReorderCallback? onReorder;
+  final SwipeToRemoveOptions swipeToRemove;
 
   /// The duration of the motion animation for item reordering.
   ///
   /// This [Duration] defines the time it takes for the motion animation to complete
   /// when items are being reordered within the [AnimatedReorderable] widget.
-  final Duration motionAnimationDuration;
+  @Deprecated('Read motion.duration instead. It goes in 2.0.')
+  Duration get motionAnimationDuration => motion.duration;
 
   /// The curve of the motion animation for item reordering.
-  final Curve motionAnimationCurve;
+  @Deprecated('Read motion.curve instead. It goes in 2.0.')
+  Curve get motionAnimationCurve => motion.curve;
 
   /// {@macro flutter.widgets.EdgeDraggingAutoScroller.velocityScalar}
   ///
   /// {@macro flutter.widgets.SliverReorderableList.autoScrollerVelocityScalar.default}
-  final double autoScrollerVelocityScalar;
+  @Deprecated(
+    'Read reorder.autoScrollerVelocityScalar instead. It goes in 2.0.',
+  )
+  double get autoScrollerVelocityScalar => reorder.autoScrollerVelocityScalar;
 
-  /// A callback that allows to add an animated decoration around
-  /// an item when it is being dragged.
-  final model.AnimatedItemDecorator? draggedItemDecorator;
-
-  /// The duration of the animation for decorating the dragged item.
-  final Duration draggedItemDecorationAnimationDuration;
-
-  /// A callback that allows to add an animated decoration around
-  /// an item when it is being swiped.
-  final model.AnimatedItemDecorator? swipedItemDecorator;
-
-  /// The duration of the animation for decorating the swiped item.
-  final Duration swipedItemDecorationAnimationDuration;
-
-  /// Callback function invoked when dragging a list or grid item starts.
-  final ItemDragStartCallback? onItemDragStart;
-
-  /// Callback function invoked when dragging a list or grid item is updated.
-  final ItemDragUpdateCallback? onItemDragUpdate;
-
-  /// Callback function invoked when dragging a list or grid item ends.
-  final ItemDragEndCallback? onItemDragEnd;
-
-  /// Callback function invoked when swiping a list or grid item starts.
-  final ItemDragStartCallback? onItemSwipeStart;
-
-  /// Callback function invoked when swiping a list or grid item is updated.
-  final ItemDragUpdateCallback? onItemSwipeUpdate;
-
-  /// Callback function invoked when swiping a list or grid item ends.
-  final ItemDragEndCallback? onItemSwipeEnd;
-
-  /// A callback function called when an item is swiped for removal.
+  /// A function that determines whether an item at a given index is draggable.
   ///
-  ///  It occurs if at least one of the following two cases happens:
-  /// * Swiped in the remove direction, and the extent is greater than or equal to [swipeToRemoveExtent].
-  /// * Swiped in the remove direction, and the velocity is greater than or equal to [swipeToRemoveVelocity].
-  final SwipeToRemoveCallback? onSwipeToRemove;
+  /// If not provided all items are draggable by default.
+  @Deprecated('Read reorder.draggableGetter instead. It goes in 2.0.')
+  BoolGetter? get draggableGetter => reorder.draggableGetter;
 
-  /// The spring description used for the swipe-to-remove animation.
+  /// A function that determines whether an item at a given index is reorderable.
   ///
-  /// This [SpringDescription] defines the animation characteristics,
-  /// including the mass, stiffness and damping, used in the
-  /// swipe-to-remove animation within the [AnimatedReorderable] widget.
-  final SpringDescription swipeToRemoveSpringDescription;
+  /// If not provided all items are reorderable by default.
+  @Deprecated('Read reorder.reorderableGetter instead. It goes in 2.0.')
+  BoolGetter? get reorderableGetter => reorder.reorderableGetter;
+
+  /// A callback function called when items are reordered.
+  @Deprecated('Read reorder.onReorder instead. It goes in 2.0.')
+  ReorderCallback? get onReorder => reorder.onReorder;
+
+  /// A function that determines the swipe-to-remove direction for an item at a given index.
+  ///
+  /// If the function returns `null`, the `swipeToRemove` feature
+  /// will be disabled for the element at the specified [index].
+  @Deprecated('Read swipeToRemove.directionGetter instead. It goes in 2.0.')
+  AxisDirectionGetter? get swipeToRemoveDirectionGetter =>
+      swipeToRemove.directionGetter;
 
   /// The minimal extent, as a ratio of item movement, to trigger swipe-to-remove.
   ///
@@ -368,20 +532,83 @@ abstract class AnimatedReorderable extends StatefulWidget {
   /// When a user swipes an item to an extent greater than or equal to this
   /// ratio, the swipe-to-remove action will be initiated for the corresponding
   /// item within the [AnimatedReorderable] widget.
-  final double swipeToRemoveExtent;
+  @Deprecated('Read swipeToRemove.extent instead. It goes in 2.0.')
+  double get swipeToRemoveExtent => swipeToRemove.extent;
 
   /// The minimum swiping velocity required to trigger the swipe-to-remove action.
   ///
   /// If the swiping velocity of an item exceeds this value, the swipe-to-remove
   /// action will be triggered for the corresponding item within the
   /// [AnimatedReorderable] widget.
-  final double swipeToRemoveVelocity;
+  @Deprecated('Read swipeToRemove.velocity instead. It goes in 2.0.')
+  double get swipeToRemoveVelocity => swipeToRemove.velocity;
 
-  /// A function that determines the swipe-to-remove direction for an item at a given index.
+  /// The spring description used for the swipe-to-remove animation.
   ///
-  /// If the function returns `null`, the `swipeToRemove` feature
-  /// will be disabled for the element at the specified [index].
-  final AxisDirectionGetter? swipeToRemoveDirectionGetter;
+  /// This [SpringDescription] defines the animation characteristics,
+  /// including the mass, stiffness and damping, used in the
+  /// swipe-to-remove animation within the [AnimatedReorderable] widget.
+  @Deprecated('Read swipeToRemove.springDescription instead. It goes in 2.0.')
+  SpringDescription get swipeToRemoveSpringDescription =>
+      swipeToRemove.springDescription;
+
+  /// A callback function called when an item is swiped for removal.
+  ///
+  ///  It occurs if at least one of the following two cases happens:
+  /// * Swiped in the remove direction, and the extent is greater than or equal to [swipeToRemoveExtent].
+  /// * Swiped in the remove direction, and the velocity is greater than or equal to [swipeToRemoveVelocity].
+  @Deprecated('Read swipeToRemove.onSwipeToRemove instead. It goes in 2.0.')
+  SwipeToRemoveCallback? get onSwipeToRemove => swipeToRemove.onSwipeToRemove;
+
+  /// A callback that allows to add an animated decoration around
+  /// an item when it is being dragged.
+  @Deprecated('Read reorder.decoration.decorator instead. It goes in 2.0.')
+  model.AnimatedItemDecorator? get draggedItemDecorator =>
+      reorder.decoration.decorator;
+
+  /// The duration of the animation for decorating the dragged item.
+  @Deprecated('Read reorder.decoration.duration instead. It goes in 2.0.')
+  Duration get draggedItemDecorationAnimationDuration =>
+      reorder.decoration.duration;
+
+  /// A callback that allows to add an animated decoration around
+  /// an item when it is being swiped.
+  @Deprecated(
+    'Read swipeToRemove.decoration.decorator instead. It goes in 2.0.',
+  )
+  model.AnimatedItemDecorator? get swipedItemDecorator =>
+      swipeToRemove.decoration.decorator;
+
+  /// The duration of the animation for decorating the swiped item.
+  @Deprecated('Read swipeToRemove.decoration.duration instead. It goes in 2.0.')
+  Duration get swipedItemDecorationAnimationDuration =>
+      swipeToRemove.decoration.duration;
+
+  /// Callback function invoked when dragging a list or grid item starts.
+  @Deprecated('Read reorder.callbacks.onStart instead. It goes in 2.0.')
+  ItemDragStartCallback? get onItemDragStart => reorder.callbacks.onStart;
+
+  /// Callback function invoked when dragging a list or grid item is updated.
+  @Deprecated('Read reorder.callbacks.onUpdate instead. It goes in 2.0.')
+  ItemDragUpdateCallback? get onItemDragUpdate => reorder.callbacks.onUpdate;
+
+  /// Callback function invoked when dragging a list or grid item ends.
+  @Deprecated('Read reorder.callbacks.onEnd instead. It goes in 2.0.')
+  ItemDragEndCallback? get onItemDragEnd => reorder.callbacks.onEnd;
+
+  /// Callback function invoked when swiping a list or grid item starts.
+  @Deprecated('Read swipeToRemove.callbacks.onStart instead. It goes in 2.0.')
+  ItemDragStartCallback? get onItemSwipeStart =>
+      swipeToRemove.callbacks.onStart;
+
+  /// Callback function invoked when swiping a list or grid item is updated.
+  @Deprecated('Read swipeToRemove.callbacks.onUpdate instead. It goes in 2.0.')
+  ItemDragUpdateCallback? get onItemSwipeUpdate =>
+      swipeToRemove.callbacks.onUpdate;
+
+  /// Callback function invoked when swiping a list or grid item ends.
+  @Deprecated('Read swipeToRemove.callbacks.onEnd instead. It goes in 2.0.')
+  ItemDragEndCallback? get onItemSwipeEnd => swipeToRemove.callbacks.onEnd;
 
   /// A factory function that creates a [MultiDragGestureRecognizer] for handling
   /// reordering gestures in the [AnimatedReorderable] widget.
@@ -418,7 +645,9 @@ abstract class AnimatedReorderable extends StatefulWidget {
   ///
   /// This factory allows for fine-tuned control over the gesture recognition system,
   /// providing flexibility for various user interactions and devices.
-  final MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory;
+  @Deprecated('Read reorder.gestureRecognizerFactory instead. It goes in 2.0.')
+  MultiDragGestureRecognizerFactory? get reorderGestureRecognizerFactory =>
+      reorder.gestureRecognizerFactory;
 
   /// The state from the closest instance of this class that encloses the given
   /// context.
@@ -752,30 +981,11 @@ class _ListView extends AnimatedReorderable {
   const _ListView({
     super.key,
     required super.keyGetter,
-    super.motionAnimationDuration,
-    super.motionAnimationCurve,
-    super.autoScrollerVelocityScalar,
-    super.draggableGetter,
-    super.reorderableGetter,
-    super.onReorder,
-    super.swipeToRemoveDirectionGetter,
-    super.swipeToRemoveExtent,
-    super.swipeToRemoveVelocity,
-    super.swipeToRemoveSpringDescription,
-    super.onSwipeToRemove,
-    super.draggedItemDecorator,
-    super.draggedItemDecorationAnimationDuration,
-    super.swipedItemDecorator,
-    super.swipedItemDecorationAnimationDuration,
-    super.onItemDragStart,
-    super.onItemDragUpdate,
-    super.onItemDragEnd,
-    super.onItemSwipeStart,
-    super.onItemSwipeUpdate,
-    super.onItemSwipeEnd,
-    super.reorderGestureRecognizerFactory,
+    required super.motion,
+    required super.reorder,
+    required super.swipeToRemove,
     required this.listView,
-  });
+  }) : super._();
 
   final ListView listView;
 
@@ -831,30 +1041,11 @@ class _GridView extends AnimatedReorderable {
   const _GridView({
     super.key,
     required super.keyGetter,
-    super.motionAnimationDuration,
-    super.motionAnimationCurve,
-    super.autoScrollerVelocityScalar,
-    super.draggableGetter,
-    super.reorderableGetter,
-    super.onReorder,
-    super.swipeToRemoveDirectionGetter,
-    super.swipeToRemoveExtent,
-    super.swipeToRemoveVelocity,
-    super.swipeToRemoveSpringDescription,
-    super.onSwipeToRemove,
-    super.draggedItemDecorator,
-    super.draggedItemDecorationAnimationDuration,
-    super.swipedItemDecorator,
-    super.swipedItemDecorationAnimationDuration,
-    super.onItemDragStart,
-    super.onItemDragUpdate,
-    super.onItemDragEnd,
-    super.onItemSwipeStart,
-    super.onItemSwipeUpdate,
-    super.onItemSwipeEnd,
-    super.reorderGestureRecognizerFactory,
+    required super.motion,
+    required super.reorder,
+    required super.swipeToRemove,
     required this.gridView,
-  });
+  }) : super._();
 
   final GridView gridView;
 

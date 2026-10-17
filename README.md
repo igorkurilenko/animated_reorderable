@@ -25,7 +25,11 @@ The `AnimatedReorderable` wrapper for `ListView` and `GridView` incorporates all
 Utilize `AnimatedReorderable.list()` or `AnimatedReorderable.grid()` to wrap `ListView` or `GridView` accordingly. Configure the following parameters:
 
 - **keyGetter:** Required parameter to configure keys for uniquely identifying the items.
-- **onReorder:** If you want to enable the reordering feature, specify a callback in which you should apply permutations on the items collection.
+- **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks.
+- **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback in which you remove the item.
+- **motion:** `MotionOptions` sets how items move to their new places.
+
+Before 1.6.0 these settings were parameters of their own, such as `onReorder` and `onSwipeToRemove`. They still work, but are deprecated and go in 2.0.
 
 Here's an example of how to wrap a `ListView`:
 
@@ -60,7 +64,9 @@ class _ListViewExampleState extends State<ListViewExample> {
         // Define the onReorder callback to synchronize the order
         // of items. The callback takes permutations that need to be
         // applied to the collection of items.
-        onReorder: (permutations) => permutations.apply(items),
+        reorder: ReorderOptions(
+          onReorder: (permutations) => permutations.apply(items),
+        ),
 
         listView: ListView.builder(
           itemCount: items.length,
