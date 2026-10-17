@@ -11,6 +11,10 @@ abstract interface class ItemHost {
   bool isDraggable(int index);
   SwipeDirection? swipeToRemoveDirectionAt(int index);
 
+  /// Puts [child], the subtree of the item at [index], in the transition
+  /// the item enters with, at [entrance].
+  Widget buildEntrance(Widget child, int index, Animation<double> entrance);
+
   void didInitItem(RenderedItem item);
   void didChangeItemIndex(RenderedItem item);
 
@@ -29,6 +33,7 @@ class ItemWidget extends StatefulWidget {
     required this.childKey,
     required this.builder,
     required this.placeholderSize,
+    required this.entrance,
     required this.host,
   });
 
@@ -39,6 +44,9 @@ class ItemWidget extends StatefulWidget {
   /// The size of the placeholder that stands in for the item while the
   /// overlay shows it, or null.
   final ValueListenable<Size?> placeholderSize;
+
+  /// How far the item has entered.
+  final Animation<double> entrance;
   final ItemHost host;
 
   @override
@@ -127,7 +135,11 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
       child: Listener(
         onPointerDown: draggable ? _recognizeDrag : null,
         child: child != null
-            ? KeyedSubtree(key: widget.childKey, child: child)
+            ? host.buildEntrance(
+                KeyedSubtree(key: widget.childKey, child: child),
+                index,
+                widget.entrance,
+              )
             : null,
       ),
     );

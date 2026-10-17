@@ -12,6 +12,11 @@ typedef OverlayedItemPointerDownCallback = void Function(
   OverlayedItem item,
   BuildContext context,
 );
+typedef ItemEntranceBuilder = Widget Function(
+  Widget child,
+  int index,
+  Animation<double> entrance,
+);
 
 class OverlayedItemWidget extends StatelessWidget {
   const OverlayedItemWidget({
@@ -19,6 +24,7 @@ class OverlayedItemWidget extends StatelessWidget {
     required this.item,
     this.onPointerDown,
     this.onSizeChange,
+    this.entranceBuilder,
   });
 
   final OverlayedItem item;
@@ -26,6 +32,9 @@ class OverlayedItemWidget extends StatelessWidget {
   /// Lets a pointer down on the item start a drag or a swipe of it.
   final OverlayedItemPointerDownCallback? onPointerDown;
   final OverlayedItemSizeCallback? onSizeChange;
+
+  /// Puts the item in the transition it enters with, as the list does.
+  final ItemEntranceBuilder? entranceBuilder;
 
   /// It builds again when its item changes, without the other items.
   @override
@@ -43,9 +52,15 @@ class OverlayedItemWidget extends StatelessWidget {
           constraints: item.constraints,
           child: item.build(
             context,
-            wrap: (item) => SizeReporter(
-              onSizeChange: (size) => onSizeChange?.call(size, this.item),
-              child: item,
+            wrap: (child) => SizeReporter(
+              onSizeChange: (size) => onSizeChange?.call(size, item),
+              child:
+                  entranceBuilder?.call(
+                    child,
+                    item.index,
+                    item.item.entrance,
+                  ) ??
+                  child,
             ),
           ),
         ),

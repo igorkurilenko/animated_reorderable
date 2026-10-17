@@ -35,6 +35,7 @@ class ItemWidgetFactory {
       childKey: item.childKey,
       builder: item.builder.build,
       placeholderSize: item.placeholderSize,
+      entrance: item.entrance,
       host: host,
     );
   }

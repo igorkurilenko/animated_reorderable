@@ -92,15 +92,16 @@ typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
 abstract class AnimatedReorderable extends StatefulWidget {
   /// Creates an [AnimatedReorderable] for a [ListView].
   ///
-  /// [motion], [reorder] and [swipeToRemove] configure it. The other
-  /// parameters are deprecated, and are ignored where the options they
-  /// belong to are given.
+  /// [motion], [reorder], [swipeToRemove] and [insertTransition] configure
+  /// it. The other parameters are deprecated, and are ignored where the
+  /// options they belong to are given.
   factory AnimatedReorderable.list({
     Key? key,
     required KeyGetter keyGetter,
     MotionOptions? motion,
     ReorderOptions? reorder,
     SwipeToRemoveOptions? swipeToRemove,
+    model.AnimatedItemDecorator? insertTransition,
     @Deprecated(
       'Use motion: MotionOptions(duration: …) instead. It goes in 2.0.',
     )
@@ -196,6 +197,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
   }) => _AnimatedReorderable(
     key: key,
     keyGetter: keyGetter,
+    insertTransition: insertTransition,
     motion:
         motion ??
         MotionOptions(
@@ -243,15 +245,16 @@ abstract class AnimatedReorderable extends StatefulWidget {
 
   /// Creates an [AnimatedReorderable] for a [GridView].
   ///
-  /// [motion], [reorder] and [swipeToRemove] configure it. The other
-  /// parameters are deprecated, and are ignored where the options they
-  /// belong to are given.
+  /// [motion], [reorder], [swipeToRemove] and [insertTransition] configure
+  /// it. The other parameters are deprecated, and are ignored where the
+  /// options they belong to are given.
   factory AnimatedReorderable.grid({
     Key? key,
     required KeyGetter keyGetter,
     MotionOptions? motion,
     ReorderOptions? reorder,
     SwipeToRemoveOptions? swipeToRemove,
+    model.AnimatedItemDecorator? insertTransition,
     @Deprecated(
       'Use motion: MotionOptions(duration: …) instead. It goes in 2.0.',
     )
@@ -347,6 +350,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
   }) => _AnimatedReorderable(
     key: key,
     keyGetter: keyGetter,
+    insertTransition: insertTransition,
     motion:
         motion ??
         MotionOptions(
@@ -425,7 +429,8 @@ abstract class AnimatedReorderable extends StatefulWidget {
     ItemDragUpdateCallback? onItemSwipeUpdate,
     ItemDragEndCallback? onItemSwipeEnd,
     MultiDragGestureRecognizerFactory? reorderGestureRecognizerFactory,
-  }) : motion = MotionOptions(
+  }) : insertTransition = null,
+       motion = MotionOptions(
          duration: motionAnimationDuration,
          curve: motionAnimationCurve,
        ),
@@ -468,6 +473,7 @@ abstract class AnimatedReorderable extends StatefulWidget {
     required this.motion,
     required this.reorder,
     required this.swipeToRemove,
+    required this.insertTransition,
   });
 
   /// A function that provides the unique key for each item in the list or grid.
@@ -481,6 +487,19 @@ abstract class AnimatedReorderable extends StatefulWidget {
 
   /// How items are swiped away to remove them.
   final SwipeToRemoveOptions swipeToRemove;
+
+  /// Puts an item's `child` in the transition it enters with, when
+  /// [AnimatedReorderableState.insertItem] inserts it without a builder.
+  ///
+  /// Every item is built through it, as [AnimatedList] builds its items:
+  /// an inserted item with an `animation` that runs forward while it
+  /// enters, and every other item with a completed one. So an item looks
+  /// the same to its subtree before, while and after it enters, and the
+  /// subtree keeps its state.
+  ///
+  /// Without it, an inserted item shows at once while the others move
+  /// aside.
+  final model.AnimatedItemDecorator? insertTransition;
 
   /// The duration of the motion animation for item reordering.
   ///
@@ -745,6 +764,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       motion: widget.motion,
       reorder: widget.reorder,
       swipeToRemove: widget.swipeToRemove,
+      insertTransition: widget.insertTransition,
       scrollDirection: _view.scrollDirection,
       itemCount: childrenDelegateSettingsOf(_view.childrenDelegate).childCount,
       vsync: this,
@@ -767,6 +787,7 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
       ..motion = widget.motion
       ..reorder = widget.reorder
       ..swipeToRemove = widget.swipeToRemove
+      ..insertTransition = widget.insertTransition
       ..scrollDirection = _view.scrollDirection
       ..scrollSync.scrollController = _effectiveScrollController;
   }
@@ -788,15 +809,29 @@ abstract class AnimatedReorderableState<T extends AnimatedReorderable>
     return scrollController ?? (_ownScrollController ??= ScrollController());
   }
 
-  /// Insert an item at `index` and start an animation that will be passed
-  /// to `builder`.
+  /// Inserts an item at `index`, which enters for `duration`.
+  ///
+  /// With a null `builder`, the item enters through the
+  /// [AnimatedReorderable.insertTransition], and keeps its state when it
+  /// has entered:
+  ///
+  /// ```dart
+  /// _items.insert(index, newItem);
+  /// animatedReorderableKey.currentState!.insertItem(index, null);
+  /// ```
+  ///
+  /// A `builder` builds the item instead while it enters, with an animation
+  /// that runs forward, the way it did before 1.6.0. When the item has
+  /// entered, the wrapped view's builder builds it again, so its state
+  /// starts over unless the two builders build the same widgets. The
+  /// `builder` parameter goes in 2.0.
   ///
   /// This method's semantics are the same as Dart's [List.insert] method: it
   /// increases the length of the list of items by one and shifts
   /// all items at or after `index` towards the end of the list of items.
   void insertItem(
     int index,
-    AnimatedItemBuilder builder, {
+    AnimatedItemBuilder? builder, {
     Duration duration = defaultInsertItemAnimationDuration,
   }) => _controller.insertItem(index, builder, duration);
 
@@ -949,6 +984,7 @@ class _AnimatedReorderable extends AnimatedReorderable {
     required super.motion,
     required super.reorder,
     required super.swipeToRemove,
+    required super.insertTransition,
     required this.view,
   }) : super._();
 

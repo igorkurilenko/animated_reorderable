@@ -21,6 +21,7 @@ class AnimatedReorderableController implements ItemHost {
     required this.motion,
     required this.reorder,
     required this.swipeToRemove,
+    required this.insertTransition,
     required this.scrollDirection,
     int? itemCount,
     required this.vsync,
@@ -35,6 +36,7 @@ class AnimatedReorderableController implements ItemHost {
   MotionOptions motion;
   ReorderOptions reorder;
   SwipeToRemoveOptions swipeToRemove;
+  model.AnimatedItemDecorator? insertTransition;
   Axis scrollDirection;
   final widgets.TickerProvider vsync;
 
@@ -69,18 +71,22 @@ class AnimatedReorderableController implements ItemHost {
 
   void insertItem(
     int index,
-    widgets.AnimatedItemBuilder builder,
+    widgets.AnimatedItemBuilder? builder,
     Duration duration,
   ) {
     RangeError.checkValueInInterval(index, 0, checkedItemCount, 'index');
 
     final insertedItem = _items.insertItem(index: index);
 
-    insertedItem.animateItemBuilder(
-      builder: builder,
-      duration: duration,
-      vsync: vsync,
-    );
+    if (builder == null) {
+      insertedItem.enter(vsync: vsync, duration: duration);
+    } else {
+      insertedItem.animateItemBuilder(
+        builder: builder,
+        duration: duration,
+        vsync: vsync,
+      );
+    }
 
     _overlay?.overlayRenderedItems(
       except: insertedItem.key,
@@ -251,6 +257,13 @@ class AnimatedReorderableController implements ItemHost {
       null => null,
     };
   }
+
+  @override
+  widgets.Widget buildEntrance(
+    widgets.Widget child,
+    int index,
+    widgets.Animation<double> entrance,
+  ) => insertTransition?.call(child, index, entrance) ?? child;
 
   @override
   void didInitItem(model.RenderedItem item) => _items.putRenderedItem(item);

@@ -1231,6 +1231,191 @@ void main() {
     });
   });
 
+  group('insert transition', () {
+    Widget enter(Widget child, int index, Animation<double> animation) =>
+        _Entrance(animation: animation, child: child);
+
+    testWidgets('runs forward while an item enters', (tester) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+      expect(_entranceOf(tester, 3).value, 0);
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(_entranceOf(tester, 3).value, closeTo(0.5, 0.01));
+      await tester.pumpAndSettle();
+
+      expect(_entranceOf(tester, 3).value, 1);
+    });
+
+    testWidgets('builds every other item through it, complete', (tester) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect([
+        for (final id in [0, 1, 2]) _entranceOf(tester, id).value,
+      ], everyElement(1));
+    });
+
+    testWidgets('enters a grid', (tester) async {
+      final list = _TestList(6, grid: true, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 6);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(_entranceOf(tester, 6).value, closeTo(0.5, 0.01));
+    });
+
+    testWidgets('keeps the state of an item that has entered', (tester) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      final state = list.states(tester)[3];
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(list.build());
+
+      expect(list.states(tester)[3], same(state));
+      expect(list.inits.values, everyElement(1));
+    });
+
+    testWidgets('keeps the state of an entering item that moves', (
+      tester,
+    ) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final state = list.states(tester)[3];
+      list.state.reorderItem(0, destIndex: 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // The overlay shows it on its way, still entering.
+      expect(_entranceOf(tester, 3).value, closeTo(0.4, 0.01));
+      await tester.pumpAndSettle();
+
+      expect(list.items, [0, 1, 3, 2]);
+      expect(_tops(tester, list.items), [0, 100, 200, 300]);
+      expect(list.states(tester)[3], same(state));
+      expect(list.inits.values, everyElement(1));
+      expect(_entranceOf(tester, 3).value, 1);
+    });
+
+    testWidgets('removes an entering item from where it got to', (
+      tester,
+    ) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+      final controllers = _undisposed('AnimationController');
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      final removals = <double>[];
+      list.items.removeAt(0);
+      list.state.removeItem(0, (context, animation) {
+        removals.add(animation.value);
+        return list.buildItem(3);
+      });
+      await tester.pump();
+
+      expect(removals.first, closeTo(0.5, 0.01));
+      // The removed item builder animates it from here on.
+      expect(_entranceOf(tester, 3).value, 1);
+      await tester.pumpAndSettle();
+
+      expect(_itemWithId(3), findsNothing);
+      expect(controllers, isEmpty);
+      expect(_trackedTickers(tester), 0);
+    });
+
+    testWidgets('lets an item stop entering when the list goes', (
+      tester,
+    ) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+      final controllers = _undisposed('AnimationController');
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpWidget(const SizedBox());
+
+      expect(controllers, isEmpty);
+    });
+
+    testWidgets('uses the latest transition', (tester) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      list.insertTransition = (child, index, animation) =>
+          _Entrance(animation: animation, label: 'latest', child: child);
+      await tester.pumpWidget(list.build());
+
+      final entrance = tester.widget<_Entrance>(_entranceFinder(3));
+      expect(entrance.label, 'latest');
+      expect(entrance.animation.value, closeTo(0.5, 0.01));
+    });
+
+    testWidgets('lets an item in at once without a transition', (tester) async {
+      final list = _TestList(3);
+      await tester.pumpWidget(list.build());
+
+      list.insert(0, 3);
+      await tester.pump();
+
+      expect(_itemWithId(3), findsOneWidget);
+      expect(find.byType(_Entrance), findsNothing);
+      await tester.pumpAndSettle();
+      expect(_tops(tester, list.items), [0, 100, 200, 300]);
+    });
+
+    testWidgets('builds an item inserted with a builder with it', (
+      tester,
+    ) async {
+      final list = _TestList(3, insertTransition: enter);
+      await tester.pumpWidget(list.build());
+
+      list.items.insert(0, 3);
+      list.state.insertItem(
+        0,
+        (context, index, animation) => _Entrance(
+          animation: animation,
+          label: 'builder',
+          child: list.buildItem(3),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      final entrances = tester.widgetList<_Entrance>(_entranceFinder(3));
+      expect(entrances.map((x) => x.label), ['builder', null]);
+      expect(entrances.first.animation.value, closeTo(0.5, 0.01));
+      expect(entrances.last.animation.value, 1);
+      // The view's builder builds it once the list builds again.
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(list.build());
+      expect(
+        tester.widgetList<_Entrance>(_entranceFinder(3)).map((x) => x.label),
+        [null],
+      );
+    });
+  });
+
   group('insert again while removed', () {
     Future<_TestList> reinsert(WidgetTester tester) async {
       final list = _TestList(5);
@@ -2461,6 +2646,7 @@ class _TestList {
     this.padding,
     this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
+    this.insertTransition,
   }) : items = List.generate(count, (i) => i);
 
   final List<int> items;
@@ -2473,6 +2659,9 @@ class _TestList {
   /// The swipe direction of every item, or null for the default one.
   AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
+
+  /// The transition items enter with, or null for none.
+  AnimatedItemDecorator? insertTransition;
   BoolGetter? draggableGetter;
   BoolGetter? reorderableGetter;
   final key = GlobalKey<AnimatedReorderableState>();
@@ -2498,6 +2687,7 @@ class _TestList {
             onSwipeToRemove: removeAt,
             directionGetter: _swipeToRemoveDirectionGetter,
           ),
+          insertTransition: insertTransition,
           gridView: GridView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
@@ -2523,6 +2713,7 @@ class _TestList {
             directionGetter: _swipeToRemoveDirectionGetter,
             springDescription: swipeToRemoveSpringDescription,
           ),
+          insertTransition: insertTransition,
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
@@ -2540,7 +2731,7 @@ class _TestList {
 
   void insert(int index, int id) {
     items.insert(index, id);
-    state.insertItem(index, (context, index, animation) => _item(items[index]));
+    state.insertItem(index, null);
   }
 
   void removeAt(int index) {
@@ -2606,4 +2797,26 @@ int _trackedTickers(WidgetTester tester) {
   );
   final tracking = RegExp(r'tracking (\d+) ticker').firstMatch('$state');
   return tracking == null ? 0 : int.parse(tracking.group(1)!);
+}
+
+/// The entrance transitions around the item with [id], the closest first.
+Finder _entranceFinder(int id) =>
+    find.ancestor(of: _itemWithId(id), matching: find.byType(_Entrance));
+
+/// The animation of the closest entrance transition around the item with
+/// [id].
+Animation<double> _entranceOf(WidgetTester tester, int id) =>
+    tester.widget<_Entrance>(_entranceFinder(id).first).animation;
+
+/// A transition an item enters with, which tests can find.
+class _Entrance extends StatelessWidget {
+  const _Entrance({required this.animation, this.label, required this.child});
+
+  final Animation<double> animation;
+  final String? label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: animation, child: child);
 }

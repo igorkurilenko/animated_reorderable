@@ -65,6 +65,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
           item: item,
           onPointerDown: controller.recognizeOverlayedItem,
           onSizeChange: controller.handleOverlayedItemSizeChange,
+          entranceBuilder: controller.buildEntrance,
         ),
     ],
   );
