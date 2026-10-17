@@ -77,13 +77,7 @@ class AnimatedReorderableController {
     widgets.AnimatedItemBuilder builder,
     Duration duration,
   ) {
-    if (_state.itemCount == null) {
-      throw StateError(
-        'Items can be inserted, removed and reordered only in a '
-        '${widgets.ListView} or ${widgets.GridView} with an item count',
-      );
-    }
-    RangeError.checkValueInInterval(index, 0, _state.itemCount!, 'index');
+    RangeError.checkValueInInterval(index, 0, checkedItemCount, 'index');
 
     final insertedItem = _state.insertItem(
       index: index,
@@ -112,13 +106,7 @@ class AnimatedReorderableController {
     Duration duration, {
     int? zIndex,
   }) {
-    if (_state.itemCount == null) {
-      throw StateError(
-        'Items can be inserted, removed and reordered only in a '
-        '${widgets.ListView} or ${widgets.GridView} with an item count',
-      );
-    }
-    IndexError.check(index, _state.itemCount!, name: 'index');
+    IndexError.check(index, checkedItemCount, name: 'index');
 
     final removedItem = _state.removeItem(index: index);
     if (removedItem == null) return;
@@ -174,20 +162,11 @@ class AnimatedReorderableController {
         'Items can be reordered only with an onReorder callback',
       );
     }
-    if (_state.itemCount == null) {
-      throw StateError(
-        'Items can be inserted, removed and reordered only in a '
-        '${widgets.ListView} or ${widgets.GridView} with an item count',
-      );
-    }
-    IndexError.check(index, _state.itemCount!, name: 'index');
-    IndexError.check(destIndex, _state.itemCount!, name: 'destIndex');
-    if (!reorderableGetter(index)) {
-      throw ArgumentError.value(index, 'index', 'is not reorderable');
-    }
-    if (!reorderableGetter(destIndex)) {
-      throw ArgumentError.value(destIndex, 'destIndex', 'is not reorderable');
-    }
+    final itemCount = checkedItemCount;
+    IndexError.check(index, itemCount, name: 'index');
+    IndexError.check(destIndex, itemCount, name: 'destIndex');
+    checkReorderable(index, name: 'index');
+    checkReorderable(destIndex, name: 'destIndex');
     if (index == destIndex) return;
 
     final itemAtIndex = ensureItemAt(index: index);
@@ -218,6 +197,20 @@ class AnimatedReorderableController {
     });
 
     itemsLayer!.rebuild(() => onReorder!.call(permutations));
+  }
+
+  /// The item count, which a list or grid needs for its items to change.
+  int get checkedItemCount =>
+      _state.itemCount ??
+      (throw StateError(
+        'Items can be inserted, removed and reordered only in a '
+        '${widgets.ListView} or ${widgets.GridView} with an item count',
+      ));
+
+  void checkReorderable(int index, {required String name}) {
+    if (!reorderableGetter(index)) {
+      throw ArgumentError.value(index, name, 'is not reorderable');
+    }
   }
 
   void dispose() {
