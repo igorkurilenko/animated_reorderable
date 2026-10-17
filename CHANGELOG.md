@@ -37,6 +37,10 @@
 - `AnimatedReorderable` and `AnimatedReorderableState` are `final` classes, and `AnimatedReorderableState<T>` is `AnimatedReorderableState`.
 - `ReorderCallback` is `PermutationsCallback`, so that it no longer clashes with Flutter's `ReorderCallback`.
 
+### Fixes
+
+- Lift an item that is held again while it flies back to its slot above the other items flying back. It could stay under an item let go after it.
+
 ## 1.6.0
 
 ### Features

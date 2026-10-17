@@ -37,6 +37,11 @@ class OverlayedItem extends widgets.ChangeNotifier {
   bool _interactive;
 
   int zIndex;
+
+  /// When the item came into the overlay or was raised last, which puts it
+  /// above the items with the same [zIndex] that came or were raised
+  /// before it.
+  int _raisedAt = 0;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;

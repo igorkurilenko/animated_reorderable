@@ -361,6 +361,29 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('lifts an item held again above the items flying back', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      // Item 0 and then item 2 are let go, and fly back to their slots.
+      for (final id in [0, 2]) {
+        final drag = await _holdAndDrag(tester, find.text('$id'), 1);
+        await drag.up();
+        await tester.pump();
+      }
+
+      final drag = await tester.startGesture(tester.getCenter(find.text('0')));
+      await drag.moveBy(const Offset(0, 40));
+      await tester.pump();
+
+      // It follows the pointer, so it was held again on its way back.
+      expect(tester.getTopLeft(find.text('0')).dy, greaterThan(20));
+      expect(_paintOrder(tester).last, 0);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('shows a removed item under the moving items', (tester) async {
       final list = _TestList(5);
       await tester.pumpWidget(list.build());
