@@ -1,4 +1,5 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
+import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -713,6 +714,59 @@ void main() {
 
     expect(tester.getTopLeft(find.text('9')).dy - top, moreOrLessEquals(50));
   });
+
+  for (final clipBehavior in [Clip.hardEdge, Clip.none]) {
+    testWidgets('clips moving items as the list does, with '
+        '${clipBehavior.name}', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                height: 300,
+                child: AnimatedReorderable.list(
+                  key: key,
+                  keyGetter: (index) => ValueKey(items[index]),
+                  reorder: ReorderOptions(
+                    onReorder: (permutations) => permutations.apply(items),
+                  ),
+                  listView: ListView.builder(
+                    clipBehavior: clipBehavior,
+                    itemCount: items.length,
+                    itemBuilder: (context, index) => SizedBox(
+                      height: _extent,
+                      child: Text('${items[index]}'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 40);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      // On its way out through the bottom edge.
+      final overlay = find.byType(OverlayedItemsLayer);
+      final item = tester.getRect(find.text('0'));
+      expect(item.top, lessThan(300));
+      expect(item.bottom, greaterThan(300));
+      final clip = paints
+        ..clipRect(rect: Offset.zero & tester.getSize(overlay));
+      expect(
+        tester.renderObject(overlay),
+        clipBehavior == Clip.none ? isNot(clip) : clip,
+      );
+      await tester.pumpAndSettle();
+    });
+  }
 
   testWidgets('keeps a fling going when the list rebuilds', (tester) async {
     final list = _TestList(60);

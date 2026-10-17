@@ -72,9 +72,14 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
     final items = controller.overlayedItemsOrderedByZIndex.toList();
     final shown = items.toSet();
     _itemWidgets.removeWhere((item, _) => !shown.contains(item));
-    return Stack(
+    // The items place themselves, so the stack can't tell when they leave
+    // it: the layer clips them as the view clips its own items.
+    return ClipRect(
       clipBehavior: widget.clipBehavior,
-      children: [for (var item in items) _itemWidget(item)],
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [for (var item in items) _itemWidget(item)],
+      ),
     );
   }
 
