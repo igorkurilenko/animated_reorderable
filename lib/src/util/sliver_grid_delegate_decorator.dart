@@ -16,10 +16,12 @@ abstract class SliverGridDelegateDecorator implements SliverGridDelegate {
 
   @override
   bool shouldRelayout(covariant SliverGridDelegate oldDelegate) {
-    if (oldDelegate is SliverGridLayoutNotifier) {
-      return gridDelegate.shouldRelayout(oldDelegate.gridDelegate);
-    }
-    return gridDelegate.shouldRelayout(oldDelegate);
+    final oldGridDelegate = oldDelegate is SliverGridLayoutNotifier
+        ? oldDelegate.gridDelegate
+        : oldDelegate;
+    // Like RenderSliverGrid, only a delegate of the same type is asked.
+    return oldGridDelegate.runtimeType != gridDelegate.runtimeType ||
+        gridDelegate.shouldRelayout(oldGridDelegate);
   }
 }
 

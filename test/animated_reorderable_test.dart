@@ -716,6 +716,38 @@ void main() {
     // Three columns of squares.
     const side = 800 / 3;
 
+    testWidgets('takes a grid delegate of another type', (tester) async {
+      Widget build(SliverGridDelegate gridDelegate) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.grid(
+            keyGetter: (index) => ValueKey(index),
+            gridView: GridView.builder(
+              gridDelegate: gridDelegate,
+              itemCount: 9,
+              itemBuilder: (context, index) => _Item(id: index, onInit: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        build(
+          const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
+        ),
+      );
+
+      await tester.pumpWidget(
+        build(
+          const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      // Four columns.
+      expect(tester.getTopLeft(_itemWithId(4)), const Offset(0, 200));
+    });
+
     testWidgets('moves items aside for an inserted item', (tester) async {
       // Three rows, on the screen.
       final grid = _TestList(8, grid: true);
