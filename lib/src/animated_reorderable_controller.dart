@@ -347,17 +347,13 @@ class AnimatedReorderableController {
 
   model.OverlayedItem createOverlayedItem(
     RenderedItem renderedItem, {
-    int? index,
-    bool interactive = true,
-    bool outgoing = false,
-    int zIndex = defaultZIndex,
     MultiDragGestureRecognizerFactory? recognizerFactory,
     model.ItemBuilder? builder,
     widgets.GlobalKey? childKey,
   }) {
     final item = _state.itemBy(key: renderedItem.key);
     return model.OverlayedItem(
-      index: index ?? renderedItem.index,
+      index: renderedItem.index,
       key: renderedItem.key,
       position: overlayedItemsLayer!.globalToLocal(
         renderedItem.globalPosition!,
@@ -367,9 +363,6 @@ class AnimatedReorderableController {
           renderedItem.constraints ??
           widgets.BoxConstraints.tight(renderedItem.size!),
       size: renderedItem.size!,
-      zIndex: zIndex,
-      interactive: interactive,
-      outgoing: outgoing,
       builder: builder ?? model.ItemBuilder.adaptOtherItemBuilder(item!),
       childKey: childKey ?? item!.childKey,
       recognizerFactory: recognizerFactory,

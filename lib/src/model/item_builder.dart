@@ -61,12 +61,6 @@ abstract class AnimatedItemBuilder implements ItemBuilder {
     return result;
   }
 
-  TickerFuture forwardAnimation({double? from}) =>
-      controller.forward(from: from);
-
-  TickerFuture reverseAnimation({double? from}) =>
-      controller.reverse(from: from);
-
   @override
   void dispose() => controller.dispose();
 }

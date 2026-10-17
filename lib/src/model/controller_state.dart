@@ -50,9 +50,6 @@ class ControllerState<
 
   bool isSwiped({required Key key}) => key == swipedItem?.key;
 
-  Iterable<(int, Item)> iterator() =>
-      _itemKeyByIndex.entries.map((e) => (e.key, itemBy(key: e.value)!));
-
   Item? itemAt({required int index}) =>
       itemBy(key: _itemKeyByIndex[index] ?? UniqueKey());
 
@@ -83,9 +80,6 @@ class ControllerState<
       _itemKeyByIndex[index] = itemKey;
 
   bool isOverlayed({required Key key}) => _overlayedItemByKey.containsKey(key);
-
-  bool isOverlayedAt({required int index}) =>
-      _overlayedItemByKey.containsKey(_itemKeyByIndex[index] ?? -1);
 
   OverlayedItem? overlayedItemBy({required Key key}) =>
       _overlayedItemByKey[key];

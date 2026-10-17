@@ -43,7 +43,6 @@ class OverlayedItem extends Item {
   _OverlayedItemSwipe? _swipe;
   widgets.Offset? _globalPointerPosition;
   OffsetAnimation? _motionAnimation;
-  widgets.Widget? _widget;
   AnimatedItemDecoratorAdapter? _decorator;
 
   widgets.Offset get position => _position;
@@ -76,8 +75,6 @@ class OverlayedItem extends Item {
 
   Offset? get globalPointerPosition => _globalPointerPosition;
 
-  widgets.Widget? get widget => _widget;
-
   bool get swiped => _swipe != null;
 
   widgets.AxisDirection? get swipeToRemoveDirection => _swipe?.swipeDirection;
@@ -86,19 +83,16 @@ class OverlayedItem extends Item {
 
   double get swipeExtent => _swipe?.swipeExtent ?? 0.0;
 
-  widgets.Velocity get swipeVelocity =>
-      _swipe?.velocity ?? widgets.Velocity.zero;
-
   /// Builds the item inside its decoration. [wrap] goes between the two.
   widgets.Widget? build(
     widgets.BuildContext context, {
     widgets.Widget Function(widgets.Widget item)? wrap,
   }) {
     final child = builder.build(context, index);
-    if (child == null) return _widget = null;
+    if (child == null) return null;
     final item = widgets.KeyedSubtree(key: childKey, child: child);
-    _widget = wrap?.call(item) ?? item;
-    return _decorator?.decorate(_widget, index) ?? _widget;
+    final wrapped = wrap?.call(item) ?? item;
+    return _decorator?.decorate(wrapped, index) ?? wrapped;
   }
 
   void shift(Offset delta, {bool notify = true}) {
@@ -257,11 +251,6 @@ class OverlayedItem extends Item {
     _ => Future.value(),
   };
 
-  double stopDecorationAnimation() => switch (_decorator) {
-    (AnimatedItemDecoratorAdapter d) => d.stopDecoration(),
-    _ => 0.0,
-  };
-
   @override
   void dispose() {
     _recognizer?.dispose();
@@ -314,9 +303,6 @@ class _OverlayedItemSwipe implements gestures.Drag {
   OverlayedItemDragUpdateCallback? onSwipeUpdate;
   OverlayedItemDragEndCallback? onSwipeEnd;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
-  widgets.Velocity _velocity = widgets.Velocity.zero;
-
-  widgets.Velocity get velocity => _velocity;
 
   widgets.Offset get swipeOffset => _swipeOffset;
 
@@ -364,7 +350,6 @@ class _OverlayedItemSwipe implements gestures.Drag {
 
   @override
   void end(widgets.DragEndDetails details) {
-    _velocity = details.velocity;
     item._globalPointerPosition = null;
     onSwipeEnd?.call(details, item);
   }

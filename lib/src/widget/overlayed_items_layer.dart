@@ -31,9 +31,6 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer> {
 
   Size? get size => canvasKey.currentContext?.findRenderBox()?.size;
 
-  Rect? computeCanvasGeometry([Offset offset = Offset.zero]) =>
-      canvasKey.currentContext?.computeGeometry(offset);
-
   @override
   Widget build(BuildContext context) => Stack(
     key: canvasKey,
