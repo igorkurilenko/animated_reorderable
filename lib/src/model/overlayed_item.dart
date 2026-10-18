@@ -13,6 +13,13 @@ typedef OverlayedItemDragEndCallback = void Function(
   OverlayedItem item,
 );
 
+/// A layer above the lists of a group, which shows the items held in any
+/// of them, so that they can go from one list to another.
+abstract interface class SharedOverlaySpace implements OverlaySpace {
+  /// Stops showing [item], which its list shows from now on.
+  void unhost(OverlayedItem item);
+}
+
 /// An item while the overlay shows it, above the list. It notifies when
 /// the overlay has to build it again, and [positionChanges] notifies when
 /// it moves.
@@ -40,6 +47,11 @@ class OverlayedItem extends widgets.ChangeNotifier {
   bool _interactive;
 
   int zIndex;
+
+  /// The layer that shows the item instead of its list's overlay: its
+  /// group's, while the item is held in a list of a group. The item's
+  /// position is in that layer's space then.
+  SharedOverlaySpace? sharedSpace;
 
   /// When the item came into the overlay or was raised last, which puts it
   /// above the items with the same [zIndex] that came or were raised

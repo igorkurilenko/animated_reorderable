@@ -1,3 +1,9 @@
+## Unreleased
+
+### Features
+
+- Drag items between lists and grids, as between the columns of a board. Put the lists under an `AnimatedReorderableGroup` and give each a `ReorderOptions.groupId`. An item dragged over another of the lists goes into it, as the group's `onMove(from, to)` moves its data, and the items of both lists move in place out of its way and into its old place. Let go, it lands there, with its state kept and the size of the new list's slots. `canMove` can refuse a move before any data changes. The drag callbacks come from the list the item is in at the time, and an item dragged over no list stays in the last one it was over.
+
 ## 2.3.0
 
 ### Features

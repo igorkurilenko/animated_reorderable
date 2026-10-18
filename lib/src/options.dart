@@ -70,7 +70,14 @@ class ReorderOptions {
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     this.decoration = const ItemDecoration(),
     this.callbacks = const ItemDragCallbacks(),
+    this.groupId,
   });
+
+  /// The id of the list in the [AnimatedReorderableGroup] above it, which
+  /// the group's callbacks get as an [ItemPlace]'s `list`. With it, and
+  /// with [onReorder], items can be dragged to and from the group's other
+  /// lists.
+  final Object? groupId;
 
   /// Called when items are reordered. Without it, items can still be
   /// dragged, but do not take each other's places.

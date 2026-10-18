@@ -67,6 +67,12 @@
 library;
 
 export 'src/animated_reorderable.dart';
+export 'src/animated_reorderable_group.dart'
+    show
+        AnimatedReorderableGroup,
+        ItemMoveCallback,
+        ItemMovePredicate,
+        ItemPlace;
 export 'src/model/model.dart' show AnimatedItemDecorator;
 export 'src/model/permutations.dart';
 export 'src/options.dart';

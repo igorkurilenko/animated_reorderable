@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart' as widgets;
 
@@ -6,6 +8,7 @@ import 'const.dart';
 import 'controller/held_item_sessions.dart';
 import 'controller/item_widget_factory.dart';
 import 'controller/overlay_coordinator.dart';
+import 'controller/reorderable_group.dart';
 import 'controller/scroll_sync.dart';
 import 'model/model.dart' as model;
 import 'model/swipe_direction.dart';
@@ -81,6 +84,110 @@ class AnimatedReorderableController implements ItemHost {
   void didEndDrag(DragSession session) {
     if (_drag == session) _drag = null;
   }
+
+  ReorderableGroup? _group;
+
+  /// The group above the list, if any.
+  set group(ReorderableGroup? value) {
+    if (identical(_group, value)) return;
+    _group?.leave(this);
+    _group = value?..join(this);
+  }
+
+  /// Whether items can be dragged to and from the other lists of its group.
+  bool get takesGroupItems =>
+      _group != null && reorder.groupId != null && reorder.onReorder != null;
+
+  /// The group the list's items are dragged in, if they are.
+  ReorderableGroup? get groupForDrags => takesGroupItems ? _group : null;
+
+  /// The id of the list in its group.
+  Object? get groupId => reorder.groupId;
+
+  /// Where the list is on the screen: its overlay covers it.
+  Rect? get globalRect {
+    final overlay = _overlay?.overlay;
+    if (overlay == null) return null;
+    return overlay.localToGlobal(const model.OverlayOffset(Offset.zero)) &
+        overlay.size;
+  }
+
+  /// The index an item dragged in from another list goes to at [point]:
+  /// that of the item there, or after it if it can't be reordered, or else
+  /// that of the first item past [point] along the list, or the end.
+  int dropIndexAt(model.GlobalOffset point) {
+    final under = _items.renderedItemAt(position: point);
+    if (under != null) {
+      return isReorderable(under.index) ? under.index : under.index + 1;
+    }
+    final axisDirection =
+        scrollSync.scrollPosition?.axisDirection ??
+        switch (scrollDirection) {
+          Axis.vertical => AxisDirection.down,
+          Axis.horizontal => AxisDirection.right,
+        };
+    bool isPast(Rect slot) => switch (axisDirection) {
+      AxisDirection.down => slot.top > point.dy,
+      AxisDirection.up => slot.bottom < point.dy,
+      AxisDirection.right => slot.left > point.dx,
+      AxisDirection.left => slot.right < point.dx,
+    };
+    final past = [
+      for (final item in _items.renderedItems)
+        if ((item.globalPosition, item.size) case (final position?, final size?)
+            when isPast(position & size))
+          item.index,
+    ];
+    return past.isEmpty ? checkedItemCount : past.reduce(math.min);
+  }
+
+  /// Gives up the held [item] to another list of the group. The items
+  /// after it move up into its place.
+  void releaseHeldItem(model.OverlayedItem item) {
+    if (_drag?.item == item) _drag = null;
+    scrollSync.stopAutoScroll();
+    _items.releaseHeldItem(item);
+    _overlay?.moveRenderedItems(except: item.key);
+  }
+
+  /// Takes in the held [item] from another list of the group at [index],
+  /// where [session] goes on dragging it. The items from there on move
+  /// down to make room for it.
+  void adoptHeldItem(
+    model.OverlayedItem item, {
+    required int index,
+    required DragSession session,
+  }) {
+    // The other list's builder would build what it has at the index now.
+    item.item.builder = _itemBuilder();
+    // It takes the size of the list's slots at once, under the pointer: a
+    // list's items share their constraints, and so do a grid's.
+    final slot =
+        _items.renderedItems.firstOrNull?.constraints ?? _slotOfEmptyList();
+    if (slot != null) {
+      item.setConstraints(slot);
+      final size = slot.constrain(item.size);
+      _overlay?.keepUnderPointer(item, size: size);
+      _items.setOverlayedItemSize(item, size);
+    }
+    _items.adoptHeldItem(item, index: index);
+    _drag = session;
+    _overlay?.moveRenderedItems(except: item.key);
+  }
+
+  /// The constraints of a slot of the list, which has none to show yet:
+  /// as wide as the list, or as high for one that scrolls sideways. They
+  /// hold until the list lays the item's placeholder out.
+  BoxConstraints? _slotOfEmptyList() => switch (globalRect?.size) {
+    final size? when scrollSync.gridLayout != null => BoxConstraints.loose(
+      size,
+    ),
+    final size? => switch (scrollDirection) {
+      Axis.vertical => BoxConstraints.tightFor(width: size.width),
+      Axis.horizontal => BoxConstraints.tightFor(height: size.height),
+    },
+    null => null,
+  };
 
   /// The latest drag, which the auto-scroller keeps going.
   DragSession? _drag;

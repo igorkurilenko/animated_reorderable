@@ -79,6 +79,8 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
   @override
   Widget build(BuildContext context) {
     final items = controller.overlayedItemsOrderedByZIndex
+        // A group's layer shows the items held in the group's lists.
+        .where((x) => x.sharedSpace == null)
         .where((x) => (x.zIndex < defaultZIndex) == widget.underTheList)
         .toList();
     final shown = items.toSet();

@@ -9,12 +9,21 @@ import 'scroll_sync.dart';
 
 /// A drag of an item, from its start to its end: the item follows the
 /// pointer, takes the place of the items it is dragged over and scrolls
-/// the view at its edges (GoF State).
+/// the view at its edges. In a group, it goes to the group's other lists
+/// as it is dragged over them (GoF State).
 class DragSession {
   DragSession({required this.item, required this._host});
 
   final OverlayedItem item;
-  final AnimatedReorderableController _host;
+  AnimatedReorderableController _host;
+
+  /// The list the item is in, which changes as it goes to another list of
+  /// its group.
+  AnimatedReorderableController get host => _host;
+
+  /// The list the app didn't let the item go to, while the pointer is over
+  /// it, so the app is asked once.
+  AnimatedReorderableController? _refusedBy;
 
   ItemRegistry get items => _host.registry;
   OverlayCoordinator get overlay => _host.overlayCoordinator!;
@@ -35,10 +44,14 @@ class DragSession {
 
     items.draggedItem = item;
 
+    // A group's layer shows it, so it can go over the group's other lists.
+    final group = _host.groupForDrags;
+    group?.host(item, _host);
     overlay.lift(
       item,
       decorator: options.decoration.decorator,
       decorationDuration: options.decoration.duration,
+      sharedSpace: group,
     );
   }
 
@@ -47,6 +60,13 @@ class DragSession {
 
     item.shift(details.delta);
 
+    followPointer();
+  }
+
+  /// Takes the item to the list and the place under the pointer, and
+  /// scrolls what it is at the edge of.
+  void followPointer() {
+    _moveToAnotherListIfOverOne();
     reorderAndAutoScroll();
   }
 
@@ -68,6 +88,24 @@ class DragSession {
   void reorderAndAutoScroll() {
     _reorderIfOverAnotherItem();
     scrollSync.autoScroll(overlay.globalRectOf(item));
+  }
+
+  /// Moves the item to the list of its group that the pointer is over, if
+  /// the app lets it.
+  void _moveToAnotherListIfOverOne() {
+    final group = _host.groupForDrags;
+    final pointer = item.globalPointerPosition;
+    if (group == null || pointer == null || item.sharedSpace != group) return;
+    final to = group.memberAt(pointer);
+    if (to != _refusedBy) _refusedBy = null;
+    if (to == null || to == _host || to == _refusedBy) return;
+    if (!group.moveHeldItem(this, to: to, index: to.dropIndexAt(pointer))) {
+      _refusedBy = to;
+      return;
+    }
+    _host = to;
+    // It takes the place of the item it went in at, not the next one.
+    _itemUnderThePointerKey = items.renderedItemAt(position: pointer)?.key;
   }
 
   void _reorderIfOverAnotherItem() {

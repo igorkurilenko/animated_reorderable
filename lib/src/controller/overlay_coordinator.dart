@@ -37,6 +37,10 @@ class OverlayCoordinator {
   bool _isHeld(Key key) =>
       items.isDragged(key: key) || items.isSwiped(key: key);
 
+  /// The space [item] is positioned in: its group's layer while that shows
+  /// it, or else the list's overlay.
+  OverlaySpace spaceOf(OverlayedItem item) => item.sharedSpace ?? overlay;
+
   OverlayedItem createOverlayedItem(
     RenderedItem renderedItem, {
     MultiDragGestureRecognizerFactory? recognizerFactory,
@@ -182,6 +186,8 @@ class OverlayCoordinator {
   void unoverlay(OverlayedItem item) {
     if (items.overlayedItemBy(key: item.key) != item) return;
     items.removeOverlayedItem(key: item.key);
+    item.sharedSpace?.unhost(item);
+    item.sharedSpace = null;
     addPostFrame(() {
       if (items.overlayedItemBy(key: item.key) != item) {
         items.disposeOverlayedItem(item);
@@ -258,7 +264,7 @@ class OverlayCoordinator {
     final globalPosition = item.globalPosition;
     if (globalPosition == null) return;
 
-    final anchorPosition = overlay.globalToLocal(globalPosition);
+    final anchorPosition = spaceOf(overlayedItem).globalToLocal(globalPosition);
 
     if (items.isSwiped(key: item.key)) {
       // It stays in its slot, swiped as far, and heads anew for a slot that
@@ -302,6 +308,8 @@ class OverlayCoordinator {
     for (var overlayedItem
         in items.overlayedItems
             .where((x) => !items.isRendered(key: x.key))
+            // A held item stays under the pointer, whatever the list shows.
+            .where((x) => !_isHeld(x.key))
             .toList()) {
       final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
         notRenderedItemIndex: overlayedItem.index,
@@ -363,7 +371,7 @@ class OverlayCoordinator {
   void keepUnderPointer(OverlayedItem item, {required Size size}) {
     final globalPointerPosition = item.globalPointerPosition;
     if (globalPointerPosition == null || item.size.isEmpty) return;
-    final pointer = overlay.globalToLocal(globalPointerPosition);
+    final pointer = spaceOf(item).globalToLocal(globalPointerPosition);
     final grip = pointer - item.position;
     item.setPosition(
       OverlayOffset(
@@ -389,24 +397,26 @@ class OverlayCoordinator {
 
   /// Where [item] is on the screen.
   Rect globalRectOf(OverlayedItem item) =>
-      overlay.localToGlobal(item.position) & item.size;
+      spaceOf(item).localToGlobal(item.position) & item.size;
 
   /// Lifts [item] above the other items, into the overlay if it is not
-  /// there yet, and decorates it with [decorator].
+  /// there yet, or into [sharedSpace], a group's layer, and decorates it
+  /// with [decorator].
   void lift(
     OverlayedItem item, {
     required AnimatedItemDecorator? decorator,
     required Duration decorationDuration,
+    SharedOverlaySpace? sharedSpace,
   }) {
-    if (!items.isOverlayed(key: item.key)) {
-      // From where it shows now. It was made as the pointer went down, and
-      // a long press later the item may have moved on in place since.
-      if (items.renderedItemBy(key: item.key)?.shownPosition
-          case final shown?) {
-        item.setPosition(overlay.globalToLocal(shown));
-      }
-      items.putOverlayedItem(item);
-    }
+    final overlayed = items.isOverlayed(key: item.key);
+    // From where it shows now. It was made as the pointer went down, and a
+    // long press later the item may have moved on in place since.
+    final shown = overlayed
+        ? spaceOf(item).localToGlobal(item.position)
+        : items.renderedItemBy(key: item.key)?.shownPosition;
+    if (sharedSpace != null) item.sharedSpace = sharedSpace;
+    if (shown != null) item.setPosition(spaceOf(item).globalToLocal(shown));
+    if (!overlayed) items.putOverlayedItem(item);
     items.setZIndex(item, maxZIndex);
 
     item.animateDecoration(
@@ -427,9 +437,9 @@ class OverlayCoordinator {
     Future.wait([
       undecoration,
       item.animateFlingTo(
-        overlay.globalToLocal(
-          items.renderedItemBy(key: item.key)!.globalPosition!,
-        ),
+        spaceOf(
+          item,
+        ).globalToLocal(items.renderedItemBy(key: item.key)!.globalPosition!),
         velocity: velocity,
         springDescription: springDescription,
         vsync: vsync,

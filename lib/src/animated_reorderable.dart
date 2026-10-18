@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_reorderable_controller.dart';
+import 'animated_reorderable_group.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
 import 'model/permutations.dart';
@@ -290,7 +291,9 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    _controller.scrollSync.scrollController = _effectiveScrollController;
+    _controller
+      ..scrollSync.scrollController = _effectiveScrollController
+      ..group = GroupScope.maybeOf(context);
   }
 
   @override
@@ -433,7 +436,9 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller
+      ..group = null
+      ..dispose();
     _ownScrollController?.dispose();
     super.dispose();
   }
