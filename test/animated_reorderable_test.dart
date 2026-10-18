@@ -535,6 +535,23 @@ void main() {
   });
 
   group('paints', () {
+    testWidgets('paints each item on one layer of its own', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      for (final id in [0, 5]) {
+        var layers = 0;
+        for (
+          RenderObject? node = tester.renderObject(_itemWithId(id));
+          node != null && node is! RenderSliver;
+          node = node.parent
+        ) {
+          if (node.isRepaintBoundary) layers++;
+        }
+        expect(layers, 1, reason: '$id');
+      }
+    });
+
     testWidgets('paints a moving item on a layer of its own, where it is', (
       tester,
     ) async {

@@ -37,6 +37,9 @@ class ItemWidgetFactory {
       overriddenChildBuilder: _build,
       overriddenChildCountGetter: () => items.itemCount,
       fallbackChildIndexGetter: items.childIndexGetter(),
+      // Each item widget paints on a layer of its own already, which it
+      // moves in place on.
+      addRepaintBoundaries: false,
     );
   }
 
