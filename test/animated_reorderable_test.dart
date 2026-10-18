@@ -457,11 +457,13 @@ void main() {
       list.removeAt(1);
       await tester.pump();
 
-      // Items 2 to 4 move up, and item 0 stays in its slot.
+      // Items 2 to 4 move up, and item 0 stays in its slot. It shows under
+      // them all, the list's own items too.
       final order = _paintOrder(tester);
       for (final id in [2, 3, 4]) {
         expect(order.indexOf(1), lessThan(order.indexOf(id)), reason: '$id');
       }
+      expect(order.first, 1);
       await tester.pumpAndSettle();
     });
 
@@ -944,16 +946,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
 
       // On its way out through the bottom edge.
-      final overlay = find.byType(OverlayedItemsLayer);
       final item = tester.getRect(find.text('0'));
       expect(item.top, lessThan(300));
       expect(item.bottom, greaterThan(300));
-      final clip = paints
-        ..clipRect(rect: Offset.zero & tester.getSize(overlay));
-      expect(
-        tester.renderObject(overlay),
-        clipBehavior == Clip.none ? isNot(clip) : clip,
-      );
+      // Both the layer above the list and the one under it.
+      final layers = find.byType(OverlayedItemsLayer);
+      expect(layers, findsNWidgets(2));
+      for (final layer in layers.evaluate()) {
+        final renderObject = layer.renderObject!;
+        final clip = paints
+          ..clipRect(rect: Offset.zero & (renderObject as RenderBox).size);
+        expect(renderObject, clipBehavior == Clip.none ? isNot(clip) : clip);
+      }
       await tester.pumpAndSettle();
     });
   }
