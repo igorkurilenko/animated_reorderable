@@ -424,6 +424,62 @@ void main() {
       expect(list.items, [0, 1, 3, 4, 2, 5, 6, 7, 8, 9]);
     });
 
+    testWidgets('lets a long press take a grid item moving in place where it '
+        'shows', (tester) async {
+      final items = List.generate(30, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.grid(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              // Slow, so the item is still on its way once a long press
+              // holds it.
+              motion: const MotionOptions(duration: Duration(seconds: 3)),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              gridView: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) =>
+                    _Item(id: items[index], onInit: () {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      Offset middle() => tester.getCenter(_itemWithId(0));
+
+      key.currentState!.reorderItem(0, destIndex: 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final middles = [middle()];
+      final drag = await tester.startGesture(middles.first);
+      // It goes on in place until the long press holds it, from where it
+      // shows then.
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        middles.add(middle());
+      }
+
+      expect(overlayed(tester), [0]);
+      final distances = [
+        for (var i = 1; i < middles.length; i++)
+          (middles[i] - middles[i - 1]).distance,
+      ];
+      expect(distances, everyElement(lessThan(10)));
+      final held = middle();
+      await drag.moveBy(const Offset(0, 40));
+      await tester.pump();
+      expect(middle(), held + const Offset(0, 40));
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('gives each item its semantic index, once', (tester) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());

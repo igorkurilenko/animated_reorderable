@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixes
+
+- Lift an item that a long press takes on its way in place from where it shows. The lift showed it where it was as the pointer went down, half a second before, so it jumped back by as far as it had moved since: 38 px in a test's grid.
+
 ## 2.2.0
 
 ### Behavior changes
