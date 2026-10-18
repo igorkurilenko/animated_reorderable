@@ -2186,6 +2186,170 @@ void main() {
       });
     }
 
+    // Out of sight, the list has not built the item, so the package works
+    // out where it comes in from before the item is built.
+    group('builds an item it brings in from out of sight under', () {
+      for (final (ancestor, buildItem) in <(String, Widget Function(int))>[
+        (
+          'a Material, as a ListTile needs',
+          (id) => ListTile(title: Text('$id')),
+        ),
+        (
+          'a MediaQuery, as a CircleAvatar needs',
+          (id) => SizedBox(height: 56, child: CircleAvatar(child: Text('$id'))),
+        ),
+        (
+          'an inherited widget of the app',
+          (id) => Builder(
+            builder: (context) => SizedBox(
+              height: context
+                  .dependOnInheritedWidgetOfExactType<_Extent>()!
+                  .value,
+              child: Text('$id'),
+            ),
+          ),
+        ),
+      ]) {
+        group(ancestor, () {
+          late List<int> items;
+          final key = GlobalKey<AnimatedReorderableState>();
+          Future<void> pumpList(WidgetTester tester) async {
+            items = List.generate(1000, (i) => i);
+            await tester.pumpWidget(
+              MaterialApp(
+                home: _Extent(
+                  value: 64,
+                  child: Scaffold(
+                    body: AnimatedReorderable.list(
+                      key: key,
+                      keyGetter: (index) => ValueKey(items[index]),
+                      reorder: ReorderOptions(
+                        onReorder: (permutations) => permutations.apply(items),
+                      ),
+                      listView: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) =>
+                            buildItem(items[index]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          testWidgets('from below', (tester) async {
+            await pumpList(tester);
+
+            key.currentState!.reorderItem(999, destIndex: 0);
+            await tester.pumpAndSettle();
+
+            expect(tester.takeException(), isNull);
+            expect(items.first, 999);
+            expect(find.text('999'), findsOneWidget);
+          });
+
+          testWidgets('from above', (tester) async {
+            await pumpList(tester);
+            final scroll = _scrollPosition(tester);
+            scroll.jumpTo(scroll.maxScrollExtent);
+            await tester.pumpAndSettle();
+
+            key.currentState!.reorderItem(0, destIndex: 999);
+            await tester.pumpAndSettle();
+
+            expect(tester.takeException(), isNull);
+            expect(items.last, 0);
+            expect(find.text('0'), findsOneWidget);
+          });
+        });
+      }
+    });
+
+    // Pins what the package does today. It doesn't know how big an item it
+    // has not built is, so it guesses from the items the list built: this
+    // one starts 100 px further in than its height would put it.
+    testWidgets('brings an item taller than the others in from above without '
+        'a jump', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: items[index] == 0 ? 2 * _extent : _extent,
+                  child: Text('${items[index]}'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final scroll = _scrollPosition(tester);
+      scroll.jumpTo(scroll.maxScrollExtent);
+      await tester.pumpAndSettle();
+
+      key.currentState!.reorderItem(0, destIndex: 49);
+      final tops = <double>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('0')).dy);
+        expect(tester.getSize(find.text('0')).height, 2 * _extent);
+      }
+
+      expect(tops.first, -_extent);
+      expect(tops.last, 500);
+      expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
+    });
+
+    testWidgets('keeps an item from out of sight as big as its slot when '
+        'the theme sizes it', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 60)),
+          ),
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => Text('${items[index]}'),
+              ),
+            ),
+          ),
+        ),
+      );
+      final slot = tester.getSize(find.text('0'));
+
+      key.currentState!.reorderItem(40, destIndex: 0);
+      await _pathUntilSettled(
+        tester,
+        find.text('40'),
+        onFrame: () {
+          if (find.text('40').evaluate().isNotEmpty) {
+            expect(tester.getSize(find.text('40')), slot);
+          }
+        },
+      );
+
+      expect(items.first, 40);
+    });
+
     testWidgets('moves an item in along a padded list', (tester) async {
       final list = _TestList(
         50,
@@ -3102,4 +3266,14 @@ class _Entrance extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       FadeTransition(opacity: animation, child: child);
+}
+
+/// An extent the app gives its items from above the list.
+class _Extent extends InheritedWidget {
+  const _Extent({required this.value, required super.child});
+
+  final double value;
+
+  @override
+  bool updateShouldNotify(_Extent oldWidget) => value != oldWidget.value;
 }
