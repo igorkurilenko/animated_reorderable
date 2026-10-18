@@ -37,4 +37,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(motion.position, place(20));
   });
+
+  testWidgets('flings an item let go in its place nowhere', (tester) async {
+    final motion = ItemMotion(vsync: const TestVSync(), onMove: (_) {});
+    addTearDown(motion.dispose);
+    const place = OverlayOffset(Offset(0, 100));
+
+    motion.fling(
+      from: place,
+      to: place,
+      velocity: const Velocity(pixelsPerSecond: Offset(0, 2000)),
+      springDescription: const SpringDescription(
+        mass: 1,
+        stiffness: 500,
+        damping: 75,
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(motion.position, place);
+    }
+    await tester.pumpAndSettle();
+  });
 }

@@ -8,6 +8,10 @@ import '../model/model.dart'
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 
+/// An edge of the view along its scroll axis: the leading one, where the
+/// list starts, or the trailing one.
+enum ViewEdge { leading, trailing }
+
 /// What an item widget asks of the controller, and what it tells it.
 abstract interface class ItemHost {
   bool isReorderable(int index);
@@ -31,6 +35,14 @@ abstract interface class ItemHost {
   /// How an item moves to its new slot.
   Duration get motionDuration;
   Curve get motionCurve;
+
+  /// The edge of the view that the item with [key] comes in through, once,
+  /// if a change brought it into sight from out of it.
+  ViewEdge? takeEntry(Key key);
+
+  /// The semantic index of [child], the item at [index], as the view's
+  /// delegate gives it, or null for none.
+  int? semanticIndexOf(Widget child, int index);
 }
 
 class ItemWidget extends StatefulWidget {
@@ -163,7 +175,8 @@ class _ItemWidgetState extends State<ItemWidget>
                 motion.isMoving &&
                 (motion.target - slot).distance >= retargetTolerance
             ? motion.position
-            : null);
+            : null) ??
+        _enteringFrom(box, slot);
     _shownBeforeMove = null;
     if (from != null && (from - slot).distance >= retargetTolerance) {
       final motion = _motion ??= ItemMotion(
@@ -181,6 +194,38 @@ class _ItemWidgetState extends State<ItemWidget>
     }
     final moving = _motion?.isMoving ?? false;
     return _translation = moving ? _motion!.position - slot : Offset.zero;
+  }
+
+  /// Where the item comes in from, if a change brought it into sight from
+  /// out of it and its slot shows: just outside the edge of the view it
+  /// comes in through, at its own size, in line with its slot.
+  Offset? _enteringFrom(RenderBox box, Offset slot) {
+    final edge = host.takeEntry(key);
+    final scroll = _scrollPosition;
+    final RenderObject? viewport = RenderAbstractViewport.maybeOf(box);
+    if (edge == null || scroll == null || viewport is! RenderBox) return null;
+    final view = _contentPosition(viewport) & viewport.size;
+    final size = box.size;
+    if (!(slot & size).overlaps(view)) return null;
+    final leading = edge == ViewEdge.leading;
+    return switch (scroll.axisDirection) {
+      AxisDirection.down => Offset(
+        slot.dx,
+        leading ? view.top - size.height : view.bottom,
+      ),
+      AxisDirection.up => Offset(
+        slot.dx,
+        leading ? view.bottom : view.top - size.height,
+      ),
+      AxisDirection.right => Offset(
+        leading ? view.left - size.width : view.right,
+        slot.dy,
+      ),
+      AxisDirection.left => Offset(
+        leading ? view.right : view.left - size.width,
+        slot.dy,
+      ),
+    };
   }
 
   /// Lets go of [motion] once the item is in its slot.
@@ -231,28 +276,40 @@ class _ItemWidgetState extends State<ItemWidget>
 
     // While the overlay shows the item, its subtree lives there and a
     // placeholder keeps its place in the list.
+    // The item's layer stays the list's child whatever it shows: the list
+    // takes a new child only as it builds its children itself.
     final placeholderSize = widget.placeholderSize.value;
     if (placeholderSize != null) {
       _stopMovingInPlace();
-      return SizedBox.fromSize(size: placeholderSize);
+      return _InPlace(
+        state: this,
+        child: SizedBox.fromSize(size: placeholderSize),
+      );
     }
 
     final child = widget.builder(context, index);
+    final semanticIndex = child != null
+        ? host.semanticIndexOf(child, index)
+        : null;
+    final item = Listener(
+      onPointerDown: swipeable ? _recognizeSwipe : null,
+      child: Listener(
+        onPointerDown: draggable ? _recognizeDrag : null,
+        child: child != null
+            ? host.buildEntrance(
+                KeyedSubtree(key: widget.childKey, child: child),
+                index,
+                widget.entrance,
+              )
+            : null,
+      ),
+    );
+    // A pointer finds the item where it shows as it moves in place.
     return _InPlace(
       state: this,
-      child: Listener(
-        onPointerDown: swipeable ? _recognizeSwipe : null,
-        child: Listener(
-          onPointerDown: draggable ? _recognizeDrag : null,
-          child: child != null
-              ? host.buildEntrance(
-                  KeyedSubtree(key: widget.childKey, child: child),
-                  index,
-                  widget.entrance,
-                )
-              : null,
-        ),
-      ),
+      child: semanticIndex != null
+          ? IndexedSemantics(index: semanticIndex, child: item)
+          : item,
     );
   }
 
@@ -316,11 +373,24 @@ class _RenderInPlace extends RenderProxyBox {
       );
   }
 
-  /// An item on its way to its slot ignores pointers until it gets there,
-  /// as an item moving through the overlay does.
+  /// Where the item shows, which may be away from its slot as it moves
+  /// there.
   @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      _translation == Offset.zero && super.hitTest(result, position: position);
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestChildren(result, position: position)) return false;
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      child != null &&
+      result.addWithPaintOffset(
+        offset: _translation,
+        position: position,
+        hitTest: (result, position) =>
+            child!.hitTest(result, position: position),
+      );
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) =>

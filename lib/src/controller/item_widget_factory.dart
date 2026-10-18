@@ -18,6 +18,7 @@ class ItemWidgetFactory {
   /// change, and an item that keeps its index needs nothing new then.
   final _built = <Key, ItemWidget>{};
   SliverChildDelegate? _viewDelegate;
+  ChildrenDelegateSettings? _viewSettings;
 
   /// Builds the child at an index as the wrapped view would.
   NullableIndexedWidgetBuilder get originalBuilder => _delegate.originalBuilder;
@@ -31,6 +32,7 @@ class ItemWidgetFactory {
       // The app built its view again, so any item may show something new.
       _built.clear();
       _viewDelegate = delegate;
+      _viewSettings = childrenDelegateSettingsOf(delegate);
     }
     return _delegate = OverriddenSliverChildBuilderDelegate.override(
       delegate: delegate,
@@ -38,9 +40,22 @@ class ItemWidgetFactory {
       overriddenChildCountGetter: () => items.itemCount,
       fallbackChildIndexGetter: items.childIndexGetter(),
       // Each item widget paints on a layer of its own already, which it
-      // moves in place on.
+      // moves in place on, and gives its semantic index on that layer, so
+      // that a pointer finds the item where it shows as it moves.
       addRepaintBoundaries: false,
+      addSemanticIndexes: false,
     );
+  }
+
+  /// The semantic index the view's delegate gives the [child] at [index],
+  /// or null for none.
+  int? semanticIndexOf(Widget child, int index) {
+    final settings = _viewSettings;
+    if (settings == null || !settings.addSemanticIndexes) return null;
+    final semanticIndex = settings.semanticIndexCallback(child, index);
+    return semanticIndex == null
+        ? null
+        : semanticIndex + settings.semanticIndexOffset;
   }
 
   Widget _build(BuildContext context, int index) {

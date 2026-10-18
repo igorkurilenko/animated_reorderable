@@ -40,6 +40,13 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   widgets.Curve get motionCurve => motion.curve;
+
+  @override
+  ViewEdge? takeEntry(widgets.Key key) => _overlay?.takeEntry(key);
+
+  @override
+  int? semanticIndexOf(widgets.Widget child, int index) =>
+      itemWidgets.semanticIndexOf(child, index);
   ReorderOptions reorder;
   SwipeToRemoveOptions swipeToRemove;
   model.AnimatedItemDecorator? insertTransition;
@@ -136,16 +143,8 @@ class AnimatedReorderableController implements ItemHost {
 
     _overlay
       ?..moveRenderedItems()
-      ..overlayNotRenderedItem(
-        itemAtIndex,
-        index: index,
-        newIndex: permutations.indexOf(itemAtIndex.key)!,
-      )
-      ..overlayNotRenderedItem(
-        itemAtDestIndex,
-        index: destIndex,
-        newIndex: permutations.indexOf(itemAtDestIndex.key)!,
-      );
+      ..enterNotRenderedItem(itemAtIndex, index: index)
+      ..enterNotRenderedItem(itemAtDestIndex, index: destIndex);
 
     onReorder(permutations);
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
@@ -388,22 +390,53 @@ void main() {
       expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
     });
 
-    testWidgets('ignores a pointer on an item moving in place', (tester) async {
+    testWidgets('lets a pointer take an item moving in place where it shows', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
       list.state.reorderItem(2, destIndex: 4);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
+      // Its middle, which the decoration of a swiped item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(2)).dy;
+      final shown = middle();
+      expect(shown, greaterThan(2.5 * _extent));
+      expect(shown, lessThan(4.5 * _extent));
 
+      // A swipe takes it where it shows, between its slots.
       final swipe = await tester.startGesture(tester.getCenter(_itemWithId(2)));
       await swipe.moveBy(const Offset(-30, 0));
-      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump();
 
-      expect(overlayed(tester), isEmpty);
+      expect(overlayed(tester), [2]);
+      expect(middle(), shown);
+      // It goes on to its slot as it is swiped, without a jump.
+      final middles = [shown];
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        middles.add(middle());
+      }
+      expect(middles.last, 4.5 * _extent);
+      expect(_steps(middles), everyElement(inInclusiveRange(0, 20)));
       await swipe.up();
       await tester.pumpAndSettle();
       expect(list.items, [0, 1, 3, 4, 2, 5, 6, 7, 8, 9]);
-      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
+    });
+
+    testWidgets('gives each item its semantic index, once', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      final indexes = [
+        for (final semantics in tester.widgetList<IndexedSemantics>(
+          find.byType(IndexedSemantics),
+        ))
+          semantics.index,
+      ];
+
+      expect(indexes.take(6), [0, 1, 2, 3, 4, 5]);
+      expect(indexes.toSet(), hasLength(indexes.length));
     });
 
     testWidgets('moves an item that goes out of sight on its way in place '
@@ -2097,10 +2130,30 @@ void main() {
       });
     }
 
-    // These two pin what the package does today, whatever the spring: a
-    // fling takes an item neither past where it flies to, nor farther away
-    // than where it is let go.
-    testWidgets('flies an item back to its place without passing it', (
+    testWidgets('flings an item on at the speed it is let go', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      // Moving back to its place at 30 px a frame.
+      final letGo = await swipeAndLetGo(
+        tester,
+        const Offset(-1, 0),
+        distance: 200,
+        speed: 30,
+      );
+      final xs = [letGo.dx];
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(frame);
+        xs.add(tester.getTopLeft(_itemWithId(1)).dx);
+      }
+
+      // The first frame of a fling shows the item where it was let go.
+      expect(_steps(xs)[1], inInclusiveRange(25, 35));
+      await tester.pumpAndSettle();
+    });
+
+    // A fling is a spring's: it doesn't stop at either end of its way.
+    testWidgets('lets a bouncy spring take an item back past its place', (
       tester,
     ) async {
       final list = _TestList(
@@ -2119,11 +2172,11 @@ void main() {
 
       expect(list.items, List.generate(10, (i) => i));
       expect(path.last, slot);
-      expect(path.map((p) => p.dx), everyElement(lessThanOrEqualTo(slot.dx)));
+      expect(path.map((p) => p.dx).reduce(math.max), greaterThan(slot.dx));
     });
 
-    testWidgets('holds an item let go moving away from its place until it '
-        'heads back', (tester) async {
+    testWidgets('carries an item let go moving away from its place on before '
+        'it heads back', (tester) async {
       final list = _TestList(
         10,
         swipeToRemoveSpringDescription: const SpringDescription(
@@ -2145,10 +2198,7 @@ void main() {
 
       expect(list.items, List.generate(10, (i) => i));
       expect(path.last, slot);
-      expect(
-        path.map((p) => p.dx),
-        everyElement(greaterThanOrEqualTo(letGo.dx)),
-      );
+      expect(path.map((p) => p.dx).reduce(math.min), lessThan(letGo.dx));
     });
   });
 
@@ -2529,11 +2579,10 @@ void main() {
       }
     });
 
-    // Pins what the package does today. It doesn't know how big an item it
-    // has not built is, so it guesses from the items the list built: this
-    // one starts 100 px further in than its height would put it.
-    testWidgets('brings an item taller than the others in from above without '
-        'a jump', (tester) async {
+    // The list lays the item out in its slot before it moves, so it comes in
+    // at its own size, however much bigger than the others it is.
+    testWidgets('brings an item in from just outside the view, at its own '
+        'size', (tester) async {
       final items = List.generate(50, (i) => i);
       final key = GlobalKey<AnimatedReorderableState>();
       await tester.pumpWidget(
@@ -2568,7 +2617,7 @@ void main() {
         expect(tester.getSize(find.text('0')).height, 2 * _extent);
       }
 
-      expect(tops.first, -_extent);
+      expect(tops.first, -2 * _extent);
       expect(tops.last, 500);
       expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
     });
@@ -2611,6 +2660,39 @@ void main() {
       );
 
       expect(items.first, 40);
+    });
+
+    testWidgets('lets an item a reorder moved out of sight come into sight '
+        'later as any item does', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      // Neither slot shows.
+      list.state.reorderItem(45, destIndex: 46);
+      await tester.pumpAndSettle();
+      final scroll = _scrollPosition(tester);
+      scroll.jumpTo(scroll.maxScrollExtent);
+      await tester.pump();
+
+      expect(tester.hasRunningAnimations, isFalse);
+      final bottom = tester.getTopLeft(_itemWithId(49)).dy;
+      expect(tester.getTopLeft(_itemWithId(45)).dy, bottom - 3 * _extent);
+      expect(tester.getTopLeft(_itemWithId(46)).dy, bottom - 4 * _extent);
+    });
+
+    testWidgets('brings a grid item in from out of sight along its column', (
+      tester,
+    ) async {
+      final list = _TestList(60, grid: true);
+      await tester.pumpWidget(list.build());
+      // The first of three columns, not the middle one.
+      final slot = tester.getTopLeft(_itemWithId(0));
+      expect(slot.dx, 0);
+
+      list.state.reorderItem(50, destIndex: 0);
+      final path = await _pathUntilSettled(tester, _itemWithId(50));
+
+      _expectStraightPath(path, Offset(slot.dx, 600), slot);
     });
 
     testWidgets('moves an item in along a padded list', (tester) async {

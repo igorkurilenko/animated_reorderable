@@ -41,9 +41,7 @@ class ItemMotion {
   OverlayOffset get position {
     final value = _controller.value;
     if (_legs.isEmpty) {
-      return OverlayOffset(
-        Offset.lerp(_flingBegin, _end, clampDouble(value, 0.0, 1.0))!,
-      );
+      return OverlayOffset(Offset.lerp(_flingBegin, _end, value)!);
     }
     var position = _end as Offset;
     for (final leg in _legs) {
@@ -98,27 +96,28 @@ class ItemMotion {
   }
 
   /// Moves the item from [from] to [to] with [springDescription], starting
-  /// at the part of [velocity] that heads for [to], relative to
-  /// [screenSize].
+  /// at the part of [velocity] that heads for [to]. A spring takes the item
+  /// past [to] if it is let go fast enough, or back past [from] if it is
+  /// let go moving away, as it would.
   TickerFuture fling({
     required OverlayOffset from,
     required OverlayOffset to,
     required Velocity velocity,
-    required Size screenSize,
     required SpringDescription springDescription,
   }) {
     _legs.clear();
     _flingBegin = from;
     _end = to;
+    // The spring runs from 0 at [from] to 1 at [to], so it starts at the
+    // speed along the way, as a part of the way per second: positive
+    // toward [to], and negative away from it. An item let go in its place
+    // has no way to go.
     final pixelsPerSecond = velocity.pixelsPerSecond;
-    final unitsPerSecondX = pixelsPerSecond.dx / screenSize.width;
-    final unitsPerSecondY = pixelsPerSecond.dy / screenSize.height;
-    final unitsPerSecond = Offset(unitsPerSecondX, unitsPerSecondY);
-    // Positive toward [to], and negative away from it.
     final way = to - from;
-    final heading = way == Offset.zero ? Offset.zero : way / way.distance;
-    final unitVelocity =
-        unitsPerSecond.dx * heading.dx + unitsPerSecond.dy * heading.dy;
+    final unitVelocity = way == Offset.zero
+        ? 0.0
+        : (pixelsPerSecond.dx * way.dx + pixelsPerSecond.dy * way.dy) /
+              (way.distance * way.distance);
     final simulation = SpringSimulation(springDescription, 0, 1, unitVelocity);
     return _run = _controller.animateWith(simulation);
   }
