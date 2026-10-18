@@ -1,10 +1,4 @@
-## Unreleased
-
-### Performance
-
-- Build a moving item only when it changes, not on every frame of its move, nor when other items come and go. The item builder runs for a moving item when it enters the overlay, when its index or the list's configuration changes, and when it lands. One reorder in a list of five items ran the item builder 138 times, and now runs it 10 times; a drag across five items, 250 times and now 66.
-
-## 2.0.0-dev.1
+## 2.0.0
 
 2.0 removes what 1.6.0 deprecated. Upgrade to 1.6.0 first and fix its deprecation warnings. Three changes are left after that: drop the `null` from `insertItem(index, null)`, rename `ReorderCallback` to `PermutationsCallback`, and drop the type argument from `AnimatedReorderableState<…>`.
 
@@ -46,6 +40,10 @@
 ### Behavior changes
 
 - An item moving to its new place whose place moves again heads for the new place at the speed it has, instead of stopping and starting over from rest. Items no longer stutter when items are inserted or removed one after another, or when a drag turns back. Each move still takes `MotionOptions.duration` along `MotionOptions.curve`, so an item comes to rest one duration after its place last moved, as before. An item flung back to its place after a drag or a swipe still starts over when its place moves.
+
+### Performance
+
+- Build a moving item only when it changes, not on every frame of its move, nor when other items come and go. The item builder runs for a moving item when it enters the overlay, when its index or the list's configuration changes, and when it lands. One reorder in a list of five items ran the item builder 138 times, and now runs it 10 times; a drag across five items, 250 times and now 66.
 
 ### Fixes
 
