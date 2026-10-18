@@ -3,6 +3,7 @@
 ### Performance
 
 - Move an item through the overlay on a layer of its own. A frame of its move changes only the layer's transform: neither the item nor the overlay lays out or paints again. Each frame used to paint every moving item's content again, 250 paints a frame for 8 moving cards. On an iPhone 17 Pro, a frame of a reorder now takes 0.34 ms on the UI thread instead of 0.62 on average, and 0.31 ms instead of 0.80 at the 90th percentile.
+- Build only the items a reorder, an insert or a remove moves. After each change the package built every item the view showed again: 422 item builder calls per reorder in a 12-column grid, now 28. On an iPhone 17 Pro, a drag across such a grid no longer goes over 8.3 ms a frame, and its slowest frame went from 15.6 ms to 7.1. An item that keeps its index keeps what it shows until the app builds the view again, as with `setState`, which builds every item again.
 
 ## 2.0.1
 

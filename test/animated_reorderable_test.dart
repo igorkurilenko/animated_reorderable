@@ -544,6 +544,69 @@ void main() {
   });
 
   group('builds', () {
+    /// A list of 10 items that tells which items it built.
+    Widget buildList(
+      GlobalKey<AnimatedReorderableState> key,
+      List<int> items,
+      Set<int> built,
+    ) => AnimatedReorderable.list(
+      key: key,
+      keyGetter: (index) => ValueKey(items[index]),
+      reorder: ReorderOptions(
+        onReorder: (permutations) => permutations.apply(items),
+      ),
+      listView: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          built.add(items[index]);
+          return SizedBox(height: _extent, child: Text('${items[index]}'));
+        },
+      ),
+    );
+
+    testWidgets('builds only the items a change moves', (tester) async {
+      final built = <int>{};
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: buildList(key, items, built))),
+      );
+      built.clear();
+
+      key.currentState!.reorderItem(2, destIndex: 4);
+      await tester.pumpAndSettle();
+
+      expect(built, {2, 3, 4});
+    });
+
+    testWidgets('builds every item again when the app builds its view again', (
+      tester,
+    ) async {
+      final built = <int>{};
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      late StateSetter setState;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setter) {
+                setState = setter;
+                return buildList(key, items, built);
+              },
+            ),
+          ),
+        ),
+      );
+      final shown = {...built};
+      built.clear();
+
+      setState(() {});
+      await tester.pump();
+
+      expect(built, shown);
+    });
+
     // Pins the count the package has today, so a change that builds
     // moving items more often shows up.
     testWidgets('builds moving items at most once a frame', (tester) async {
