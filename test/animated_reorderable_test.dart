@@ -353,6 +353,67 @@ void main() {
     });
   });
 
+  group('overlay', () {
+    /// The ids of the items the overlay shows.
+    List<int> overlayed(WidgetTester tester) => [
+      for (final item in tester.widgetList<_Item>(
+        find.descendant(
+          of: find.byType(OverlayedItemsLayer),
+          matching: find.byType(_Item),
+        ),
+      ))
+        item.id,
+    ]..sort();
+
+    /// The ids of the items the list built, from index [from] on.
+    List<int> renderedFrom(_TestList list, int from) => [
+      for (var i = from; i < list.items.length; i++)
+        if (list.state.isItemRendered(i)) list.items[i],
+    ];
+
+    testWidgets('lifts only the items a reorder moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, [2, 3, 4]);
+    });
+
+    testWidgets('lifts only the items an insert moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      final after = renderedFrom(list, 3);
+
+      list.insert(3, 100);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, after);
+    });
+
+    testWidgets('lifts only the items a remove moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      // Item 3 fades out in the overlay.
+      final fromRemoved = renderedFrom(list, 3);
+
+      list.removeAt(3);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, fromRemoved);
+    });
+  });
+
   group('z-order', () {
     testWidgets('lifts a dragged item above the moving items', (tester) async {
       final list = _TestList(5);
@@ -395,7 +456,11 @@ void main() {
       list.removeAt(1);
       await tester.pump();
 
-      expect(_paintOrder(tester).first, 1);
+      // Items 2 to 4 move up, and item 0 stays in its slot.
+      final order = _paintOrder(tester);
+      for (final id in [2, 3, 4]) {
+        expect(order.indexOf(1), lessThan(order.indexOf(id)), reason: '$id');
+      }
       await tester.pumpAndSettle();
     });
 
@@ -1738,6 +1803,157 @@ void main() {
     });
   });
 
+  group('fling', () {
+    const frame = Duration(milliseconds: 16);
+
+    /// Swipes item 1 [distance] px along [forward], and lets it go moving
+    /// back at [speed] px a frame. Returns where it is let go.
+    Future<Offset> swipeAndLetGo(
+      WidgetTester tester,
+      Offset forward, {
+      required double distance,
+      required double speed,
+    }) async {
+      // The pointer's speed at the end comes from the times of its moves.
+      var time = Duration.zero;
+      final swipe = await tester.createGesture();
+      await swipe.down(tester.getCenter(_itemWithId(1)), timeStamp: time);
+      Future<void> move(Offset offset) async {
+        time += frame;
+        await swipe.moveBy(offset, timeStamp: time);
+        await tester.pump(frame);
+      }
+
+      for (var i = 0; i < (distance + 5 * speed) / 10; i++) {
+        await move(forward * 10);
+      }
+      for (var i = 0; i < 5; i++) {
+        await move(-forward * speed);
+      }
+      final letGo = tester.getTopLeft(_itemWithId(1));
+      await swipe.up(timeStamp: time);
+      return letGo;
+    }
+
+    /// Where item 1 is after each frame until it settles.
+    Future<List<Offset>> track(WidgetTester tester) async {
+      final path = <Offset>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(frame);
+        path.add(tester.getTopLeft(_itemWithId(1)));
+      }
+      return path;
+    }
+
+    for (final (scrollDirection, direction) in [
+      (Axis.vertical, AxisDirection.left),
+      (Axis.horizontal, AxisDirection.up),
+    ]) {
+      group(direction.name, () {
+        final forward = _unit(direction);
+
+        /// How far item 1 gets back toward its place over 4 frames, once
+        /// it is swiped 200 px away and let go moving back at [speed] px a
+        /// frame. A short swipe like this flings it back.
+        Future<double> wayBack(
+          WidgetTester tester, {
+          required double speed,
+        }) async {
+          final list = _TestList(
+            10,
+            scrollDirection: scrollDirection,
+            swipeToRemoveDirection: direction,
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpWidget(list.build());
+          final letGo = await swipeAndLetGo(
+            tester,
+            forward,
+            distance: 200,
+            speed: speed,
+          );
+          for (var i = 0; i < 4; i++) {
+            await tester.pump(frame);
+          }
+          final back = letGo - tester.getTopLeft(_itemWithId(1));
+          await tester.pumpAndSettle();
+          expect(list.items, List.generate(10, (i) => i));
+          return back.dx * forward.dx + back.dy * forward.dy;
+        }
+
+        testWidgets('flings an item let go moving toward its place on '
+            'toward it', (tester) async {
+          final still = await wayBack(tester, speed: 0);
+          final toward = await wayBack(tester, speed: 30);
+
+          expect(toward, greaterThan(still + 1));
+        });
+
+        testWidgets('flings an item let go moving away from its place on '
+            'away first', (tester) async {
+          final still = await wayBack(tester, speed: 0);
+          final away = await wayBack(tester, speed: -10);
+
+          expect(away, lessThan(still - 1));
+        });
+      });
+    }
+
+    // These two pin what the package does today, whatever the spring: a
+    // fling takes an item neither past where it flies to, nor farther away
+    // than where it is let go.
+    testWidgets('flies an item back to its place without passing it', (
+      tester,
+    ) async {
+      final list = _TestList(
+        10,
+        swipeToRemoveSpringDescription: SpringDescription.withDampingRatio(
+          mass: 1,
+          stiffness: 500,
+          ratio: 0.2,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getTopLeft(_itemWithId(1));
+
+      await swipeAndLetGo(tester, const Offset(-1, 0), distance: 200, speed: 0);
+      final path = await track(tester);
+
+      expect(list.items, List.generate(10, (i) => i));
+      expect(path.last, slot);
+      expect(path.map((p) => p.dx), everyElement(lessThanOrEqualTo(slot.dx)));
+    });
+
+    testWidgets('holds an item let go moving away from its place until it '
+        'heads back', (tester) async {
+      final list = _TestList(
+        10,
+        swipeToRemoveSpringDescription: const SpringDescription(
+          mass: 10,
+          stiffness: 50,
+          damping: 45,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getTopLeft(_itemWithId(1));
+
+      final letGo = await swipeAndLetGo(
+        tester,
+        const Offset(-1, 0),
+        distance: 200,
+        speed: -10,
+      );
+      final path = await track(tester);
+
+      expect(list.items, List.generate(10, (i) => i));
+      expect(path.last, slot);
+      expect(
+        path.map((p) => p.dx),
+        everyElement(greaterThanOrEqualTo(letGo.dx)),
+      );
+    });
+  });
+
   group('swipe to remove', () {
     for (final (scrollDirection, direction) in [
       (Axis.vertical, AxisDirection.left),
@@ -2034,6 +2250,170 @@ void main() {
         expect(list.items.indexOf(40), 0);
       });
     }
+
+    // Out of sight, the list has not built the item, so the package works
+    // out where it comes in from before the item is built.
+    group('builds an item it brings in from out of sight under', () {
+      for (final (ancestor, buildItem) in <(String, Widget Function(int))>[
+        (
+          'a Material, as a ListTile needs',
+          (id) => ListTile(title: Text('$id')),
+        ),
+        (
+          'a MediaQuery, as a CircleAvatar needs',
+          (id) => SizedBox(height: 56, child: CircleAvatar(child: Text('$id'))),
+        ),
+        (
+          'an inherited widget of the app',
+          (id) => Builder(
+            builder: (context) => SizedBox(
+              height: context
+                  .dependOnInheritedWidgetOfExactType<_Extent>()!
+                  .value,
+              child: Text('$id'),
+            ),
+          ),
+        ),
+      ]) {
+        group(ancestor, () {
+          late List<int> items;
+          final key = GlobalKey<AnimatedReorderableState>();
+          Future<void> pumpList(WidgetTester tester) async {
+            items = List.generate(1000, (i) => i);
+            await tester.pumpWidget(
+              MaterialApp(
+                home: _Extent(
+                  value: 64,
+                  child: Scaffold(
+                    body: AnimatedReorderable.list(
+                      key: key,
+                      keyGetter: (index) => ValueKey(items[index]),
+                      reorder: ReorderOptions(
+                        onReorder: (permutations) => permutations.apply(items),
+                      ),
+                      listView: ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) =>
+                            buildItem(items[index]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          testWidgets('from below', (tester) async {
+            await pumpList(tester);
+
+            key.currentState!.reorderItem(999, destIndex: 0);
+            await tester.pumpAndSettle();
+
+            expect(tester.takeException(), isNull);
+            expect(items.first, 999);
+            expect(find.text('999'), findsOneWidget);
+          });
+
+          testWidgets('from above', (tester) async {
+            await pumpList(tester);
+            final scroll = _scrollPosition(tester);
+            scroll.jumpTo(scroll.maxScrollExtent);
+            await tester.pumpAndSettle();
+
+            key.currentState!.reorderItem(0, destIndex: 999);
+            await tester.pumpAndSettle();
+
+            expect(tester.takeException(), isNull);
+            expect(items.last, 0);
+            expect(find.text('0'), findsOneWidget);
+          });
+        });
+      }
+    });
+
+    // Pins what the package does today. It doesn't know how big an item it
+    // has not built is, so it guesses from the items the list built: this
+    // one starts 100 px further in than its height would put it.
+    testWidgets('brings an item taller than the others in from above without '
+        'a jump', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: items[index] == 0 ? 2 * _extent : _extent,
+                  child: Text('${items[index]}'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final scroll = _scrollPosition(tester);
+      scroll.jumpTo(scroll.maxScrollExtent);
+      await tester.pumpAndSettle();
+
+      key.currentState!.reorderItem(0, destIndex: 49);
+      final tops = <double>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('0')).dy);
+        expect(tester.getSize(find.text('0')).height, 2 * _extent);
+      }
+
+      expect(tops.first, -_extent);
+      expect(tops.last, 500);
+      expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
+    });
+
+    testWidgets('keeps an item from out of sight as big as its slot when '
+        'the theme sizes it', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            textTheme: const TextTheme(bodyMedium: TextStyle(fontSize: 60)),
+          ),
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => Text('${items[index]}'),
+              ),
+            ),
+          ),
+        ),
+      );
+      final slot = tester.getSize(find.text('0'));
+
+      key.currentState!.reorderItem(40, destIndex: 0);
+      await _pathUntilSettled(
+        tester,
+        find.text('40'),
+        onFrame: () {
+          if (find.text('40').evaluate().isNotEmpty) {
+            expect(tester.getSize(find.text('40')), slot);
+          }
+        },
+      );
+
+      expect(items.first, 40);
+    });
 
     testWidgets('moves an item in along a padded list', (tester) async {
       final list = _TestList(
@@ -2951,4 +3331,14 @@ class _Entrance extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       FadeTransition(opacity: animation, child: child);
+}
+
+/// An extent the app gives its items from above the list.
+class _Extent extends InheritedWidget {
+  const _Extent({required this.value, required super.child});
+
+  final double value;
+
+  @override
+  bool updateShouldNotify(_Extent oldWidget) => value != oldWidget.value;
 }

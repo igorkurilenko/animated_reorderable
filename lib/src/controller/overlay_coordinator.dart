@@ -5,7 +5,6 @@ import '../const.dart';
 import '../model/model.dart';
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
-import '../util/measure_util.dart';
 import '../util/scheduling.dart';
 import 'scroll_sync.dart';
 
@@ -30,7 +29,6 @@ class OverlayCoordinator {
     required this.motionAnimationDuration,
     required this.motionAnimationCurve,
     required this.scrollDirection,
-    required this.itemBuilder,
   });
 
   final OverlaySpace overlay;
@@ -40,9 +38,6 @@ class OverlayCoordinator {
   final ValueGetter<Duration> motionAnimationDuration;
   final ValueGetter<Curve> motionAnimationCurve;
   final ValueGetter<Axis> scrollDirection;
-
-  /// Builds the item at an index as the wrapped view would.
-  final ValueGetter<NullableIndexedWidgetBuilder> itemBuilder;
 
   bool _isHeld(Key key) =>
       items.isDragged(key: key) || items.isSwiped(key: key);
@@ -62,8 +57,10 @@ class OverlayCoordinator {
     recognizerFactory: recognizerFactory,
   );
 
-  /// Overlays the rendered items, except [except] and the held ones, so
-  /// they can move to their slots at [newIndex] when the list lays out.
+  /// Overlays the rendered items that [newIndex] moves, except [except] and
+  /// the held ones, so they can move to their new slots when the list lays
+  /// out. An item that keeps its index keeps its slot, and stays in the
+  /// list.
   ///
   /// After another change in the same frame, the list may not have built
   /// its items again yet. Items already in the overlay keep their indexes,
@@ -77,11 +74,15 @@ class OverlayCoordinator {
             .where((x) => x.key != except)
             .where((x) => items.itemBy(key: x.key) != null)
             .where((x) => !_isHeld(x.key))) {
-      final overlayedItem =
-          items.overlayedItemBy(key: renderedItem.key) ??
-          items.putOverlayedItem(
-            createOverlayedItem(renderedItem)..index = newIndex(renderedItem),
-          );
+      var overlayedItem = items.overlayedItemBy(key: renderedItem.key);
+      if (overlayedItem == null) {
+        final index = newIndex(renderedItem);
+        // An item before the change keeps its index and its slot.
+        if (index == renderedItem.index) continue;
+        overlayedItem = items.putOverlayedItem(
+          createOverlayedItem(renderedItem)..index = index,
+        );
+      }
       overlayedItem.setInteractive(false);
     }
   }
@@ -97,9 +98,10 @@ class OverlayCoordinator {
     if (items.isRendered(key: item.key)) return;
     if (items.isOverlayed(key: item.key)) return;
 
+    final anyRenderedItem = items.renderedItems.first;
     final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
       notRenderedItemIndex: index,
-      anyRenderedItem: items.renderedItems.first,
+      anyRenderedItem: anyRenderedItem,
     );
     if (fakeGeometry == null) return;
 
@@ -108,7 +110,13 @@ class OverlayCoordinator {
         item: item,
         index: newIndex,
         position: OverlayOffset(fakeGeometry.topLeft),
-        constraints: BoxConstraints.tight(fakeGeometry.size),
+        // A grid's slots are as big as its delegate says, and a list lays
+        // out each item with the constraints of the others.
+        constraints:
+            (scrollSync.gridLayout == null
+                ? anyRenderedItem.constraints
+                : null) ??
+            BoxConstraints.tight(fakeGeometry.size),
         size: fakeGeometry.size,
         interactive: false,
       ),
@@ -181,12 +189,11 @@ class OverlayCoordinator {
     final gridLayout = scrollSync.gridLayout;
     itemSize ??=
         gridLayout?.getChildSize(notRenderedItemIndex, scrollDirection()) ??
-        // A list lays out all its items with the same constraints.
-        measureItemWidgetAt(
-          scrollPosition,
-          index: notRenderedItemIndex,
-          constraints: anyRenderedItem.constraints,
-        );
+        // A list lays out all its items with the same constraints, so an
+        // item it did not build is likely as big as one it did. The overlay
+        // lays the item out and tells its size once it builds it.
+        anyRenderedItem.size ??
+        Size.zero;
 
     // Just outside the overlay, which covers the list. It is the space the
     // overlayed items are positioned in, unlike the screen.
@@ -220,21 +227,6 @@ class OverlayCoordinator {
 
     return fakePosition & itemSize;
   }
-
-  Size measureItemWidgetAt(
-    ScrollPosition scrollPosition, {
-    required int index,
-    BoxConstraints? constraints,
-  }) => MeasureUtil.measureWidget(
-    context: scrollPosition.context.storageContext,
-    builder: (context) => itemBuilder()(context, index)!,
-    constraints:
-        constraints ??
-        // As wide as the overlay, which covers the list, or as high.
-        (scrollDirection() == Axis.vertical
-            ? BoxConstraints(maxWidth: overlay.size.width)
-            : BoxConstraints(maxHeight: overlay.size.height)),
-  );
 
   /// Moves the overlayed item of [item] to where the list laid [item] out.
   void reconcileItem(RenderedItem item) {

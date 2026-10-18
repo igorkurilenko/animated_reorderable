@@ -200,7 +200,6 @@ class AnimatedReorderableController implements ItemHost {
         motionAnimationDuration: () => motion.duration,
         motionAnimationCurve: () => motion.curve,
         scrollDirection: () => scrollDirection,
-        itemBuilder: () => itemWidgets.originalBuilder,
       );
 
   void detachOverlayedItemsLayer(OverlayedItemsLayerState layer) {

@@ -25,6 +25,11 @@ class ItemMotion {
   /// to its own target; the last one's is [_end].
   final _legs = <_Leg>[];
 
+  /// How many moves along a curve the item is on. A move drops out once
+  /// it is over and another starts.
+  @visibleForTesting
+  int get legCount => _legs.length;
+
   /// Where a fling started.
   var _flingBegin = const OverlayOffset(Offset.zero);
 
@@ -90,7 +95,8 @@ class ItemMotion {
   }
 
   /// Moves the item from [from] to [to] with [springDescription], starting
-  /// at [velocity], relative to [screenSize].
+  /// at the part of [velocity] that heads for [to], relative to
+  /// [screenSize].
   TickerFuture fling({
     required OverlayOffset from,
     required OverlayOffset to,
@@ -105,8 +111,12 @@ class ItemMotion {
     final unitsPerSecondX = pixelsPerSecond.dx / screenSize.width;
     final unitsPerSecondY = pixelsPerSecond.dy / screenSize.height;
     final unitsPerSecond = Offset(unitsPerSecondX, unitsPerSecondY);
-    final unitVelocity = unitsPerSecond.distance;
-    final simulation = SpringSimulation(springDescription, 0, 1, -unitVelocity);
+    // Positive toward [to], and negative away from it.
+    final way = to - from;
+    final heading = way == Offset.zero ? Offset.zero : way / way.distance;
+    final unitVelocity =
+        unitsPerSecond.dx * heading.dx + unitsPerSecond.dy * heading.dy;
+    final simulation = SpringSimulation(springDescription, 0, 1, unitVelocity);
     return _run = _controller.animateWith(simulation);
   }
 

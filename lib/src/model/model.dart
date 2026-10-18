@@ -3,7 +3,7 @@ library;
 import 'dart:collection';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show clampDouble;
+import 'package:flutter/foundation.dart' show clampDouble, visibleForTesting;
 import 'package:flutter/physics.dart';
 import 'package:flutter/semantics.dart' show SemanticsBinding;
 import 'package:flutter/widgets.dart' as widgets;
