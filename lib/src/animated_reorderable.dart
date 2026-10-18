@@ -446,6 +446,11 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
     // items fit the new layout.
     builder: (context) => Stack(
       children: [
+        OverlayedItemsLayer(
+          controller: _controller,
+          clipBehavior: _view.clipBehavior,
+          underTheList: true,
+        ),
         Align(
           alignment: Alignment.center,
           // A layout-time correction, like a clamp after the content

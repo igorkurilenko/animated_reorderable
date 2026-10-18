@@ -3,6 +3,7 @@ import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
@@ -353,8 +354,8 @@ void main() {
     });
   });
 
-  group('overlay', () {
-    /// The ids of the items the overlay shows.
+  group('in place', () {
+    /// The ids of the items the overlay shows, above the list or under it.
     List<int> overlayed(WidgetTester tester) => [
       for (final item in tester.widgetList<_Item>(
         find.descendant(
@@ -365,52 +366,102 @@ void main() {
         item.id,
     ]..sort();
 
-    /// The ids of the items the list built, from index [from] on.
-    List<int> renderedFrom(_TestList list, int from) => [
-      for (var i = from; i < list.items.length; i++)
-        if (list.state.isItemRendered(i)) list.items[i],
-    ];
+    // The view shows the slots of items 0 to 5, and the list lays out 6 to
+    // 8 too, out of sight.
 
-    testWidgets('lifts only the items a reorder moves', (tester) async {
+    testWidgets('moves the items a reorder moves in place, in the list', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
 
       list.state.reorderItem(2, destIndex: 4);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      final lifted = overlayed(tester);
+      expect(overlayed(tester), isEmpty);
+      final top = tester.getTopLeft(_itemWithId(2)).dy;
+      expect(top, greaterThan(2 * _extent));
+      expect(top, lessThan(4 * _extent));
+      expect(_paintedTopLeft(tester, _itemWithId(2)).dy, top);
       await tester.pumpAndSettle();
-
-      expect(lifted, [2, 3, 4]);
+      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
     });
 
-    testWidgets('lifts only the items an insert moves', (tester) async {
+    testWidgets('ignores a pointer on an item moving in place', (tester) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
-      final after = renderedFrom(list, 3);
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final swipe = await tester.startGesture(tester.getCenter(_itemWithId(2)));
+      await swipe.moveBy(const Offset(-30, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(overlayed(tester), isEmpty);
+      await swipe.up();
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 1, 3, 4, 2, 5, 6, 7, 8, 9]);
+      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
+    });
+
+    testWidgets('moves an item that goes out of sight on its way in place '
+        'on from where it shows', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final tops = [tester.getTopLeft(_itemWithId(2)).dy];
+
+      // Three items in at the top push its slot out of sight.
+      for (final id in [10, 11, 12]) {
+        list.insert(0, id);
+      }
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(_itemWithId(2)).dy);
+      }
+
+      // Items 4 and 5 go out of sight with it.
+      expect(overlayed(tester), [2, 4, 5]);
+      expect(_steps(tops), everyElement(inInclusiveRange(0, 40)));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item an insert pushes out of sight through the '
+        'overlay', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
 
       list.insert(3, 100);
       await tester.pump();
 
+      // Items 3 and 4 move down in place, and 6 to 8 stay out of sight.
       final lifted = overlayed(tester);
       await tester.pumpAndSettle();
 
-      expect(lifted, after);
+      expect(lifted, [5]);
     });
 
-    testWidgets('lifts only the items a remove moves', (tester) async {
+    testWidgets('moves an item a remove brings into sight in place', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
-      // Item 3 fades out in the overlay.
-      final fromRemoved = renderedFrom(list, 3);
 
       list.removeAt(3);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      final lifted = overlayed(tester);
+      // Item 3 fades out under the list, and 4 to 6 move up in place: 6
+      // from out of sight.
+      expect(overlayed(tester), [3]);
+      expect(tester.getTopLeft(_itemWithId(6)).dy, greaterThan(5 * _extent));
+      expect(tester.getTopLeft(_itemWithId(6)).dy, lessThan(600));
       await tester.pumpAndSettle();
-
-      expect(lifted, fromRemoved);
+      expect(tester.getTopLeft(_itemWithId(6)).dy, 5 * _extent);
     });
   });
 
@@ -456,11 +507,13 @@ void main() {
       list.removeAt(1);
       await tester.pump();
 
-      // Items 2 to 4 move up, and item 0 stays in its slot.
+      // Items 2 to 4 move up, and item 0 stays in its slot. It shows under
+      // them all, the list's own items too.
       final order = _paintOrder(tester);
       for (final id in [2, 3, 4]) {
         expect(order.indexOf(1), lessThan(order.indexOf(id)), reason: '$id');
       }
+      expect(order.first, 1);
       await tester.pumpAndSettle();
     });
 
@@ -481,7 +534,148 @@ void main() {
     });
   });
 
+  group('paints', () {
+    testWidgets('paints each item on one layer of its own', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      for (final id in [0, 5]) {
+        var layers = 0;
+        for (
+          RenderObject? node = tester.renderObject(_itemWithId(id));
+          node != null && node is! RenderSliver;
+          node = node.parent
+        ) {
+          if (node.isRepaintBoundary) layers++;
+        }
+        expect(layers, 1, reason: '$id');
+      }
+    });
+
+    testWidgets('paints a moving item on a layer of its own, where it is', (
+      tester,
+    ) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 4);
+      await tester.pump();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(
+          _paintedTopLeft(tester, _itemWithId(0)),
+          tester.getTopLeft(_itemWithId(0)),
+        );
+      }
+
+      expect(tester.getTopLeft(_itemWithId(0)).dy, greaterThan(0));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item without painting it again', (tester) async {
+      var paints = 0;
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: _extent,
+                  child: CustomPaint(painter: _PaintCounter(() => paints++)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 4);
+      // The moving items paint once as they enter the overlay.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      paints = 0;
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(paints, 0);
+      await tester.pumpAndSettle();
+    });
+  });
+
   group('builds', () {
+    /// A list of 10 items that tells which items it built.
+    Widget buildList(
+      GlobalKey<AnimatedReorderableState> key,
+      List<int> items,
+      Set<int> built,
+    ) => AnimatedReorderable.list(
+      key: key,
+      keyGetter: (index) => ValueKey(items[index]),
+      reorder: ReorderOptions(
+        onReorder: (permutations) => permutations.apply(items),
+      ),
+      listView: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          built.add(items[index]);
+          return SizedBox(height: _extent, child: Text('${items[index]}'));
+        },
+      ),
+    );
+
+    testWidgets('builds only the items a change moves', (tester) async {
+      final built = <int>{};
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: buildList(key, items, built))),
+      );
+      built.clear();
+
+      key.currentState!.reorderItem(2, destIndex: 4);
+      await tester.pumpAndSettle();
+
+      expect(built, {2, 3, 4});
+    });
+
+    testWidgets('builds every item again when the app builds its view again', (
+      tester,
+    ) async {
+      final built = <int>{};
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      late StateSetter setState;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setter) {
+                setState = setter;
+                return buildList(key, items, built);
+              },
+            ),
+          ),
+        ),
+      );
+      final shown = {...built};
+      built.clear();
+
+      setState(() {});
+      await tester.pump();
+
+      expect(built, shown);
+    });
+
     // Pins the count the package has today, so a change that builds
     // moving items more often shows up.
     testWidgets('builds moving items at most once a frame', (tester) async {
@@ -522,7 +716,9 @@ void main() {
       }
 
       expect(builds, lessThanOrEqualTo(10));
-      expect(frames, 33);
+      // The move starts in the frame that lays the items out in their new
+      // slots.
+      expect(frames, 32);
     });
 
     testWidgets('builds no item while items move', (tester) async {
@@ -819,16 +1015,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
 
       // On its way out through the bottom edge.
-      final overlay = find.byType(OverlayedItemsLayer);
       final item = tester.getRect(find.text('0'));
       expect(item.top, lessThan(300));
       expect(item.bottom, greaterThan(300));
-      final clip = paints
-        ..clipRect(rect: Offset.zero & tester.getSize(overlay));
-      expect(
-        tester.renderObject(overlay),
-        clipBehavior == Clip.none ? isNot(clip) : clip,
-      );
+      // Both the layer above the list and the one under it.
+      final layers = find.byType(OverlayedItemsLayer);
+      expect(layers, findsNWidgets(2));
+      for (final layer in layers.evaluate()) {
+        final renderObject = layer.renderObject!;
+        final clip = paints
+          ..clipRect(rect: Offset.zero & (renderObject as RenderBox).size);
+        expect(renderObject, clipBehavior == Clip.none ? isNot(clip) : clip);
+      }
       await tester.pumpAndSettle();
     });
   }
@@ -3341,4 +3539,45 @@ class _Extent extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_Extent oldWidget) => value != oldWidget.value;
+}
+
+/// Calls [onPaint] each time it paints.
+class _PaintCounter extends CustomPainter {
+  _PaintCounter(this.onPaint);
+
+  final VoidCallback onPaint;
+
+  @override
+  void paint(Canvas canvas, Size size) => onPaint();
+
+  @override
+  bool shouldRepaint(_PaintCounter oldDelegate) => false;
+}
+
+/// Where the layers that [finder]'s widget is painted on put its top left
+/// corner, as the engine composes them.
+Offset _paintedTopLeft(WidgetTester tester, Finder finder) {
+  RenderObject? boundary = tester.renderObject(finder);
+  while (boundary != null && !boundary.isRepaintBoundary) {
+    boundary = boundary.parent;
+  }
+  var transform = Matrix4.identity();
+  // The root layer scales logical pixels to the device's.
+  for (Layer? layer = boundary!.debugLayer; layer?.parent != null;) {
+    if (layer case final OffsetLayer offsetLayer) {
+      final own = layer is TransformLayer
+          ? layer.transform ?? Matrix4.identity()
+          : Matrix4.identity();
+      transform =
+          Matrix4.translationValues(
+            offsetLayer.offset.dx,
+            offsetLayer.offset.dy,
+            0,
+          ) *
+          own *
+          transform;
+    }
+    layer = layer!.parent;
+  }
+  return MatrixUtils.transformPoint(transform, Offset.zero);
 }

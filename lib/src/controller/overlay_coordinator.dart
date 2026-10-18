@@ -49,7 +49,8 @@ class OverlayCoordinator {
   }) => OverlayedItem(
     item: item ?? items.itemBy(key: renderedItem.key)!,
     index: renderedItem.index,
-    position: overlay.globalToLocal(renderedItem.globalPosition!),
+    // Where it shows, which may be on its way to its slot in place.
+    position: overlay.globalToLocal(renderedItem.shownPosition!),
     // The item lays out in the overlay as it would in the list.
     constraints:
         renderedItem.constraints ?? BoxConstraints.tight(renderedItem.size!),
@@ -57,34 +58,59 @@ class OverlayCoordinator {
     recognizerFactory: recognizerFactory,
   );
 
-  /// Overlays the rendered items that [newIndex] moves, except [except] and
-  /// the held ones, so they can move to their new slots when the list lays
-  /// out. An item that keeps its index keeps its slot, and stays in the
-  /// list.
+  /// Moves the rendered items whose index a change moved, except [except]
+  /// and the held ones, to their new slots, once the list lays them out
+  /// there.
   ///
-  /// After another change in the same frame, the list may not have built
-  /// its items again yet. Items already in the overlay keep their indexes,
-  /// which the model has moved, and removed items stay as they are.
-  void overlayRenderedItems({
-    required int Function(RenderedItem item) newIndex,
-    Key? except,
-  }) {
+  /// The list paints an item only in a slot that shows, so an item moves in
+  /// place, in the list, to a slot that shows, even from out of sight. An
+  /// item that shows now and goes out of sight moves through the overlay.
+  /// An item that shows neither now nor in its new slot doesn't move at
+  /// all, and one that keeps its index keeps its slot.
+  ///
+  /// The new indexes come from the model, which the change has moved
+  /// already. After another change in the same frame, the list may not
+  /// have built its items again yet: they are still where the list laid
+  /// them out, and removed items stay as they are.
+  void moveRenderedItems({Key? except}) {
+    final indexOf = items.childIndexGetter();
+    final slots = {for (final x in items.renderedItems) x.index: x};
     for (var renderedItem
         in items.renderedItems
             .where((x) => x.key != except)
             .where((x) => items.itemBy(key: x.key) != null)
-            .where((x) => !_isHeld(x.key))) {
+            .where((x) => !_isHeld(x.key))
+            .toList()) {
       var overlayedItem = items.overlayedItemBy(key: renderedItem.key);
       if (overlayedItem == null) {
-        final index = newIndex(renderedItem);
-        // An item before the change keeps its index and its slot.
-        if (index == renderedItem.index) continue;
+        final index = indexOf(renderedItem.key);
+        if (index == null || index == renderedItem.index) continue;
+        if (_shows(slots[index], at: (x) => x.globalPosition)) {
+          renderedItem.willMove();
+          continue;
+        }
+        if (!_shows(renderedItem, at: (x) => x.shownPosition)) continue;
         overlayedItem = items.putOverlayedItem(
           createOverlayedItem(renderedItem)..index = index,
         );
       }
       overlayedItem.setInteractive(false);
     }
+  }
+
+  /// Whether [item] shows in the overlay, which covers the list, if it is
+  /// [at] where it is.
+  bool _shows(
+    RenderedItem? item, {
+    required GlobalOffset? Function(RenderedItem item) at,
+  }) {
+    if (item == null) return false;
+    final position = at(item);
+    final size = item.size;
+    if (position == null || size == null) return false;
+    return (overlay.globalToLocal(position) & size).overlaps(
+      Offset.zero & overlay.size,
+    );
   }
 
   /// Overlays [item], which was at [index] and is neither rendered nor

@@ -8,6 +8,7 @@ class OverriddenSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
     required NullableIndexedWidgetBuilder overriddenChildBuilder,
     required ChildCountGetter overriddenChildCountGetter,
     ChildIndexGetter? fallbackChildIndexGetter,
+    bool? addRepaintBoundaries,
   }) {
     final settings = childrenDelegateSettingsOf(delegate);
     return OverriddenSliverChildBuilderDelegate(
@@ -18,7 +19,8 @@ class OverriddenSliverChildBuilderDelegate extends SliverChildBuilderDelegate {
           settings.findChildIndexCallback ?? fallbackChildIndexGetter,
       childCount: overriddenChildCountGetter(),
       addAutomaticKeepAlives: settings.addAutomaticKeepAlives,
-      addRepaintBoundaries: settings.addRepaintBoundaries,
+      addRepaintBoundaries:
+          addRepaintBoundaries ?? settings.addRepaintBoundaries,
       addSemanticIndexes: settings.addSemanticIndexes,
       semanticIndexCallback: settings.semanticIndexCallback,
       semanticIndexOffset: settings.semanticIndexOffset,

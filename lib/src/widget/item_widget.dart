@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-import '../model/model.dart' show GlobalOffset, RenderedItem;
+import '../const.dart';
+import '../model/model.dart'
+    show GlobalOffset, ItemMotion, OverlayOffset, RenderedItem;
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 
@@ -24,6 +27,10 @@ abstract interface class ItemHost {
   void didDeactivateItem(RenderedItem item);
   void recognizeReorderDrag(RenderedItem item, PointerDownEvent event);
   void recognizeSwipe(RenderedItem item, PointerDownEvent event);
+
+  /// How an item moves to its new slot.
+  Duration get motionDuration;
+  Curve get motionCurve;
 }
 
 class ItemWidget extends StatefulWidget {
@@ -53,7 +60,23 @@ class ItemWidget extends StatefulWidget {
   State<ItemWidget> createState() => _ItemWidgetState();
 }
 
-class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
+class _ItemWidgetState extends State<ItemWidget>
+    with TickerProviderStateMixin
+    implements RenderedItem {
+  /// Where the item shows as it moves in place, in the coordinates of the
+  /// view's content, which stay as it scrolls. It is created on the item's
+  /// first move.
+  ItemMotion? _motion;
+  _RenderInPlace? _inPlace;
+  ScrollPosition? _scrollPosition;
+
+  /// Where the item showed before its slot moved, until the frame lays it
+  /// out in its new slot.
+  Offset? _shownBeforeMove;
+
+  /// How far the item shows from its slot.
+  var _translation = Offset.zero;
+
   ItemHost get host => widget.host;
   @override
   int get index => widget.index;
@@ -69,6 +92,11 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   @override
   GlobalOffset? get globalPosition => switch (findRenderBox()) {
     final box? => GlobalOffset(box.localToGlobal(Offset.zero)),
+    null => null,
+  };
+  @override
+  GlobalOffset? get shownPosition => switch (globalPosition) {
+    final position? => GlobalOffset(position + _translation),
     null => null,
   };
   @override
@@ -94,6 +122,83 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scrollPosition = Scrollable.maybeOf(context)?.position;
+  }
+
+  @override
+  void willMove() {
+    final box = _inPlace;
+    if (box == null || !box.attached || !box.hasSize) return;
+    // Another change in the same frame finds it where the first did: the
+    // list hasn't laid it out again in between.
+    _shownBeforeMove ??= _contentPosition(box) + _translation;
+    box.markNeedsCompositedLayerUpdate();
+  }
+
+  /// Where [box] is laid out, in the coordinates of the view's content.
+  Offset _contentPosition(RenderBox box) {
+    final global = box.localToGlobal(Offset.zero);
+    final scroll = _scrollPosition;
+    if (scroll == null || !scroll.hasPixels) return global;
+    return global +
+        switch (scroll.axisDirection) {
+          AxisDirection.down => Offset(0, scroll.pixels),
+          AxisDirection.up => Offset(0, -scroll.pixels),
+          AxisDirection.right => Offset(scroll.pixels, 0),
+          AxisDirection.left => Offset(-scroll.pixels, 0),
+        };
+  }
+
+  /// How far the item shows from its slot once the frame has laid it out.
+  /// It moves from where it showed before its slot moved, and heads anew
+  /// for a slot that moves under it on the way, as on a resize.
+  Offset _translationAfterLayout(RenderBox box) {
+    final slot = _contentPosition(box);
+    final motion = _motion;
+    final from =
+        _shownBeforeMove ??
+        (motion != null &&
+                motion.isMoving &&
+                (motion.target - slot).distance >= retargetTolerance
+            ? motion.position
+            : null);
+    _shownBeforeMove = null;
+    if (from != null && (from - slot).distance >= retargetTolerance) {
+      final motion = _motion ??= ItemMotion(
+        vsync: this,
+        onMove: (_) => _inPlace?.markNeedsCompositedLayerUpdate(),
+      );
+      motion
+          .animate(
+            from: OverlayOffset(from),
+            to: OverlayOffset(slot),
+            curve: host.motionCurve,
+            duration: host.motionDuration,
+          )
+          .whenCompleteOrCancel(() => _didStop(motion));
+    }
+    final moving = _motion?.isMoving ?? false;
+    return _translation = moving ? _motion!.position - slot : Offset.zero;
+  }
+
+  /// Lets go of [motion] once the item is in its slot.
+  void _didStop(ItemMotion motion) {
+    if (!identical(_motion, motion) || motion.isMoving) return;
+    _motion = null;
+    _translation = Offset.zero;
+    motion.dispose();
+  }
+
+  /// The overlay shows the item from now on, from where it showed.
+  void _stopMovingInPlace() {
+    _motion?.stop();
+    _shownBeforeMove = null;
+    _translation = Offset.zero;
+  }
+
+  @override
   void didUpdateWidget(covariant ItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.placeholderSize != widget.placeholderSize) {
@@ -112,6 +217,8 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
   @override
   void dispose() {
     widget.placeholderSize.removeListener(_rebuild);
+    _motion?.dispose();
+    _motion = null;
     super.dispose();
   }
 
@@ -126,21 +233,25 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
     // placeholder keeps its place in the list.
     final placeholderSize = widget.placeholderSize.value;
     if (placeholderSize != null) {
+      _stopMovingInPlace();
       return SizedBox.fromSize(size: placeholderSize);
     }
 
     final child = widget.builder(context, index);
-    return Listener(
-      onPointerDown: swipeable ? _recognizeSwipe : null,
+    return _InPlace(
+      state: this,
       child: Listener(
-        onPointerDown: draggable ? _recognizeDrag : null,
-        child: child != null
-            ? host.buildEntrance(
-                KeyedSubtree(key: widget.childKey, child: child),
-                index,
-                widget.entrance,
-              )
-            : null,
+        onPointerDown: swipeable ? _recognizeSwipe : null,
+        child: Listener(
+          onPointerDown: draggable ? _recognizeDrag : null,
+          child: child != null
+              ? host.buildEntrance(
+                  KeyedSubtree(key: widget.childKey, child: child),
+                  index,
+                  widget.entrance,
+                )
+              : null,
+        ),
       ),
     );
   }
@@ -150,4 +261,68 @@ class _ItemWidgetState extends State<ItemWidget> implements RenderedItem {
 
   void _recognizeDrag(PointerDownEvent event) =>
       host.recognizeReorderDrag(this, event);
+}
+
+class _InPlace extends SingleChildRenderObjectWidget {
+  const _InPlace({required this.state, super.child});
+
+  final _ItemWidgetState state;
+
+  @override
+  _RenderInPlace createRenderObject(BuildContext context) =>
+      _RenderInPlace(state);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderInPlace renderObject) =>
+      renderObject.state = state;
+}
+
+/// Shows an item away from its slot as it moves there, on a layer of its
+/// own. A frame of the move changes only the layer's transform, which it
+/// works out once the frame has laid the item out: neither the item nor
+/// the list lays out or paints again.
+class _RenderInPlace extends RenderProxyBox {
+  _RenderInPlace(this.state);
+
+  _ItemWidgetState state;
+
+  Offset get _translation => state._translation;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    state._inPlace = this;
+  }
+
+  @override
+  void detach() {
+    if (state._inPlace == this) state._inPlace = null;
+    super.detach();
+  }
+
+  @override
+  bool get isRepaintBoundary => true;
+
+  @override
+  OffsetLayer updateCompositedLayer({
+    required covariant TransformLayer? oldLayer,
+  }) {
+    final translation = state._translationAfterLayout(this);
+    return (oldLayer ?? TransformLayer())
+      ..transform = Matrix4.translationValues(
+        translation.dx,
+        translation.dy,
+        0,
+      );
+  }
+
+  /// An item on its way to its slot ignores pointers until it gets there,
+  /// as an item moving through the overlay does.
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      _translation == Offset.zero && super.hitTest(result, position: position);
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) =>
+      transform.translateByDouble(_translation.dx, _translation.dy, 0, 1);
 }

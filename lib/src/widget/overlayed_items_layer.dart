@@ -1,20 +1,30 @@
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
+import '../const.dart';
 import '../controller/overlay_coordinator.dart';
 import '../model/model.dart';
 import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';
 
+/// Shows overlayed items above the list, or with [underTheList] under it.
+///
+/// The list's own items are at the default z-index. The layer above the
+/// list shows the overlayed items at it or above, and is the space the
+/// controller places them in. The layer under the list shows the ones
+/// below it, as removed items are by default, so the items that move into
+/// a removed item's place pass over it.
 class OverlayedItemsLayer extends StatefulWidget {
   const OverlayedItemsLayer({
     super.key,
     required this.controller,
     required this.clipBehavior,
+    this.underTheList = false,
   });
 
   final AnimatedReorderableController controller;
   final Clip clipBehavior;
+  final bool underTheList;
 
   @override
   State<OverlayedItemsLayer> createState() => OverlayedItemsLayerState();
@@ -32,7 +42,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
   @override
   void initState() {
     super.initState();
-    controller.attachOverlayedItemsLayer(this);
+    if (!widget.underTheList) controller.attachOverlayedItemsLayer(this);
     controller.overlayChanges.addListener(_rebuild);
   }
 
@@ -46,7 +56,7 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
   @override
   void dispose() {
     controller.overlayChanges.removeListener(_rebuild);
-    controller.detachOverlayedItemsLayer(this);
+    if (!widget.underTheList) controller.detachOverlayedItemsLayer(this);
     super.dispose();
   }
 
@@ -69,7 +79,9 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
 
   @override
   Widget build(BuildContext context) {
-    final items = controller.overlayedItemsOrderedByZIndex.toList();
+    final items = controller.overlayedItemsOrderedByZIndex
+        .where((x) => (x.zIndex < defaultZIndex) == widget.underTheList)
+        .toList();
     final shown = items.toSet();
     _itemWidgets.removeWhere((item, _) => !shown.contains(item));
     // The items place themselves, so the stack can't tell when they leave
