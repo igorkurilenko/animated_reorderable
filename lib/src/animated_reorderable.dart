@@ -280,6 +280,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       swipeToRemove: widget.swipeToRemove,
       insertTransition: widget.insertTransition,
       scrollDirection: _view.scrollDirection,
+      isGrid: _view is _WrappedGridView,
       itemCount: childrenDelegateSettingsOf(_view.childrenDelegate).childCount,
       vsync: this,
     );
@@ -303,6 +304,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       ..swipeToRemove = widget.swipeToRemove
       ..insertTransition = widget.insertTransition
       ..scrollDirection = _view.scrollDirection
+      ..isGrid = _view is _WrappedGridView
       ..scrollSync.scrollController = _effectiveScrollController;
   }
 
