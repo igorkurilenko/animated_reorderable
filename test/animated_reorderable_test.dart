@@ -3,6 +3,7 @@ import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
@@ -477,6 +478,67 @@ void main() {
       await tester.pump();
 
       expect(_paintOrder(tester).last, 1);
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('paints', () {
+    testWidgets('paints a moving item on a layer of its own, where it is', (
+      tester,
+    ) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 4);
+      await tester.pump();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(
+          _paintedTopLeft(tester, _itemWithId(0)),
+          tester.getTopLeft(_itemWithId(0)),
+        );
+      }
+
+      expect(tester.getTopLeft(_itemWithId(0)).dy, greaterThan(0));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item without painting it again', (tester) async {
+      var paints = 0;
+      final items = List.generate(10, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: _extent,
+                  child: CustomPaint(painter: _PaintCounter(() => paints++)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 4);
+      // The moving items paint once as they enter the overlay.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      paints = 0;
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(paints, 0);
       await tester.pumpAndSettle();
     });
   });
@@ -3341,4 +3403,45 @@ class _Extent extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_Extent oldWidget) => value != oldWidget.value;
+}
+
+/// Calls [onPaint] each time it paints.
+class _PaintCounter extends CustomPainter {
+  _PaintCounter(this.onPaint);
+
+  final VoidCallback onPaint;
+
+  @override
+  void paint(Canvas canvas, Size size) => onPaint();
+
+  @override
+  bool shouldRepaint(_PaintCounter oldDelegate) => false;
+}
+
+/// Where the layers that [finder]'s widget is painted on put its top left
+/// corner, as the engine composes them.
+Offset _paintedTopLeft(WidgetTester tester, Finder finder) {
+  RenderObject? boundary = tester.renderObject(finder);
+  while (boundary != null && !boundary.isRepaintBoundary) {
+    boundary = boundary.parent;
+  }
+  var transform = Matrix4.identity();
+  // The root layer scales logical pixels to the device's.
+  for (Layer? layer = boundary!.debugLayer; layer?.parent != null;) {
+    if (layer case final OffsetLayer offsetLayer) {
+      final own = layer is TransformLayer
+          ? layer.transform ?? Matrix4.identity()
+          : Matrix4.identity();
+      transform =
+          Matrix4.translationValues(
+            offsetLayer.offset.dx,
+            offsetLayer.offset.dy,
+            0,
+          ) *
+          own *
+          transform;
+    }
+    layer = layer!.parent;
+  }
+  return MatrixUtils.transformPoint(transform, Offset.zero);
 }
