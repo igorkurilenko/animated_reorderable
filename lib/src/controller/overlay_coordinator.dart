@@ -1,11 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable.dart' show MultiDragGestureRecognizerFactory;
 import '../const.dart';
 import '../model/model.dart';
 import '../model/swipe_direction.dart';
-import '../util/geometry.dart';
 import '../util/scheduling.dart';
+import '../widget/item_widget.dart' show ViewEdge;
 import 'scroll_sync.dart';
 
 /// The space overlayed items are positioned in. It covers the list.
@@ -113,41 +115,34 @@ class OverlayCoordinator {
     );
   }
 
-  /// Overlays [item], which was at [index] and is neither rendered nor
-  /// overlayed, just outside the overlay, so it can move in to its slot at
-  /// [newIndex] when the list lays out.
-  void overlayNotRenderedItem(
-    Item item, {
-    required int index,
-    required int newIndex,
-  }) {
+  /// The edges of the view that items a change brought into sight come in
+  /// through, by key, until the frame after the change is over.
+  final _entering = <Key, ({ViewEdge edge, Object change})>{};
+
+  /// Lets [item], which was at [index] out of sight, come in through the
+  /// edge of the view nearest to where it was, if the list lays it out in
+  /// a slot that shows in the next frame. It moves in place then, from just
+  /// outside the view, at its own size. An item the list doesn't show then
+  /// comes into sight later as any item does.
+  void enterNotRenderedItem(Item item, {required int index}) {
     if (items.isRendered(key: item.key)) return;
     if (items.isOverlayed(key: item.key)) return;
-
-    final anyRenderedItem = items.renderedItems.first;
-    final fakeGeometry = getFakeAnchorGeometryOfNotRenderedItem(
-      notRenderedItemIndex: index,
-      anyRenderedItem: anyRenderedItem,
+    final renderedIndexes = items.renderedItems.map((x) => x.index);
+    if (renderedIndexes.isEmpty) return;
+    final change = Object();
+    _entering[item.key] = (
+      edge: index < renderedIndexes.reduce(math.min)
+          ? ViewEdge.leading
+          : ViewEdge.trailing,
+      change: change,
     );
-    if (fakeGeometry == null) return;
-
-    items.putOverlayedItem(
-      OverlayedItem(
-        item: item,
-        index: newIndex,
-        position: OverlayOffset(fakeGeometry.topLeft),
-        // A grid's slots are as big as its delegate says, and a list lays
-        // out each item with the constraints of the others.
-        constraints:
-            (scrollSync.gridLayout == null
-                ? anyRenderedItem.constraints
-                : null) ??
-            BoxConstraints.tight(fakeGeometry.size),
-        size: fakeGeometry.size,
-        interactive: false,
-      ),
-    );
+    addPostFrame(() {
+      if (_entering[item.key]?.change == change) _entering.remove(item.key);
+    });
   }
+
+  /// The edge of the view that the item with [key] comes in through, once.
+  ViewEdge? takeEntry(Key key) => _entering.remove(key)?.edge;
 
   /// Animates [removedItem] out with [builder] where the list showed it as
   /// [renderedItem], or lets it go if the list did not show it.
@@ -201,25 +196,18 @@ class OverlayCoordinator {
     });
   }
 
-  /// Where an item that the list did not build at [notRenderedItemIndex]
-  /// would be: just outside the overlay, before or after
-  /// [anyRenderedItem]. Null while the view has no scroll position.
+  /// Where an item of [itemSize] that the list did not build at
+  /// [notRenderedItemIndex] would be: just outside the overlay, before or
+  /// after [anyRenderedItem]. Null while the view has no scroll position.
   Rect? getFakeAnchorGeometryOfNotRenderedItem({
     required int notRenderedItemIndex,
     required RenderedItem anyRenderedItem,
-    Size? itemSize,
+    required Size itemSize,
   }) {
     final scrollPosition = scrollSync.scrollPosition;
     if (scrollPosition == null) return null;
 
     final gridLayout = scrollSync.gridLayout;
-    itemSize ??=
-        gridLayout?.getChildSize(notRenderedItemIndex, scrollDirection()) ??
-        // A list lays out all its items with the same constraints, so an
-        // item it did not build is likely as big as one it did. The overlay
-        // lays the item out and tells its size once it builds it.
-        anyRenderedItem.size ??
-        Size.zero;
 
     // Just outside the overlay, which covers the list. It is the space the
     // overlayed items are positioned in, unlike the screen.

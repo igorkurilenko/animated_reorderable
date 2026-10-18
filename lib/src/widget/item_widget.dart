@@ -8,6 +8,10 @@ import '../model/model.dart'
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
 
+/// An edge of the view along its scroll axis: the leading one, where the
+/// list starts, or the trailing one.
+enum ViewEdge { leading, trailing }
+
 /// What an item widget asks of the controller, and what it tells it.
 abstract interface class ItemHost {
   bool isReorderable(int index);
@@ -31,6 +35,10 @@ abstract interface class ItemHost {
   /// How an item moves to its new slot.
   Duration get motionDuration;
   Curve get motionCurve;
+
+  /// The edge of the view that the item with [key] comes in through, once,
+  /// if a change brought it into sight from out of it.
+  ViewEdge? takeEntry(Key key);
 }
 
 class ItemWidget extends StatefulWidget {
@@ -163,7 +171,8 @@ class _ItemWidgetState extends State<ItemWidget>
                 motion.isMoving &&
                 (motion.target - slot).distance >= retargetTolerance
             ? motion.position
-            : null);
+            : null) ??
+        _enteringFrom(box, slot);
     _shownBeforeMove = null;
     if (from != null && (from - slot).distance >= retargetTolerance) {
       final motion = _motion ??= ItemMotion(
@@ -181,6 +190,38 @@ class _ItemWidgetState extends State<ItemWidget>
     }
     final moving = _motion?.isMoving ?? false;
     return _translation = moving ? _motion!.position - slot : Offset.zero;
+  }
+
+  /// Where the item comes in from, if a change brought it into sight from
+  /// out of it and its slot shows: just outside the edge of the view it
+  /// comes in through, at its own size, in line with its slot.
+  Offset? _enteringFrom(RenderBox box, Offset slot) {
+    final edge = host.takeEntry(key);
+    final scroll = _scrollPosition;
+    final RenderObject? viewport = RenderAbstractViewport.maybeOf(box);
+    if (edge == null || scroll == null || viewport is! RenderBox) return null;
+    final view = _contentPosition(viewport) & viewport.size;
+    final size = box.size;
+    if (!(slot & size).overlaps(view)) return null;
+    final leading = edge == ViewEdge.leading;
+    return switch (scroll.axisDirection) {
+      AxisDirection.down => Offset(
+        slot.dx,
+        leading ? view.top - size.height : view.bottom,
+      ),
+      AxisDirection.up => Offset(
+        slot.dx,
+        leading ? view.bottom : view.top - size.height,
+      ),
+      AxisDirection.right => Offset(
+        leading ? view.left - size.width : view.right,
+        slot.dy,
+      ),
+      AxisDirection.left => Offset(
+        leading ? view.right : view.left - size.width,
+        slot.dy,
+      ),
+    };
   }
 
   /// Lets go of [motion] once the item is in its slot.

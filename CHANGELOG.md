@@ -1,3 +1,9 @@
+## Unreleased
+
+### Behavior changes
+
+- Bring an item a reorder moves into sight from out of it in place, in the list: it comes in from just outside the view, at its own size, rather than through the overlay. 2.0.1's note that an item bigger than the others starts its way in that much closer no longer applies. In a grid, it comes in along its own column rather than from the middle of the grid.
+
 ## 2.1.0
 
 ### Performance

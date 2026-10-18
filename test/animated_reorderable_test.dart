@@ -2529,11 +2529,10 @@ void main() {
       }
     });
 
-    // Pins what the package does today. It doesn't know how big an item it
-    // has not built is, so it guesses from the items the list built: this
-    // one starts 100 px further in than its height would put it.
-    testWidgets('brings an item taller than the others in from above without '
-        'a jump', (tester) async {
+    // The list lays the item out in its slot before it moves, so it comes in
+    // at its own size, however much bigger than the others it is.
+    testWidgets('brings an item in from just outside the view, at its own '
+        'size', (tester) async {
       final items = List.generate(50, (i) => i);
       final key = GlobalKey<AnimatedReorderableState>();
       await tester.pumpWidget(
@@ -2568,7 +2567,7 @@ void main() {
         expect(tester.getSize(find.text('0')).height, 2 * _extent);
       }
 
-      expect(tops.first, -_extent);
+      expect(tops.first, -2 * _extent);
       expect(tops.last, 500);
       expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
     });
@@ -2611,6 +2610,39 @@ void main() {
       );
 
       expect(items.first, 40);
+    });
+
+    testWidgets('lets an item a reorder moved out of sight come into sight '
+        'later as any item does', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      // Neither slot shows.
+      list.state.reorderItem(45, destIndex: 46);
+      await tester.pumpAndSettle();
+      final scroll = _scrollPosition(tester);
+      scroll.jumpTo(scroll.maxScrollExtent);
+      await tester.pump();
+
+      expect(tester.hasRunningAnimations, isFalse);
+      final bottom = tester.getTopLeft(_itemWithId(49)).dy;
+      expect(tester.getTopLeft(_itemWithId(45)).dy, bottom - 3 * _extent);
+      expect(tester.getTopLeft(_itemWithId(46)).dy, bottom - 4 * _extent);
+    });
+
+    testWidgets('brings a grid item in from out of sight along its column', (
+      tester,
+    ) async {
+      final list = _TestList(60, grid: true);
+      await tester.pumpWidget(list.build());
+      // The first of three columns, not the middle one.
+      final slot = tester.getTopLeft(_itemWithId(0));
+      expect(slot.dx, 0);
+
+      list.state.reorderItem(50, destIndex: 0);
+      final path = await _pathUntilSettled(tester, _itemWithId(50));
+
+      _expectStraightPath(path, Offset(slot.dx, 600), slot);
     });
 
     testWidgets('moves an item in along a padded list', (tester) async {
