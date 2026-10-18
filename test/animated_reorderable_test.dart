@@ -1739,6 +1739,47 @@ void main() {
   });
 
   group('fling', () {
+    const frame = Duration(milliseconds: 16);
+
+    /// Swipes item 1 [distance] px along [forward], and lets it go moving
+    /// back at [speed] px a frame. Returns where it is let go.
+    Future<Offset> swipeAndLetGo(
+      WidgetTester tester,
+      Offset forward, {
+      required double distance,
+      required double speed,
+    }) async {
+      // The pointer's speed at the end comes from the times of its moves.
+      var time = Duration.zero;
+      final swipe = await tester.createGesture();
+      await swipe.down(tester.getCenter(_itemWithId(1)), timeStamp: time);
+      Future<void> move(Offset offset) async {
+        time += frame;
+        await swipe.moveBy(offset, timeStamp: time);
+        await tester.pump(frame);
+      }
+
+      for (var i = 0; i < (distance + 5 * speed) / 10; i++) {
+        await move(forward * 10);
+      }
+      for (var i = 0; i < 5; i++) {
+        await move(-forward * speed);
+      }
+      final letGo = tester.getTopLeft(_itemWithId(1));
+      await swipe.up(timeStamp: time);
+      return letGo;
+    }
+
+    /// Where item 1 is after each frame until it settles.
+    Future<List<Offset>> track(WidgetTester tester) async {
+      final path = <Offset>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(frame);
+        path.add(tester.getTopLeft(_itemWithId(1)));
+      }
+      return path;
+    }
+
     for (final (scrollDirection, direction) in [
       (Axis.vertical, AxisDirection.left),
       (Axis.horizontal, AxisDirection.up),
@@ -1760,26 +1801,12 @@ void main() {
           );
           await tester.pumpWidget(const SizedBox());
           await tester.pumpWidget(list.build());
-          // The pointer's speed at the end comes from the times of its
-          // moves.
-          const frame = Duration(milliseconds: 16);
-          var time = Duration.zero;
-          final swipe = await tester.createGesture();
-          await swipe.down(tester.getCenter(_itemWithId(1)), timeStamp: time);
-          Future<void> move(Offset offset) async {
-            time += frame;
-            await swipe.moveBy(offset, timeStamp: time);
-            await tester.pump(frame);
-          }
-
-          for (var i = 0; i < (200 + 5 * speed) / 10; i++) {
-            await move(forward * 10);
-          }
-          for (var i = 0; i < 5; i++) {
-            await move(-forward * speed);
-          }
-          final letGo = tester.getTopLeft(_itemWithId(1));
-          await swipe.up(timeStamp: time);
+          final letGo = await swipeAndLetGo(
+            tester,
+            forward,
+            distance: 200,
+            speed: speed,
+          );
           for (var i = 0; i < 4; i++) {
             await tester.pump(frame);
           }
@@ -1806,6 +1833,60 @@ void main() {
         });
       });
     }
+
+    // These two pin what the package does today, whatever the spring: a
+    // fling takes an item neither past where it flies to, nor farther away
+    // than where it is let go.
+    testWidgets('flies an item back to its place without passing it', (
+      tester,
+    ) async {
+      final list = _TestList(
+        10,
+        swipeToRemoveSpringDescription: SpringDescription.withDampingRatio(
+          mass: 1,
+          stiffness: 500,
+          ratio: 0.2,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getTopLeft(_itemWithId(1));
+
+      await swipeAndLetGo(tester, const Offset(-1, 0), distance: 200, speed: 0);
+      final path = await track(tester);
+
+      expect(list.items, List.generate(10, (i) => i));
+      expect(path.last, slot);
+      expect(path.map((p) => p.dx), everyElement(lessThanOrEqualTo(slot.dx)));
+    });
+
+    testWidgets('holds an item let go moving away from its place until it '
+        'heads back', (tester) async {
+      final list = _TestList(
+        10,
+        swipeToRemoveSpringDescription: const SpringDescription(
+          mass: 10,
+          stiffness: 50,
+          damping: 45,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getTopLeft(_itemWithId(1));
+
+      final letGo = await swipeAndLetGo(
+        tester,
+        const Offset(-1, 0),
+        distance: 200,
+        speed: -10,
+      );
+      final path = await track(tester);
+
+      expect(list.items, List.generate(10, (i) => i));
+      expect(path.last, slot);
+      expect(
+        path.map((p) => p.dx),
+        everyElement(greaterThanOrEqualTo(letGo.dx)),
+      );
+    });
   });
 
   group('swipe to remove', () {
