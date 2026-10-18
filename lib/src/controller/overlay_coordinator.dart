@@ -57,8 +57,10 @@ class OverlayCoordinator {
     recognizerFactory: recognizerFactory,
   );
 
-  /// Overlays the rendered items, except [except] and the held ones, so
-  /// they can move to their slots at [newIndex] when the list lays out.
+  /// Overlays the rendered items that [newIndex] moves, except [except] and
+  /// the held ones, so they can move to their new slots when the list lays
+  /// out. An item that keeps its index keeps its slot, and stays in the
+  /// list.
   ///
   /// After another change in the same frame, the list may not have built
   /// its items again yet. Items already in the overlay keep their indexes,
@@ -72,11 +74,15 @@ class OverlayCoordinator {
             .where((x) => x.key != except)
             .where((x) => items.itemBy(key: x.key) != null)
             .where((x) => !_isHeld(x.key))) {
-      final overlayedItem =
-          items.overlayedItemBy(key: renderedItem.key) ??
-          items.putOverlayedItem(
-            createOverlayedItem(renderedItem)..index = newIndex(renderedItem),
-          );
+      var overlayedItem = items.overlayedItemBy(key: renderedItem.key);
+      if (overlayedItem == null) {
+        final index = newIndex(renderedItem);
+        // An item before the change keeps its index and its slot.
+        if (index == renderedItem.index) continue;
+        overlayedItem = items.putOverlayedItem(
+          createOverlayedItem(renderedItem)..index = index,
+        );
+      }
       overlayedItem.setInteractive(false);
     }
   }

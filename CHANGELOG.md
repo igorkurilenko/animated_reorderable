@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Performance
+
+- Leave the items that a reorder, an insert or a remove doesn't move in the list. Each change lifted every item the list showed into the overlay, and the next frame put back the ones that stayed. On an iPhone 17 Pro at 120 Hz, a drag across a 12-column grid of about 400 cells took 49 of 489 frames over budget, and now takes 6 of 508; its slowest frame went from 31 ms to 16 ms.
+
 ### Fixes
 
 - Build an item that a reorder brings in from out of sight under the list's ancestors. The package measured it in a tree of its own, without the app's `Material`, `MediaQuery`, theme or inherited widgets. So items such as a `ListTile` or a `CircleAvatar` threw, and an item that the theme sizes slid in at the wrong size. Now the overlay lays the item out at its own size. Until it does, the package takes the item to be as big as one the list built, so an item bigger than the others starts its way in that much closer.

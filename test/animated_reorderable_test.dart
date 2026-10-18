@@ -353,6 +353,67 @@ void main() {
     });
   });
 
+  group('overlay', () {
+    /// The ids of the items the overlay shows.
+    List<int> overlayed(WidgetTester tester) => [
+      for (final item in tester.widgetList<_Item>(
+        find.descendant(
+          of: find.byType(OverlayedItemsLayer),
+          matching: find.byType(_Item),
+        ),
+      ))
+        item.id,
+    ]..sort();
+
+    /// The ids of the items the list built, from index [from] on.
+    List<int> renderedFrom(_TestList list, int from) => [
+      for (var i = from; i < list.items.length; i++)
+        if (list.state.isItemRendered(i)) list.items[i],
+    ];
+
+    testWidgets('lifts only the items a reorder moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, [2, 3, 4]);
+    });
+
+    testWidgets('lifts only the items an insert moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      final after = renderedFrom(list, 3);
+
+      list.insert(3, 100);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, after);
+    });
+
+    testWidgets('lifts only the items a remove moves', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      // Item 3 fades out in the overlay.
+      final fromRemoved = renderedFrom(list, 3);
+
+      list.removeAt(3);
+      await tester.pump();
+
+      final lifted = overlayed(tester);
+      await tester.pumpAndSettle();
+
+      expect(lifted, fromRemoved);
+    });
+  });
+
   group('z-order', () {
     testWidgets('lifts a dragged item above the moving items', (tester) async {
       final list = _TestList(5);
@@ -395,7 +456,11 @@ void main() {
       list.removeAt(1);
       await tester.pump();
 
-      expect(_paintOrder(tester).first, 1);
+      // Items 2 to 4 move up, and item 0 stays in its slot.
+      final order = _paintOrder(tester);
+      for (final id in [2, 3, 4]) {
+        expect(order.indexOf(1), lessThan(order.indexOf(id)), reason: '$id');
+      }
       await tester.pumpAndSettle();
     });
 
