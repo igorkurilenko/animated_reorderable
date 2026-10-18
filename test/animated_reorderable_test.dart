@@ -388,22 +388,53 @@ void main() {
       expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
     });
 
-    testWidgets('ignores a pointer on an item moving in place', (tester) async {
+    testWidgets('lets a pointer take an item moving in place where it shows', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
       list.state.reorderItem(2, destIndex: 4);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
+      // Its middle, which the decoration of a swiped item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(2)).dy;
+      final shown = middle();
+      expect(shown, greaterThan(2.5 * _extent));
+      expect(shown, lessThan(4.5 * _extent));
 
+      // A swipe takes it where it shows, between its slots.
       final swipe = await tester.startGesture(tester.getCenter(_itemWithId(2)));
       await swipe.moveBy(const Offset(-30, 0));
-      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump();
 
-      expect(overlayed(tester), isEmpty);
+      expect(overlayed(tester), [2]);
+      expect(middle(), shown);
+      // It goes on to its slot as it is swiped, without a jump.
+      final middles = [shown];
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        middles.add(middle());
+      }
+      expect(middles.last, 4.5 * _extent);
+      expect(_steps(middles), everyElement(inInclusiveRange(0, 20)));
       await swipe.up();
       await tester.pumpAndSettle();
       expect(list.items, [0, 1, 3, 4, 2, 5, 6, 7, 8, 9]);
-      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
+    });
+
+    testWidgets('gives each item its semantic index, once', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      final indexes = [
+        for (final semantics in tester.widgetList<IndexedSemantics>(
+          find.byType(IndexedSemantics),
+        ))
+          semantics.index,
+      ];
+
+      expect(indexes.take(6), [0, 1, 2, 3, 4, 5]);
+      expect(indexes.toSet(), hasLength(indexes.length));
     });
 
     testWidgets('moves an item that goes out of sight on its way in place '

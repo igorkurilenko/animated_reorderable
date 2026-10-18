@@ -43,6 +43,10 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   ViewEdge? takeEntry(widgets.Key key) => _overlay?.takeEntry(key);
+
+  @override
+  int? semanticIndexOf(widgets.Widget child, int index) =>
+      itemWidgets.semanticIndexOf(child, index);
   ReorderOptions reorder;
   SwipeToRemoveOptions swipeToRemove;
   model.AnimatedItemDecorator? insertTransition;

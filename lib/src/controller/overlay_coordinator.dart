@@ -268,8 +268,19 @@ class OverlayCoordinator {
     final anchorPosition = overlay.globalToLocal(globalPosition);
 
     if (items.isSwiped(key: item.key)) {
-      // It stays in its slot, swiped as far.
-      overlayedItem.setPosition(anchorPosition + overlayedItem.swipeOffset);
+      // It stays in its slot, swiped as far, and heads anew for a slot that
+      // moved while it was on its way there.
+      final swiped = anchorPosition + overlayedItem.swipeOffset;
+      if (overlayedItem.motionAnimationStatus?.isAnimating ?? false) {
+        overlayedItem.animateTo(
+          swiped,
+          vsync: vsync,
+          duration: motionAnimationDuration(),
+          curve: motionAnimationCurve(),
+        );
+      } else {
+        overlayedItem.setPosition(swiped);
+      }
       return;
     }
 
@@ -330,6 +341,21 @@ class OverlayCoordinator {
         constraints.tighten(width: item.size.width, height: item.size.height),
       );
     }
+  }
+
+  /// Takes [item], swiped while it moved in place, on to its slot along
+  /// the list, as the swipe moves it across.
+  void moveSwipedItemToSlot(OverlayedItem item) {
+    final slot = items.renderedItemBy(key: item.key)?.globalPosition;
+    if (slot == null) return;
+    final swiped = overlay.globalToLocal(slot) + item.swipeOffset;
+    if ((item.position - swiped).distance < retargetTolerance) return;
+    item.animateTo(
+      swiped,
+      vsync: vsync,
+      duration: motionAnimationDuration(),
+      curve: motionAnimationCurve(),
+    );
   }
 
   /// The list's placeholder follows the item's size in the overlay.

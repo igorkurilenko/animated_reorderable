@@ -125,11 +125,13 @@ class SwipeSession {
 
     items.swipedItem = item;
 
-    overlay.lift(
-      item,
-      decorator: options.decoration.decorator,
-      decorationDuration: options.decoration.duration,
-    );
+    overlay
+      ..lift(
+        item,
+        decorator: options.decoration.decorator,
+        decorationDuration: options.decoration.duration,
+      )
+      ..moveSwipedItemToSlot(item);
   }
 
   void update(DragUpdateDetails details) {

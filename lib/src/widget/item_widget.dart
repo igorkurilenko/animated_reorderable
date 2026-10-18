@@ -39,6 +39,10 @@ abstract interface class ItemHost {
   /// The edge of the view that the item with [key] comes in through, once,
   /// if a change brought it into sight from out of it.
   ViewEdge? takeEntry(Key key);
+
+  /// The semantic index of [child], the item at [index], as the view's
+  /// delegate gives it, or null for none.
+  int? semanticIndexOf(Widget child, int index);
 }
 
 class ItemWidget extends StatefulWidget {
@@ -272,28 +276,40 @@ class _ItemWidgetState extends State<ItemWidget>
 
     // While the overlay shows the item, its subtree lives there and a
     // placeholder keeps its place in the list.
+    // The item's layer stays the list's child whatever it shows: the list
+    // takes a new child only as it builds its children itself.
     final placeholderSize = widget.placeholderSize.value;
     if (placeholderSize != null) {
       _stopMovingInPlace();
-      return SizedBox.fromSize(size: placeholderSize);
+      return _InPlace(
+        state: this,
+        child: SizedBox.fromSize(size: placeholderSize),
+      );
     }
 
     final child = widget.builder(context, index);
+    final semanticIndex = child != null
+        ? host.semanticIndexOf(child, index)
+        : null;
+    final item = Listener(
+      onPointerDown: swipeable ? _recognizeSwipe : null,
+      child: Listener(
+        onPointerDown: draggable ? _recognizeDrag : null,
+        child: child != null
+            ? host.buildEntrance(
+                KeyedSubtree(key: widget.childKey, child: child),
+                index,
+                widget.entrance,
+              )
+            : null,
+      ),
+    );
+    // A pointer finds the item where it shows as it moves in place.
     return _InPlace(
       state: this,
-      child: Listener(
-        onPointerDown: swipeable ? _recognizeSwipe : null,
-        child: Listener(
-          onPointerDown: draggable ? _recognizeDrag : null,
-          child: child != null
-              ? host.buildEntrance(
-                  KeyedSubtree(key: widget.childKey, child: child),
-                  index,
-                  widget.entrance,
-                )
-              : null,
-        ),
-      ),
+      child: semanticIndex != null
+          ? IndexedSemantics(index: semanticIndex, child: item)
+          : item,
     );
   }
 
@@ -357,11 +373,24 @@ class _RenderInPlace extends RenderProxyBox {
       );
   }
 
-  /// An item on its way to its slot ignores pointers until it gets there,
-  /// as an item moving through the overlay does.
+  /// Where the item shows, which may be away from its slot as it moves
+  /// there.
   @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      _translation == Offset.zero && super.hitTest(result, position: position);
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestChildren(result, position: position)) return false;
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      child != null &&
+      result.addWithPaintOffset(
+        offset: _translation,
+        position: position,
+        hitTest: (result, position) =>
+            child!.hitTest(result, position: position),
+      );
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) =>
