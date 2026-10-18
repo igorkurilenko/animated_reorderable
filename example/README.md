@@ -36,5 +36,5 @@ The driver prints the average, 90th and 99th percentile and worst UI-thread (bui
 - **`-d macos` works too**, but a Mac is faster than most phones, so read it as the best case.
 - **Connect an iPhone with a cable.** Over Wi‑Fi, the Mac can find the app but may fail to connect to it. The first launch asks to find devices on the local network: allow it. Keep the phone unlocked while it runs.
 - **Keep `--no-dds`.** Without it the app can't connect to its own VM service, which it needs to record frames.
-- **Semantics are off**, as for most users, who don't run an assistive technology.
+- **Semantics are off**, as for most users, who don't run an assistive technology. Add `--dart-define=SEMANTICS=true` to measure as under a screen reader such as VoiceOver or TalkBack.
 

@@ -86,8 +86,8 @@ void main() {
       });
     },
     // Semantics run only under an assistive technology, which most users
-    // don't have on.
-    semanticsEnabled: false,
+    // don't have on. --dart-define=SEMANTICS=true measures as under one.
+    semanticsEnabled: const bool.fromEnvironment('SEMANTICS'),
   );
 }
 
