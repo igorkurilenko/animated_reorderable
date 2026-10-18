@@ -432,7 +432,6 @@ class OverlayCoordinator {
           items.renderedItemBy(key: item.key)!.globalPosition!,
         ),
         velocity: velocity,
-        screenSize: _screenSize,
         springDescription: springDescription,
         vsync: vsync,
       ),
@@ -453,13 +452,7 @@ class OverlayCoordinator {
       bounds: overlay.size,
     ),
     velocity: velocity,
-    screenSize: _screenSize,
     springDescription: springDescription,
     vsync: vsync,
   );
-
-  Size get _screenSize {
-    final screenView = WidgetsBinding.instance.platformDispatcher.views.first;
-    return screenView.physicalSize / screenView.devicePixelRatio;
-  }
 }

@@ -2,6 +2,7 @@
 
 ### Behavior changes
 
+- Fling an item on at the speed it is let go. Its fling started at a part of the screen per second, so an item let go at 30 px a frame went on at about 18. It now goes on at the speed along its way, and as a spring would: let go fast enough, a bouncy spring takes it past its place and back, and let go moving away, it goes on away before it heads back, rather than stopping at either end.
 - Let a pointer take an item moving in place where it shows, as on other platforms: a drag or a swipe can start on it on its way, from where it shows, and a swiped one goes on to its slot as it's swiped. It ignored pointers until it got to its slot. Items moving through the overlay on their way out of sight still do.
 - Bring an item a reorder moves into sight from out of it in place, in the list: it comes in from just outside the view, at its own size, rather than through the overlay. 2.0.1's note that an item bigger than the others starts its way in that much closer no longer applies. In a grid, it comes in along its own column rather than from the middle of the grid.
 

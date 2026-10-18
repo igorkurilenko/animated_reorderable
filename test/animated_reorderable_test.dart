@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
@@ -2128,10 +2130,30 @@ void main() {
       });
     }
 
-    // These two pin what the package does today, whatever the spring: a
-    // fling takes an item neither past where it flies to, nor farther away
-    // than where it is let go.
-    testWidgets('flies an item back to its place without passing it', (
+    testWidgets('flings an item on at the speed it is let go', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      // Moving back to its place at 30 px a frame.
+      final letGo = await swipeAndLetGo(
+        tester,
+        const Offset(-1, 0),
+        distance: 200,
+        speed: 30,
+      );
+      final xs = [letGo.dx];
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(frame);
+        xs.add(tester.getTopLeft(_itemWithId(1)).dx);
+      }
+
+      // The first frame of a fling shows the item where it was let go.
+      expect(_steps(xs)[1], inInclusiveRange(25, 35));
+      await tester.pumpAndSettle();
+    });
+
+    // A fling is a spring's: it doesn't stop at either end of its way.
+    testWidgets('lets a bouncy spring take an item back past its place', (
       tester,
     ) async {
       final list = _TestList(
@@ -2150,11 +2172,11 @@ void main() {
 
       expect(list.items, List.generate(10, (i) => i));
       expect(path.last, slot);
-      expect(path.map((p) => p.dx), everyElement(lessThanOrEqualTo(slot.dx)));
+      expect(path.map((p) => p.dx).reduce(math.max), greaterThan(slot.dx));
     });
 
-    testWidgets('holds an item let go moving away from its place until it '
-        'heads back', (tester) async {
+    testWidgets('carries an item let go moving away from its place on before '
+        'it heads back', (tester) async {
       final list = _TestList(
         10,
         swipeToRemoveSpringDescription: const SpringDescription(
@@ -2176,10 +2198,7 @@ void main() {
 
       expect(list.items, List.generate(10, (i) => i));
       expect(path.last, slot);
-      expect(
-        path.map((p) => p.dx),
-        everyElement(greaterThanOrEqualTo(letGo.dx)),
-      );
+      expect(path.map((p) => p.dx).reduce(math.min), lessThan(letGo.dx));
     });
   });
 

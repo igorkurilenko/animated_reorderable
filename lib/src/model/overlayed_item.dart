@@ -219,7 +219,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
   Future animateFlingTo(
     OverlayOffset position, {
     required widgets.Velocity velocity,
-    required Size screenSize,
     SpringDescription springDescription = defaultFlingSpringDescription,
     required TickerProvider vsync,
   }) {
@@ -229,7 +228,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
       from: this.position,
       to: position,
       velocity: velocity,
-      screenSize: screenSize,
       springDescription: springDescription,
     );
   }
