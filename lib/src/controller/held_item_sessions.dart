@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../animated_reorderable_controller.dart';
 import '../options.dart';
 import '../model/model.dart';
 import '../util/scheduling.dart';
@@ -10,30 +11,24 @@ import 'scroll_sync.dart';
 /// pointer, takes the place of the items it is dragged over and scrolls
 /// the view at its edges (GoF State).
 class DragSession {
-  DragSession({
-    required this.item,
-    required this.items,
-    required this.overlay,
-    required this.scrollSync,
-    required this.options,
-    required this.reorderItem,
-  });
+  DragSession({required this.item, required this._host});
 
   final OverlayedItem item;
-  final ItemRegistry items;
-  final OverlayCoordinator overlay;
-  final ScrollSync scrollSync;
+  final AnimatedReorderableController _host;
 
-  /// The latest options.
-  final ValueGetter<ReorderOptions> options;
-  final void Function(int index, {required int destIndex}) reorderItem;
+  ItemRegistry get items => _host.registry;
+  OverlayCoordinator get overlay => _host.overlayCoordinator!;
+  ScrollSync get scrollSync => _host.scrollSync;
+
+  /// The latest options of the item's list.
+  ReorderOptions get _options => _host.reorder;
 
   /// The rendered item the pointer was over, so the dragged item takes its
   /// place only once, when the pointer gets there.
   Key? _itemUnderThePointerKey;
 
   void start(DragStartDetails details) {
-    final options = this.options();
+    final options = _options;
     options.callbacks.onStart?.call(details, item.index);
 
     item.stopMotion();
@@ -48,7 +43,7 @@ class DragSession {
   }
 
   void update(DragUpdateDetails details) {
-    options().callbacks.onUpdate?.call(details, item.index);
+    _options.callbacks.onUpdate?.call(details, item.index);
 
     item.shift(details.delta);
 
@@ -56,7 +51,7 @@ class DragSession {
   }
 
   void end(DragEndDetails details) {
-    options().callbacks.onEnd?.call(details, item.index);
+    _options.callbacks.onEnd?.call(details, item.index);
 
     items.draggedItem = null;
 
@@ -67,6 +62,7 @@ class DragSession {
       undecoration: item.animateUndecoration(),
       velocity: details.velocity,
     );
+    _host.didEndDrag(this);
   }
 
   void reorderAndAutoScroll() {
@@ -75,7 +71,7 @@ class DragSession {
   }
 
   void _reorderIfOverAnotherItem() {
-    final options = this.options();
+    final options = _options;
     final pointerPosition = item.globalPointerPosition;
     if (options.onReorder == null || pointerPosition == null) return;
     if (!(options.reorderableGetter?.call(item.index) ?? true)) return;
@@ -89,7 +85,7 @@ class DragSession {
     if (renderedItem.key == item.key) return;
     if (!renderedItem.reorderable) return;
 
-    reorderItem(item.index, destIndex: renderedItem.index);
+    _host.reorderItem(item.index, destIndex: renderedItem.index);
 
     addPostFrame(
       () => _itemUnderThePointerKey = items

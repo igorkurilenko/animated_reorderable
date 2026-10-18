@@ -74,6 +74,14 @@ class AnimatedReorderableController implements ItemHost {
   ItemsLayerState? _itemsLayer;
   OverlayCoordinator? _overlay;
 
+  model.ItemRegistry get registry => _items;
+  OverlayCoordinator? get overlayCoordinator => _overlay;
+
+  /// Lets go of [session], which ends.
+  void didEndDrag(DragSession session) {
+    if (_drag == session) _drag = null;
+  }
+
   /// The latest drag, which the auto-scroller keeps going.
   DragSession? _drag;
 
@@ -209,12 +217,14 @@ class AnimatedReorderableController implements ItemHost {
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) =>
       _overlay?.didResizeItem(size, item);
 
-  model.Item createItem(int index) => model.Item(
-    key: keyGetter(index),
-    builder: model.ItemBuilder.adaptIndexedWidgetBuilder(
-      (context, index) => itemWidgets.originalBuilder(context, index),
-    ),
-  );
+  model.Item createItem(int index) =>
+      model.Item(key: keyGetter(index), builder: _itemBuilder());
+
+  /// Builds an item as the wrapped view builds its children.
+  model.ItemBuilder _itemBuilder() =>
+      model.ItemBuilder.adaptIndexedWidgetBuilder(
+        (context, index) => itemWidgets.originalBuilder(context, index),
+      );
 
   void _shiftOverlayedItems(Offset delta) =>
       _overlay?.shiftOverlayedItems(delta);
@@ -393,20 +403,10 @@ class AnimatedReorderableController implements ItemHost {
         final overlay = _overlay;
         if (overlay == null) return;
         item.recognizerFactory = createImmediateDragGestureRecognizer;
-        session = _drag = DragSession(
-          item: item,
-          items: _items,
-          overlay: overlay,
-          scrollSync: scrollSync,
-          options: () => reorder,
-          reorderItem: reorderItem,
-        )..start(details);
+        session = _drag = DragSession(item: item, host: this)..start(details);
       },
       onDragUpdate: (details, _) => session?.update(details),
-      onDragEnd: (details, _) {
-        session?.end(details);
-        if (_drag == session) _drag = null;
-      },
+      onDragEnd: (details, _) => session?.end(details),
     );
   }
 

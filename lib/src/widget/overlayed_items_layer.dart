@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
 import '../const.dart';
-import '../controller/overlay_coordinator.dart';
 import '../model/model.dart';
 import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';

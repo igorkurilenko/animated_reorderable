@@ -10,13 +10,6 @@ import '../util/scheduling.dart';
 import '../widget/item_widget.dart' show ViewEdge;
 import 'scroll_sync.dart';
 
-/// The space overlayed items are positioned in. It covers the list.
-abstract interface class OverlaySpace {
-  OverlayOffset globalToLocal(GlobalOffset point);
-  GlobalOffset localToGlobal(OverlayOffset point);
-  Size get size;
-}
-
 /// Moves items between the list and the overlay above it.
 ///
 /// It exists while the overlay is mounted: the controller creates one when

@@ -9,3 +9,10 @@ extension type const OverlayOffset(Offset offset) implements Offset {
   /// This point moved by [delta].
   OverlayOffset operator +(Offset delta) => OverlayOffset(offset + delta);
 }
+
+/// The space overlayed items are positioned in. It covers the list.
+abstract interface class OverlaySpace {
+  OverlayOffset globalToLocal(GlobalOffset point);
+  GlobalOffset localToGlobal(OverlayOffset point);
+  Size get size;
+}
