@@ -2208,6 +2208,47 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('flings an item let go after a drag on at the speed it is '
+        'let go', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      final slot = tester.getCenter(_itemWithId(1));
+      // Its middle, which the decoration of a dragged item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(1)).dx;
+
+      var time = Duration.zero;
+      final drag = await tester.createGesture();
+      await drag.down(slot, timeStamp: time);
+      const hold = Duration(milliseconds: 600);
+      await tester.pump(hold);
+      time += hold;
+      Future<void> move(Offset offset) async {
+        time += frame;
+        await drag.moveBy(offset, timeStamp: time);
+        await tester.pump(frame);
+      }
+
+      // Across its row, where no other item is, and back at 30 px a frame.
+      for (var i = 0; i < 20; i++) {
+        await move(const Offset(10, 0));
+      }
+      for (var i = 0; i < 5; i++) {
+        await move(const Offset(-30, 0));
+      }
+      final xs = [middle()];
+      await drag.up(timeStamp: time);
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(frame);
+        xs.add(middle());
+      }
+
+      // The first frame of a fling shows the item where it was let go.
+      expect(-_steps(xs)[1], inInclusiveRange(25, 35));
+      await tester.pumpAndSettle();
+      expect(tester.getCenter(_itemWithId(1)), slot);
+      expect(list.reorders, 0);
+    });
+
     // A fling is a spring's: it doesn't stop at either end of its way.
     testWidgets('lets a bouncy spring take an item back past its place', (
       tester,
