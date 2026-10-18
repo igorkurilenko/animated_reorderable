@@ -4,6 +4,10 @@
 
 - Lift an item that a long press takes on its way in place from where it shows. The lift showed it where it was as the pointer went down, half a second before, so it jumped back by as far as it had moved since: 38 px in a test's grid.
 
+### Example
+
+- Ship the example's page, `example/example.md`, in the package, so pub.dev shows it on the package's Example tab and counts it. `.pubignore` left out the whole example folder, so pub.dev found no example, which cost 10 of the 160 points.
+
 ## 2.2.0
 
 ### Behavior changes
