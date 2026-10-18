@@ -406,6 +406,12 @@ class OverlayCoordinator {
     required Duration decorationDuration,
   }) {
     if (!items.isOverlayed(key: item.key)) {
+      // From where it shows now. It was made as the pointer went down, and
+      // a long press later the item may have moved on in place since.
+      if (items.renderedItemBy(key: item.key)?.shownPosition
+          case final shown?) {
+        item.setPosition(overlay.globalToLocal(shown));
+      }
       items.putOverlayedItem(item);
     }
     items.setZIndex(item, maxZIndex);
