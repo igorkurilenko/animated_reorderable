@@ -1738,6 +1738,76 @@ void main() {
     });
   });
 
+  group('fling', () {
+    for (final (scrollDirection, direction) in [
+      (Axis.vertical, AxisDirection.left),
+      (Axis.horizontal, AxisDirection.up),
+    ]) {
+      group(direction.name, () {
+        final forward = _unit(direction);
+
+        /// How far item 1 gets back toward its place over 4 frames, once
+        /// it is swiped 200 px away and let go moving back at [speed] px a
+        /// frame. A short swipe like this flings it back.
+        Future<double> wayBack(
+          WidgetTester tester, {
+          required double speed,
+        }) async {
+          final list = _TestList(
+            10,
+            scrollDirection: scrollDirection,
+            swipeToRemoveDirection: direction,
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pumpWidget(list.build());
+          // The pointer's speed at the end comes from the times of its
+          // moves.
+          const frame = Duration(milliseconds: 16);
+          var time = Duration.zero;
+          final swipe = await tester.createGesture();
+          await swipe.down(tester.getCenter(_itemWithId(1)), timeStamp: time);
+          Future<void> move(Offset offset) async {
+            time += frame;
+            await swipe.moveBy(offset, timeStamp: time);
+            await tester.pump(frame);
+          }
+
+          for (var i = 0; i < (200 + 5 * speed) / 10; i++) {
+            await move(forward * 10);
+          }
+          for (var i = 0; i < 5; i++) {
+            await move(-forward * speed);
+          }
+          final letGo = tester.getTopLeft(_itemWithId(1));
+          await swipe.up(timeStamp: time);
+          for (var i = 0; i < 4; i++) {
+            await tester.pump(frame);
+          }
+          final back = letGo - tester.getTopLeft(_itemWithId(1));
+          await tester.pumpAndSettle();
+          expect(list.items, List.generate(10, (i) => i));
+          return back.dx * forward.dx + back.dy * forward.dy;
+        }
+
+        testWidgets('flings an item let go moving toward its place on '
+            'toward it', (tester) async {
+          final still = await wayBack(tester, speed: 0);
+          final toward = await wayBack(tester, speed: 30);
+
+          expect(toward, greaterThan(still + 1));
+        });
+
+        testWidgets('flings an item let go moving away from its place on '
+            'away first', (tester) async {
+          final still = await wayBack(tester, speed: 0);
+          final away = await wayBack(tester, speed: -10);
+
+          expect(away, lessThan(still - 1));
+        });
+      });
+    }
+  });
+
   group('swipe to remove', () {
     for (final (scrollDirection, direction) in [
       (Axis.vertical, AxisDirection.left),
