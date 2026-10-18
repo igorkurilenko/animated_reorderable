@@ -1514,6 +1514,212 @@ void main() {
       // The screen reader stays on the item it was on.
       expect(tester.getSemantics(find.text('0')).id, node);
     });
+
+    const allMoves = [
+      'Move to the start',
+      'Move up',
+      'Move down',
+      'Move to the end',
+    ];
+
+    testWidgets('can move each item', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      expect(
+        _moves(tester, 0),
+        unorderedEquals(['Move down', 'Move to the end']),
+      );
+      expect(_moves(tester, 2), unorderedEquals(allMoves));
+      expect(
+        _moves(tester, 4),
+        unorderedEquals(['Move to the start', 'Move up']),
+      );
+      // Under the item's index, as in ReorderableList.
+      expect(tester.getSemantics(find.text('2')).parent!.indexInParent, 2);
+    });
+
+    testWidgets('moves an item as a reorder does', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      final node = tester.getSemantics(find.text('0')).id;
+
+      _move(tester, 0, 'Move down');
+      await tester.pump();
+      await tester.pump(_motionDuration ~/ 2);
+
+      expect(list.items, [1, 0, 2, 3, 4]);
+      expect(list.reorders, 1);
+      // On its way in place.
+      expect(
+        tester.getTopLeft(_itemWithId(0)).dy,
+        inExclusiveRange(0, _extent),
+      );
+      await tester.pumpAndSettle();
+      expect(_moves(tester, 0), unorderedEquals(allMoves));
+      expect(tester.getSemantics(find.text('0')).id, node);
+
+      _move(tester, 0, 'Move to the end');
+      await tester.pumpAndSettle();
+      expect(list.items, [1, 2, 3, 4, 0]);
+
+      _move(tester, 0, 'Move up');
+      await tester.pumpAndSettle();
+      expect(list.items, [1, 2, 3, 0, 4]);
+
+      _move(tester, 0, 'Move to the start');
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 1, 2, 3, 4]);
+      expect(list.reorders, 4);
+    });
+
+    testWidgets('names each move after the way it takes the item', (
+      tester,
+    ) async {
+      // Moves the middle one of three items with the move named [name].
+      Future<List<int>> move(
+        _TestList list,
+        String name, {
+        TextDirection textDirection = TextDirection.ltr,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Directionality(
+                textDirection: textDirection,
+                child: list.buildList(),
+              ),
+            ),
+          ),
+        );
+        _move(tester, 1, name);
+        await tester.pumpAndSettle();
+        return list.items;
+      }
+
+      const forward = [0, 2, 1];
+      const back = [1, 0, 2];
+      const rtl = TextDirection.rtl;
+      expect(await move(_TestList(3), 'Move down'), forward);
+      // Up the screen, on to the end of a reversed list.
+      expect(await move(_TestList(3, reverse: true), 'Move down'), back);
+      final horizontal = Axis.horizontal;
+      expect(
+        await move(_TestList(3, scrollDirection: horizontal), 'Move right'),
+        forward,
+      );
+      expect(
+        await move(
+          _TestList(3, scrollDirection: horizontal),
+          'Move right',
+          textDirection: rtl,
+        ),
+        back,
+      );
+      // Along a grid's row.
+      expect(await move(_TestList(3, grid: true), 'Move right'), forward);
+      expect(
+        await move(_TestList(3, grid: true), 'Move right', textDirection: rtl),
+        back,
+      );
+      expect(
+        await move(
+          _TestList(3, grid: true, scrollDirection: horizontal),
+          'Move down',
+        ),
+        forward,
+      );
+    });
+
+    testWidgets('keeps the moves of the item at the end up to date', (
+      tester,
+    ) async {
+      final list = _TestList(3);
+      await tester.pumpWidget(list.build());
+      const atTheEnd = ['Move to the start', 'Move up'];
+      expect(_moves(tester, 2), unorderedEquals(atTheEnd));
+
+      list.insert(3, 3);
+      await tester.pumpAndSettle();
+      expect(_moves(tester, 2), unorderedEquals(allMoves));
+      final moveDown = _semanticMove(tester, 2, 'Move down');
+
+      list.removeAt(3);
+      await tester.pumpAndSettle();
+      expect(_moves(tester, 2), unorderedEquals(atTheEnd));
+
+      // A move it could make before does nothing now.
+      moveDown();
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 1, 2]);
+      expect(list.reorders, 0);
+    });
+
+    testWidgets('moves an item past items that cannot be reordered', (
+      tester,
+    ) async {
+      final list = _TestList(4)..reorderableGetter = (index) => index != 1;
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 1), isEmpty);
+      expect(
+        _moves(tester, 0),
+        unorderedEquals(['Move down', 'Move to the end']),
+      );
+
+      _move(tester, 0, 'Move down');
+      await tester.pumpAndSettle();
+
+      expect(list.items, [2, 1, 0, 3]);
+    });
+
+    testWidgets('cannot move an item that cannot be dragged', (tester) async {
+      final list = _TestList(3)..draggableGetter = (index) => index != 0;
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 0), isEmpty);
+      // Another item can still take its place.
+      _move(tester, 1, 'Move up');
+      await tester.pumpAndSettle();
+
+      expect(list.items, [1, 0, 2]);
+    });
+
+    testWidgets('cannot move items without onReorder', (tester) async {
+      await tester.pumpWidget(_labels(const ['a', 'b', 'c']));
+
+      expect(_moves(tester, 'b'), isEmpty);
+    });
+
+    testWidgets("names the moves in the app's language", (tester) async {
+      final list = _TestList(2);
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [_GermanMoves.delegate],
+          home: Scaffold(body: list.buildList()),
+        ),
+      );
+
+      expect(
+        _moves(tester, 0),
+        unorderedEquals(['Nach unten verschieben', 'An das Ende verschieben']),
+      );
+    });
+
+    testWidgets('names the moves without localizations', (tester) async {
+      final list = _TestList(2);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: list.buildList(),
+        ),
+      );
+
+      expect(
+        _moves(tester, 0),
+        unorderedEquals(['Move down', 'Move to the end']),
+      );
+    });
   });
 
   group('insert transition', () {
@@ -3793,4 +3999,72 @@ Rect _semanticsRect(SemanticsNode node) {
     }
   }
   return rect;
+}
+
+/// The names of the moves a screen reader can make with the item [label]
+/// shows.
+List<String> _moves(WidgetTester tester, Object label) => [
+  for (final id
+      in tester
+              .getSemantics(find.text('$label'))
+              .getSemanticsData()
+              .customSemanticsActionIds ??
+          const <int>[])
+    CustomSemanticsAction.getAction(id)!.label!,
+];
+
+/// Makes the move named [name] with the item [label] shows, as a screen
+/// reader does.
+void _move(WidgetTester tester, Object label, String name) {
+  final node = tester.getSemantics(find.text('$label'));
+  node.owner!.performAction(
+    node.id,
+    SemanticsAction.customAction,
+    CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: name)),
+  );
+}
+
+/// What the move named [name] of the item with [id] does, as it is built
+/// now.
+VoidCallback _semanticMove(WidgetTester tester, int id, String name) {
+  final semantics = tester.widget<Semantics>(
+    find.ancestor(
+      of: find.text('$id'),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.customSemanticsActions != null,
+      ),
+    ),
+  );
+  return semantics.properties.customSemanticsActions![CustomSemanticsAction(
+    label: name,
+  )]!;
+}
+
+/// Two of the names Flutter's German localizations give the moves.
+class _GermanMoves extends DefaultWidgetsLocalizations {
+  const _GermanMoves();
+
+  static const delegate = _GermanMovesDelegate();
+
+  @override
+  String get reorderItemDown => 'Nach unten verschieben';
+
+  @override
+  String get reorderItemToEnd => 'An das Ende verschieben';
+}
+
+class _GermanMovesDelegate extends LocalizationsDelegate<WidgetsLocalizations> {
+  const _GermanMovesDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<WidgetsLocalizations> load(Locale locale) =>
+      SynchronousFuture(const _GermanMoves());
+
+  @override
+  bool shouldReload(_GermanMovesDelegate old) => false;
 }

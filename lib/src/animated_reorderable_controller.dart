@@ -23,6 +23,7 @@ class AnimatedReorderableController implements ItemHost {
     required this.swipeToRemove,
     required this.insertTransition,
     required this.scrollDirection,
+    required this.isGrid,
     int? itemCount,
     required this.vsync,
   }) {
@@ -51,6 +52,8 @@ class AnimatedReorderableController implements ItemHost {
   SwipeToRemoveOptions swipeToRemove;
   model.AnimatedItemDecorator? insertTransition;
   Axis scrollDirection;
+  @override
+  bool isGrid;
   final widgets.TickerProvider vsync;
 
   late final scrollSync = ScrollSync(
@@ -229,6 +232,50 @@ class AnimatedReorderableController implements ItemHost {
 
   @override
   bool isDraggable(int index) => reorder.draggableGetter?.call(index) ?? true;
+
+  @override
+  SemanticMoves semanticMovesAt(int index) => (
+    back: _semanticDestination(index, SemanticMove.back) != null,
+    forward: _semanticDestination(index, SemanticMove.forward) != null,
+  );
+
+  @override
+  void makeSemanticMove(int index, SemanticMove move) {
+    if (_semanticDestination(index, move) case final destIndex?) {
+      reorderItem(index, destIndex: destIndex);
+    }
+  }
+
+  /// The index [move] takes the item at [index] to, or null if the item
+  /// can't make it. Only an item that can be dragged and reordered moves,
+  /// and it moves past items that can't be reordered: one place back or
+  /// forward takes it to the nearest index it can take that way, and a move
+  /// to the start or the end to the farthest.
+  int? _semanticDestination(int index, SemanticMove move) {
+    final itemCount = _items.itemCount;
+    if (reorder.onReorder == null ||
+        itemCount == null ||
+        index >= itemCount ||
+        !isDraggable(index) ||
+        !isReorderable(index)) {
+      return null;
+    }
+    // The indexes it can go to, from the first one to try.
+    final (from, to) = switch (move) {
+      SemanticMove.toStart => (0, index - 1),
+      SemanticMove.back => (index - 1, 0),
+      SemanticMove.forward => (index + 1, itemCount - 1),
+      SemanticMove.toEnd => (itemCount - 1, index + 1),
+    };
+    if (from < 0 || to < 0 || from >= itemCount || to >= itemCount) {
+      return null;
+    }
+    final step = from <= to ? 1 : -1;
+    for (var i = from; i != to + step; i += step) {
+      if (isReorderable(i)) return i;
+    }
+    return null;
+  }
 
   @override
   SwipeDirection? swipeToRemoveDirectionAt(int index) {

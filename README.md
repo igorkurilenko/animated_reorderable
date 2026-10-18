@@ -18,6 +18,7 @@ The `AnimatedReorderable` wrapper for `ListView` and `GridView` incorporates all
 - Enables deletion through a swipe gesture.
 - Certain items can be configured as non-reorderable.
 - Callbacks for tracking item drag and swipe events.
+- Lets screen readers move items, as `ReorderableList` does: to the start, one place back or forward, or to the end.
 - In addition to programmatically initiating animated additions and removals, reordering can also be programmatically triggered.
 
 ## Usage

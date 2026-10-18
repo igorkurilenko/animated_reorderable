@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Let screen readers move items, as Flutter's `ReorderableList` does: each item that can be dragged and reordered gets the actions Move to the start, Move up, Move down and Move to the end. They take their names from the app's `WidgetsLocalizations`, and sit on a semantics node of each item's own, under its index, as in `ReorderableList`. A move goes as `reorderItem` does, in place, and calls `onReorder`. It takes the item past items that can't be reordered. Each move is named after the way it goes on screen: Move left and Move right in a horizontal list and along a grid's row, and in a reversed list Move up goes up the screen, where `ReorderableList`'s would go down.
+
 ### Fixes
 
 - Show a screen reader an item that moves in place in its new slot once it gets there. The frames of a move change only the item's layer, so since 2.1.0 a screen reader found each item a change moved where its move started: its focus outline stayed in the old slot, and touching that slot found it, while touching the item where it showed found another.

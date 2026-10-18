@@ -60,13 +60,17 @@ class ItemWidgetFactory {
 
   Widget _build(BuildContext context, int index) {
     final item = items.ensureItemAt(index: index);
+    // An item that keeps its index can gain or lose moves, as the last one
+    // does when an item goes in after it.
+    final semanticMoves = host.semanticMovesAt(index);
     final built = _built[item.key];
     if (built != null &&
         built.index == index &&
         built.childKey == item.childKey &&
         built.builder == item.builder.build &&
         built.placeholderSize == item.placeholderSize &&
-        built.entrance == item.entrance) {
+        built.entrance == item.entrance &&
+        built.semanticMoves == semanticMoves) {
       // It doesn't build again, but the host reconciles it all the same.
       if (items.renderedItemBy(key: item.key) case final renderedItem?) {
         host.didBuildItem(renderedItem);
@@ -81,6 +85,7 @@ class ItemWidgetFactory {
       builder: item.builder.build,
       placeholderSize: item.placeholderSize,
       entrance: item.entrance,
+      semanticMoves: semanticMoves,
       host: host,
     );
   }

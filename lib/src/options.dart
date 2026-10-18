@@ -74,6 +74,11 @@ class ReorderOptions {
 
   /// Called when items are reordered. Without it, items can still be
   /// dragged, but do not take each other's places.
+  ///
+  /// With it, screen readers can also move each item that can be dragged
+  /// and reordered, as [ReorderableList] lets them: to the start, one place
+  /// back or forward, or to the end. A move goes as
+  /// [AnimatedReorderableState.reorderItem] does, and calls this.
   final PermutationsCallback? onReorder;
 
   /// Whether the item at an index can be dragged. All can by default.
