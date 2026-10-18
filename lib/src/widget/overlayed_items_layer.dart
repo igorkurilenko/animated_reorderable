@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
 import '../controller/overlay_coordinator.dart';
-import '../model/coordinates.dart';
+import '../model/model.dart';
 import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';
 
@@ -24,11 +24,23 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
     implements OverlaySpace {
   AnimatedReorderableController get controller => widget.controller;
 
+  /// The widget of each item and the builder it builds with. The layer
+  /// keeps it while it builds again for other items, so an item builds
+  /// only when it changes itself.
+  final _itemWidgets = <OverlayedItem, (ItemBuilder, Widget)>{};
+
   @override
   void initState() {
     super.initState();
     controller.attachOverlayedItemsLayer(this);
     controller.overlayChanges.addListener(_rebuild);
+  }
+
+  @override
+  void didUpdateWidget(covariant OverlayedItemsLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The latest configuration builds every item again.
+    _itemWidgets.clear();
   }
 
   @override
@@ -56,17 +68,37 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
   void _rebuild() => setState(() {});
 
   @override
-  Widget build(BuildContext context) => Stack(
-    clipBehavior: widget.clipBehavior,
-    children: [
-      for (var item in controller.overlayedItemsOrderedByZIndex)
-        OverlayedItemWidget(
-          key: ObjectKey(item),
-          item: item,
-          onPointerDown: controller.recognizeOverlayedItem,
-          onSizeChange: controller.handleOverlayedItemSizeChange,
-          entranceBuilder: controller.buildEntrance,
-        ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final items = controller.overlayedItemsOrderedByZIndex.toList();
+    final shown = items.toSet();
+    _itemWidgets.removeWhere((item, _) => !shown.contains(item));
+    // The items place themselves, so the stack can't tell when they leave
+    // it: the layer clips them as the view clips its own items.
+    return ClipRect(
+      clipBehavior: widget.clipBehavior,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [for (var item in items) _itemWidget(item)],
+      ),
+    );
+  }
+
+  /// The widget of [item]: the one the layer has, unless the item builds
+  /// with another builder now, as a removed item does.
+  Widget _itemWidget(OverlayedItem item) {
+    final builder = item.item.builder;
+    if (_itemWidgets[item] case (final kept, final widget)
+        when identical(kept, builder)) {
+      return widget;
+    }
+    final widget = OverlayedItemWidget(
+      key: ObjectKey(item),
+      item: item,
+      onPointerDown: controller.recognizeOverlayedItem,
+      onSizeChange: controller.handleOverlayedItemSizeChange,
+      entranceBuilder: controller.buildEntrance,
+    );
+    _itemWidgets[item] = (builder, widget);
+    return widget;
+  }
 }

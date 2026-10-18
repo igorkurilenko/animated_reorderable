@@ -267,7 +267,10 @@ class OverlayCoordinator {
       return;
     }
 
-    if (overlayedItem.anchorPosition != anchorPosition) {
+    // Rounding leaves an item a hair off its slot after a scroll by a
+    // fraction of a pixel, which is no reason to head for it anew.
+    final offCourse = overlayedItem.anchorPosition - anchorPosition;
+    if (offCourse.distance >= retargetTolerance) {
       overlayedItem
           .animateTo(
             anchorPosition,

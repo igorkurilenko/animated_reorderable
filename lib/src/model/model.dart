@@ -1,8 +1,11 @@
 library;
 
 import 'dart:collection';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/physics.dart';
+import 'package:flutter/semantics.dart' show SemanticsBinding;
 import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter/gestures.dart' as gestures;
 import 'package:flutter/widgets.dart';

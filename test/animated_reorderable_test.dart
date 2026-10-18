@@ -1,10 +1,14 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
+import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
+
+/// The package's default motion duration.
+const _motionDuration = Duration(milliseconds: 500);
 
 /// The package's default fling spring.
 const _defaultSpring = SpringDescription(mass: 1, stiffness: 500, damping: 75);
@@ -157,10 +161,7 @@ void main() {
       const labels = ['a', 'b', 'c'];
       await tester.pumpWidget(_labels(labels, key: key));
 
-      key.currentState!.insertItem(
-        0,
-        (context, index, animation) => Text(labels[index]),
-      );
+      key.currentState!.insertItem(0);
       await tester.pumpAndSettle();
 
       for (final label in labels) {
@@ -364,6 +365,29 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('lifts an item held again above the items flying back', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      // Item 0 and then item 2 are let go, and fly back to their slots.
+      for (final id in [0, 2]) {
+        final drag = await _holdAndDrag(tester, find.text('$id'), 1);
+        await drag.up();
+        await tester.pump();
+      }
+
+      final drag = await tester.startGesture(tester.getCenter(find.text('0')));
+      await drag.moveBy(const Offset(0, 40));
+      await tester.pump();
+
+      // It follows the pointer, so it was held again on its way back.
+      expect(tester.getTopLeft(find.text('0')).dy, greaterThan(20));
+      expect(_paintOrder(tester).last, 0);
+      await drag.up();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('shows a removed item under the moving items', (tester) async {
       final list = _TestList(5);
       await tester.pumpWidget(list.build());
@@ -432,358 +456,151 @@ void main() {
         frames++;
       }
 
-      expect(builds, lessThanOrEqualTo(138));
+      expect(builds, lessThanOrEqualTo(10));
       expect(frames, 33);
     });
-  });
 
-  group('deprecated parameters', () {
-    Widget list({
-      void Function(Permutations permutations)? onReorder,
-      ReorderOptions? reorder,
-      SwipeToRemoveCallback? onSwipeToRemove,
-      AxisDirectionGetter? swipeToRemoveDirectionGetter,
-      AnimatedItemDecorator? draggedItemDecorator = _keepDecorator,
-      AnimatedItemDecorator? swipedItemDecorator = _keepDecorator,
-      List<String>? calls,
-      Key? key,
-    }) => MaterialApp(
-      home: Scaffold(
-        body: AnimatedReorderable.list(
-          key: key,
-          keyGetter: (index) => ValueKey(index),
-          onReorder: onReorder,
-          reorder: reorder,
-          onSwipeToRemove: onSwipeToRemove,
-          swipeToRemoveDirectionGetter: swipeToRemoveDirectionGetter,
-          // The default, as when it is left out.
-          draggedItemDecorator: draggedItemDecorator == _keepDecorator
-              ? const ItemDecoration().decorator
-              : draggedItemDecorator,
-          swipedItemDecorator: swipedItemDecorator == _keepDecorator
-              ? const ItemDecoration().decorator
-              : swipedItemDecorator,
-          onItemDragStart: (_, index) => calls?.add('drag start $index'),
-          onItemDragEnd: (_, index) => calls?.add('drag end $index'),
-          onItemSwipeStart: (_, index) => calls?.add('swipe start $index'),
-          onItemSwipeEnd: (_, index) => calls?.add('swipe end $index'),
-          listView: _fiveLabels(),
-        ),
-      ),
-    );
-
-    testWidgets('reorder with onReorder', (tester) async {
+    testWidgets('builds no item while items move', (tester) async {
+      var builds = 0;
+      final items = [0, 1, 2, 3, 4];
       final key = GlobalKey<AnimatedReorderableState>();
-      final reorders = <Permutations>[];
-      await tester.pumpWidget(list(key: key, onReorder: reorders.add));
-
-      key.currentState!.reorderItem(0, destIndex: 2);
-      await tester.pumpAndSettle();
-
-      expect(reorders, hasLength(1));
-    });
-
-    testWidgets('ignore the parameters of given options', (tester) async {
-      final key = GlobalKey<AnimatedReorderableState>();
-      final calls = <String>[];
       await tester.pumpWidget(
-        list(
-          key: key,
-          onReorder: (_) => calls.add('deprecated'),
-          reorder: ReorderOptions(onReorder: (_) => calls.add('options')),
-        ),
-      );
-
-      key.currentState!.reorderItem(0, destIndex: 2);
-      await tester.pumpAndSettle();
-
-      expect(calls, ['options']);
-    });
-
-    testWidgets('swipe items away in their direction', (tester) async {
-      final removed = <int>[];
-      await tester.pumpWidget(
-        list(
-          onSwipeToRemove: removed.add,
-          swipeToRemoveDirectionGetter: (_) => AxisDirection.right,
-        ),
-      );
-
-      await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
-      await tester.pumpAndSettle();
-      expect(removed, isEmpty);
-
-      await tester.fling(find.text('1'), const Offset(400, 0), 2000);
-      await tester.pumpAndSettle();
-      expect(removed, [1]);
-    });
-
-    testWidgets('report drags and swipes', (tester) async {
-      final calls = <String>[];
-      await tester.pumpWidget(
-        list(onReorder: (_) {}, onSwipeToRemove: (_) {}, calls: calls),
-      );
-
-      final drag = await _holdAndDrag(tester, find.text('0'), 2);
-      await drag.up();
-      await tester.pumpAndSettle();
-      await tester.fling(find.text('3'), const Offset(-400, 0), 2000);
-      await tester.pumpAndSettle();
-
-      expect(calls, [
-        'drag start 0',
-        'drag end 0',
-        'swipe start 3',
-        'swipe end 3',
-      ]);
-    });
-
-    for (final (name, decorator, added) in [
-      ('the default decorator', _keepDecorator, 2),
-      ('no decorator', null, 0),
-    ]) {
-      testWidgets('decorate dragged and swiped items with $name', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          list(
-            onReorder: (_) {},
-            onSwipeToRemove: (_) {},
-            draggedItemDecorator: decorator,
-            swipedItemDecorator: decorator,
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  builds++;
+                  return SizedBox(
+                    height: _extent,
+                    child: Text('${items[index]}'),
+                  );
+                },
+              ),
+            ),
           ),
-        );
-        final transitions = _transitionsAround(tester, find.text('0'));
+        ),
+      );
 
-        final drag = await _holdAndDrag(tester, find.text('0'), 2);
-        expect(_transitionsAround(tester, find.text('0')), transitions + added);
-        await drag.up();
-        await tester.pumpAndSettle();
-
-        final swipe = await tester.startGesture(
-          tester.getCenter(find.text('1')),
-        );
-        await swipe.moveBy(const Offset(-30, 0));
-        await tester.pump();
-        await swipe.moveBy(const Offset(-30, 0));
-        await tester.pump();
-        expect(_transitionsAround(tester, find.text('1')), transitions + added);
-        await swipe.up();
-        await tester.pumpAndSettle();
-      });
-    }
-
-    group('map to options', () {
-      bool draggable(int _) => true;
-      bool reorderable(int _) => false;
-      void onReorder(Permutations _) {}
-      AxisDirection? direction(int _) => AxisDirection.up;
-      void onSwipeToRemove(int _) {}
-      Widget dragged(Widget child, int _, Animation<double> _) => child;
-      Widget swiped(Widget child, int _, Animation<double> _) => child;
-      void dragStart(DragStartDetails _, int _) {}
-      void dragUpdate(DragUpdateDetails _, int _) {}
-      void dragEnd(DragEndDetails _, int _) {}
-      void swipeStart(DragStartDetails _, int _) {}
-      void swipeUpdate(DragUpdateDetails _, int _) {}
-      void swipeEnd(DragEndDetails _, int _) {}
-      MultiDragGestureRecognizer recognizer(BuildContext _) =>
-          ImmediateMultiDragGestureRecognizer();
-      const spring = SpringDescription(mass: 2, stiffness: 3, damping: 4);
-
-      void expectOptions(AnimatedReorderable widget) {
-        expect(widget.motion.duration, const Duration(milliseconds: 1));
-        expect(widget.motion.curve, Curves.bounceIn);
-        expect(widget.reorder.autoScrollerVelocityScalar, 0.1);
-        expect(widget.reorder.draggableGetter, same(draggable));
-        expect(widget.reorder.reorderableGetter, same(reorderable));
-        expect(widget.reorder.onReorder, same(onReorder));
-        expect(widget.reorder.gestureRecognizerFactory, same(recognizer));
-        expect(widget.reorder.decoration.decorator, same(dragged));
-        expect(
-          widget.reorder.decoration.duration,
-          const Duration(milliseconds: 2),
-        );
-        expect(widget.reorder.callbacks.onStart, same(dragStart));
-        expect(widget.reorder.callbacks.onUpdate, same(dragUpdate));
-        expect(widget.reorder.callbacks.onEnd, same(dragEnd));
-        expect(widget.swipeToRemove.directionGetter, same(direction));
-        expect(widget.swipeToRemove.extent, 0.2);
-        expect(widget.swipeToRemove.velocity, 0.3);
-        expect(widget.swipeToRemove.springDescription, spring);
-        expect(widget.swipeToRemove.onSwipeToRemove, same(onSwipeToRemove));
-        expect(widget.swipeToRemove.decoration.decorator, same(swiped));
-        expect(
-          widget.swipeToRemove.decoration.duration,
-          const Duration(milliseconds: 3),
-        );
-        expect(widget.swipeToRemove.callbacks.onStart, same(swipeStart));
-        expect(widget.swipeToRemove.callbacks.onUpdate, same(swipeUpdate));
-        expect(widget.swipeToRemove.callbacks.onEnd, same(swipeEnd));
+      key.currentState!.reorderItem(0, destIndex: 3);
+      // The overlay builds the moving items as they enter it, and the list
+      // builds the item that stays once it leaves the overlay.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      builds = 0;
+      for (var i = 0; i < 25; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
       }
 
-      void expectDeprecatedGetters(AnimatedReorderable widget) {
-        expect(widget.motionAnimationDuration, const Duration(milliseconds: 1));
-        expect(widget.motionAnimationCurve, Curves.bounceIn);
-        expect(widget.autoScrollerVelocityScalar, 0.1);
-        expect(widget.draggableGetter, same(draggable));
-        expect(widget.reorderableGetter, same(reorderable));
-        expect(widget.onReorder, same(onReorder));
-        expect(widget.reorderGestureRecognizerFactory, same(recognizer));
-        expect(widget.draggedItemDecorator, same(dragged));
-        expect(
-          widget.draggedItemDecorationAnimationDuration,
-          const Duration(milliseconds: 2),
-        );
-        expect(widget.onItemDragStart, same(dragStart));
-        expect(widget.onItemDragUpdate, same(dragUpdate));
-        expect(widget.onItemDragEnd, same(dragEnd));
-        expect(widget.swipeToRemoveDirectionGetter, same(direction));
-        expect(widget.swipeToRemoveExtent, 0.2);
-        expect(widget.swipeToRemoveVelocity, 0.3);
-        expect(widget.swipeToRemoveSpringDescription, spring);
-        expect(widget.onSwipeToRemove, same(onSwipeToRemove));
-        expect(widget.swipedItemDecorator, same(swiped));
-        expect(
-          widget.swipedItemDecorationAnimationDuration,
-          const Duration(milliseconds: 3),
-        );
-        expect(widget.onItemSwipeStart, same(swipeStart));
-        expect(widget.onItemSwipeUpdate, same(swipeUpdate));
-        expect(widget.onItemSwipeEnd, same(swipeEnd));
-      }
-
-      test('each parameter of a list', () {
-        final widget = AnimatedReorderable.list(
-          keyGetter: (index) => ValueKey(index),
-          motionAnimationDuration: const Duration(milliseconds: 1),
-          motionAnimationCurve: Curves.bounceIn,
-          autoScrollerVelocityScalar: 0.1,
-          draggableGetter: draggable,
-          reorderableGetter: reorderable,
-          onReorder: onReorder,
-          swipeToRemoveDirectionGetter: direction,
-          swipeToRemoveExtent: 0.2,
-          swipeToRemoveVelocity: 0.3,
-          swipeToRemoveSpringDescription: spring,
-          onSwipeToRemove: onSwipeToRemove,
-          draggedItemDecorator: dragged,
-          draggedItemDecorationAnimationDuration: const Duration(
-            milliseconds: 2,
-          ),
-          swipedItemDecorator: swiped,
-          swipedItemDecorationAnimationDuration: const Duration(
-            milliseconds: 3,
-          ),
-          onItemDragStart: dragStart,
-          onItemDragUpdate: dragUpdate,
-          onItemDragEnd: dragEnd,
-          onItemSwipeStart: swipeStart,
-          onItemSwipeUpdate: swipeUpdate,
-          onItemSwipeEnd: swipeEnd,
-          reorderGestureRecognizerFactory: recognizer,
-          listView: _fiveLabels(),
-        );
-
-        expectOptions(widget);
-        expectDeprecatedGetters(widget);
-      });
-
-      test('each parameter of a grid', () {
-        final widget = AnimatedReorderable.grid(
-          keyGetter: (index) => ValueKey(index),
-          motionAnimationDuration: const Duration(milliseconds: 1),
-          motionAnimationCurve: Curves.bounceIn,
-          autoScrollerVelocityScalar: 0.1,
-          draggableGetter: draggable,
-          reorderableGetter: reorderable,
-          onReorder: onReorder,
-          swipeToRemoveDirectionGetter: direction,
-          swipeToRemoveExtent: 0.2,
-          swipeToRemoveVelocity: 0.3,
-          swipeToRemoveSpringDescription: spring,
-          onSwipeToRemove: onSwipeToRemove,
-          draggedItemDecorator: dragged,
-          draggedItemDecorationAnimationDuration: const Duration(
-            milliseconds: 2,
-          ),
-          swipedItemDecorator: swiped,
-          swipedItemDecorationAnimationDuration: const Duration(
-            milliseconds: 3,
-          ),
-          onItemDragStart: dragStart,
-          onItemDragUpdate: dragUpdate,
-          onItemDragEnd: dragEnd,
-          onItemSwipeStart: swipeStart,
-          onItemSwipeUpdate: swipeUpdate,
-          onItemSwipeEnd: swipeEnd,
-          reorderGestureRecognizerFactory: recognizer,
-          gridView: GridView.count(crossAxisCount: 2),
-        );
-
-        expectOptions(widget);
-        expectDeprecatedGetters(widget);
-      });
-
-      test('and back from the options', () {
-        final widget = AnimatedReorderable.list(
-          keyGetter: (index) => ValueKey(index),
-          motion: const MotionOptions(
-            duration: Duration(milliseconds: 1),
-            curve: Curves.bounceIn,
-          ),
-          reorder: ReorderOptions(
-            onReorder: onReorder,
-            draggableGetter: draggable,
-            reorderableGetter: reorderable,
-            gestureRecognizerFactory: recognizer,
-            autoScrollerVelocityScalar: 0.1,
-            decoration: ItemDecoration(
-              decorator: dragged,
-              duration: const Duration(milliseconds: 2),
-            ),
-            callbacks: ItemDragCallbacks(
-              onStart: dragStart,
-              onUpdate: dragUpdate,
-              onEnd: dragEnd,
-            ),
-          ),
-          swipeToRemove: SwipeToRemoveOptions(
-            onSwipeToRemove: onSwipeToRemove,
-            directionGetter: direction,
-            extent: 0.2,
-            velocity: 0.3,
-            springDescription: spring,
-            decoration: ItemDecoration(
-              decorator: swiped,
-              duration: const Duration(milliseconds: 3),
-            ),
-            callbacks: ItemDragCallbacks(
-              onStart: swipeStart,
-              onUpdate: swipeUpdate,
-              onEnd: swipeEnd,
-            ),
-          ),
-          listView: _fiveLabels(),
-        );
-
-        expectDeprecatedGetters(widget);
-      });
+      expect(tester.hasRunningAnimations, isTrue);
+      expect(builds, 0);
+      await tester.pumpAndSettle();
     });
 
-    testWidgets('read the options they set', (tester) async {
-      void onReorder(Permutations _) {}
-      final widget = AnimatedReorderable.list(
-        keyGetter: (index) => ValueKey(index),
-        onReorder: onReorder,
-        swipeToRemoveExtent: 0.3,
-        listView: _fiveLabels(),
+    testWidgets('builds moving items with the latest item builder', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build(String label) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) => SizedBox(
+                height: _extent,
+                child: Text('$label ${items[index]}'),
+              ),
+            ),
+          ),
+        ),
       );
+      await tester.pumpWidget(build('old'));
+      key.currentState!.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      expect(widget.onReorder, onReorder);
-      expect(widget.reorder.onReorder, onReorder);
-      expect(widget.swipeToRemoveExtent, 0.3);
-      expect(widget.swipeToRemove.extent, 0.3);
+      await tester.pumpWidget(build('new'));
+
+      expect(tester.hasRunningAnimations, isTrue);
+      for (final id in [0, 1, 2, 3]) {
+        expect(find.text('new $id'), findsOneWidget, reason: 'item $id');
+      }
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('builds a moving item that is removed with its removed item '
+        'builder', (tester) async {
+      final grid = _TestList(9, grid: true);
+      await tester.pumpWidget(grid.build());
+      grid.state.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Item 2 moves, as a grid item with the constraints it fades out with.
+      final index = grid.items.indexOf(2);
+      grid.items.removeAt(index);
+      grid.state.removeItem(
+        index,
+        (context, animation) => const Text('removed'),
+      );
+      await tester.pump();
+
+      expect(find.text('removed'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('builds moving items again when their indexes change', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4, 5];
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => SizedBox(
+                  height: _extent,
+                  child: Text('${items[index]} at $index'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Every item the list shows moves.
+      key.currentState!.reorderItem(0, destIndex: 5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Each moves on by a slot, and builds at its new index.
+      items.insert(0, 100);
+      key.currentState!.insertItem(0);
+      await tester.pump();
+
+      expect(tester.hasRunningAnimations, isTrue);
+      for (final id in [1, 2, 3, 4, 5]) {
+        expect(find.text('$id at $id'), findsOneWidget, reason: 'item $id');
+      }
+      await tester.pumpAndSettle();
     });
   });
 
@@ -897,6 +714,59 @@ void main() {
 
     expect(tester.getTopLeft(find.text('9')).dy - top, moreOrLessEquals(50));
   });
+
+  for (final clipBehavior in [Clip.hardEdge, Clip.none]) {
+    testWidgets('clips moving items as the list does, with '
+        '${clipBehavior.name}', (tester) async {
+      final items = List.generate(50, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                height: 300,
+                child: AnimatedReorderable.list(
+                  key: key,
+                  keyGetter: (index) => ValueKey(items[index]),
+                  reorder: ReorderOptions(
+                    onReorder: (permutations) => permutations.apply(items),
+                  ),
+                  listView: ListView.builder(
+                    clipBehavior: clipBehavior,
+                    itemCount: items.length,
+                    itemBuilder: (context, index) => SizedBox(
+                      height: _extent,
+                      child: Text('${items[index]}'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 40);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 350));
+
+      // On its way out through the bottom edge.
+      final overlay = find.byType(OverlayedItemsLayer);
+      final item = tester.getRect(find.text('0'));
+      expect(item.top, lessThan(300));
+      expect(item.bottom, greaterThan(300));
+      final clip = paints
+        ..clipRect(rect: Offset.zero & tester.getSize(overlay));
+      expect(
+        tester.renderObject(overlay),
+        clipBehavior == Clip.none ? isNot(clip) : clip,
+      );
+      await tester.pumpAndSettle();
+    });
+  }
 
   testWidgets('keeps a fling going when the list rebuilds', (tester) async {
     final list = _TestList(60);
@@ -1121,6 +991,50 @@ void main() {
       expect(center.dy, moreOrLessEquals(2.5 * _extent));
       await swipe.up();
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item to its slot when an item above it grows by a '
+        'pixel', (tester) async {
+      final items = [0, 1, 2, 3, 4];
+      final heights = {0: _extent};
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build() => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) => SizedBox(
+                height: heights[items[index]] ?? _extent,
+                child: Text('${items[index]}'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build());
+      key.currentState!.reorderItem(1, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      heights[0] = _extent + 1;
+      await tester.pumpWidget(build());
+      final tops = <double>[];
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('1')).dy);
+      }
+
+      expect(tops.last, 3 * _extent + 1);
+      // It eases into the slot rather than jumps there as it lands.
+      final steps = [
+        for (var i = 1; i < tops.length; i++) (tops[i] - tops[i - 1]).abs(),
+      ].where((step) => step > 0);
+      expect(steps.last, lessThan(0.5));
     });
   });
 
@@ -1382,37 +1296,6 @@ void main() {
       expect(find.byType(_Entrance), findsNothing);
       await tester.pumpAndSettle();
       expect(_tops(tester, list.items), [0, 100, 200, 300]);
-    });
-
-    testWidgets('builds an item inserted with a builder with it', (
-      tester,
-    ) async {
-      final list = _TestList(3, insertTransition: enter);
-      await tester.pumpWidget(list.build());
-
-      list.items.insert(0, 3);
-      list.state.insertItem(
-        0,
-        (context, index, animation) => _Entrance(
-          animation: animation,
-          label: 'builder',
-          child: list.buildItem(3),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
-
-      final entrances = tester.widgetList<_Entrance>(_entranceFinder(3));
-      expect(entrances.map((x) => x.label), ['builder', null]);
-      expect(entrances.first.animation.value, closeTo(0.5, 0.01));
-      expect(entrances.last.animation.value, 1);
-      // The view's builder builds it once the list builds again.
-      await tester.pumpAndSettle();
-      await tester.pumpWidget(list.build());
-      expect(
-        tester.widgetList<_Entrance>(_entranceFinder(3)).map((x) => x.label),
-        [null],
-      );
     });
   });
 
@@ -2203,6 +2086,165 @@ void main() {
         expect(list.items.indexOf(0), 3);
       });
     }
+
+    for (final step in [0.1, 1 / 3]) {
+      testWidgets('keeps moving items on course while the list scrolls by '
+          '${step.toStringAsFixed(2)} px a frame and rebuilds', (tester) async {
+        final list = _TestList(30);
+        await tester.pumpWidget(list.build());
+        final position = _scrollPosition(tester);
+        list.state.reorderItem(2, destIndex: 5);
+
+        // Rounding leaves the moving items a hair off their slots.
+        final frames = _motionDuration.inMilliseconds ~/ 16 + 3;
+        for (var i = 0; i < frames; i++) {
+          position.jumpTo(position.pixels + step);
+          await tester.pump(const Duration(milliseconds: 16));
+          if (i.isOdd) await tester.pumpWidget(list.build());
+        }
+
+        expect(tester.hasRunningAnimations, isFalse);
+      });
+    }
+  });
+
+  group('moving again', () {
+    /// The tops of the item [finder] finds over [frames] frames.
+    Future<List<double>> track(
+      WidgetTester tester,
+      Finder finder,
+      int frames,
+    ) async {
+      final tops = <double>[];
+      for (var i = 0; i < frames; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(finder).dy);
+      }
+      return tops;
+    }
+
+    testWidgets('moves items at once when animations are off', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      list.state.reorderItem(3, destIndex: 2);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(tester.hasRunningAnimations, isFalse);
+      expect(tester.getTopLeft(_itemWithId(0)).dy, 2 * _extent);
+    });
+
+    testWidgets('keeps an item going as items above it go one by one', (
+      tester,
+    ) async {
+      final list = _TestList(16);
+      await tester.pumpWidget(list.build());
+
+      final tops = <double>[];
+      for (var i = 0; i < 4; i++) {
+        list.removeAt(0);
+        tops.addAll(await track(tester, _itemWithId(4), 12));
+      }
+      tops.addAll(await track(tester, _itemWithId(4), 40));
+
+      expect(tops.last, 0);
+      expect(_steps(tops), everyElement(lessThanOrEqualTo(0)));
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('keeps an item going as items come in above it one by one', (
+      tester,
+    ) async {
+      final list = _TestList(8);
+      await tester.pumpWidget(list.build());
+
+      final tops = <double>[];
+      for (var i = 0; i < 4; i++) {
+        list.insert(0, 100 + i);
+        tops.addAll(await track(tester, _itemWithId(0), 12));
+      }
+      tops.addAll(await track(tester, _itemWithId(0), 40));
+
+      expect(tops.last, 4 * _extent);
+      expect(_steps(tops), everyElement(greaterThanOrEqualTo(0)));
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('turns an item around without a dead stop', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 1);
+      final tops = await track(tester, _itemWithId(1), 10);
+      list.state.reorderItem(1, destIndex: 0);
+      tops.addAll(await track(tester, _itemWithId(1), 50));
+
+      expect(list.items, [0, 1, 2, 3, 4]);
+      expect(tops.last, _extent);
+      expect(_deadStops(tops), isEmpty);
+    });
+
+    testWidgets('keeps an item moving out of sight on time as the list '
+        'changes', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+
+      list.state.reorderItem(0, destIndex: 40);
+      await tester.pump();
+      // It moves from this frame on.
+      await tester.pump(const Duration(milliseconds: 200));
+      // The list lays out again, and the item heads for the same place.
+      list.removeAt(45);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(_motionDuration - const Duration(milliseconds: 8));
+
+      expect(_itemWithId(0), findsNothing);
+    });
+
+    testWidgets('finishes each move when the motion gets shorter', (
+      tester,
+    ) async {
+      final items = [0, 1, 2, 3, 4];
+      final key = GlobalKey<AnimatedReorderableState>();
+      Widget build(Duration duration) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            motion: MotionOptions(duration: duration),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) =>
+                  SizedBox(height: _extent, child: Text('${items[index]}')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(build(const Duration(seconds: 1)));
+      key.currentState!.reorderItem(0, destIndex: 2);
+      final tops = await track(tester, find.text('0'), 10);
+
+      await tester.pumpWidget(build(const Duration(milliseconds: 100)));
+      key.currentState!.reorderItem(2, destIndex: 3);
+      tops.addAll(await track(tester, find.text('0'), 80));
+
+      expect(tops.last, 3 * _extent);
+      // It gets there on its way rather than jumps there at the end.
+      expect(_steps(tops), everyElement(inInclusiveRange(0, 40)));
+    });
   });
 
   group('children delegate', () {
@@ -2224,7 +2266,7 @@ void main() {
       await tester.pumpWidget(list.build());
 
       list.items.insert(0, 5);
-      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      list.state.insertItem(0);
       await tester.pumpWidget(list.build());
       await tester.pumpAndSettle();
 
@@ -2239,7 +2281,7 @@ void main() {
       await tester.pumpWidget(list.build());
 
       list.items.insert(0, 5);
-      list.state.insertItem(0, (context, index, animation) => list.item(5));
+      list.state.insertItem(0);
       await tester.pumpAndSettle();
 
       expect(list.foundKeys, isNotEmpty);
@@ -2249,8 +2291,6 @@ void main() {
   });
 
   group('errors', () {
-    Widget noItem(BuildContext context, int index, Animation<double> _) =>
-        const SizedBox();
     Widget noRemovedItem(BuildContext context, Animation<double> _) =>
         const SizedBox();
 
@@ -2258,8 +2298,8 @@ void main() {
       final list = _TestList(3);
       await tester.pumpWidget(list.build());
 
-      expect(() => list.state.insertItem(-1, noItem), throwsRangeError);
-      expect(() => list.state.insertItem(4, noItem), throwsRangeError);
+      expect(() => list.state.insertItem(-1), throwsRangeError);
+      expect(() => list.state.insertItem(4), throwsRangeError);
       list.insert(3, 3);
       await tester.pumpAndSettle();
       expect(_itemWithId(3), findsOneWidget);
@@ -2371,7 +2411,7 @@ void main() {
         ),
       );
 
-      expect(() => key.currentState!.insertItem(0, noItem), throwsStateError);
+      expect(() => key.currentState!.insertItem(0), throwsStateError);
       expect(
         () => key.currentState!.removeItem(0, noRemovedItem),
         throwsStateError,
@@ -2468,7 +2508,7 @@ void main() {
 Widget _labels(
   List<String> labels, {
   Key? key,
-  void Function(Permutations permutations)? onReorder,
+  PermutationsCallback? onReorder,
 }) => MaterialApp(
   home: Scaffold(
     body: AnimatedReorderable.list(
@@ -2541,6 +2581,20 @@ Future<TestGesture> _holdAndDrag(
   }
   return drag;
 }
+
+/// How far an item at [positions], one a frame, moves each frame.
+List<double> _steps(List<double> positions) => [
+  for (var i = 1; i < positions.length; i++) positions[i] - positions[i - 1],
+];
+
+/// The frames at which an item at [positions], one a frame, stops dead: it
+/// moves over 2 px the frame before and under 0.25 px the frame after.
+List<int> _deadStops(List<double> positions) => [
+  for (var i = 1; i < positions.length - 1; i++)
+    if ((positions[i] - positions[i - 1]).abs() > 2 &&
+        (positions[i + 1] - positions[i]).abs() < 0.25)
+      i,
+];
 
 /// The ids of the items from the bottom one up.
 List<int> _paintOrder(WidgetTester tester) => [
@@ -2809,7 +2863,7 @@ class _TestList {
 
   void insert(int index, int id) {
     items.insert(index, id);
-    state.insertItem(index, null);
+    state.insertItem(index);
   }
 
   void removeAt(int index) {

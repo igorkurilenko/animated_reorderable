@@ -13,14 +13,16 @@ typedef OverlayedItemDragEndCallback = void Function(
   OverlayedItem item,
 );
 
-/// An item while the overlay shows it, above the list.
+/// An item while the overlay shows it, above the list. It notifies when
+/// the overlay has to build it again, and [positionChanges] notifies when
+/// it moves.
 class OverlayedItem extends widgets.ChangeNotifier {
   OverlayedItem({
     required this.item,
     required this._position,
     required this._constraints,
     required this._size,
-    required this.index,
+    required this._index,
     this._interactive = true,
     this.zIndex = defaultZIndex,
     this.recognizerFactory,
@@ -29,14 +31,20 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// The item the overlay shows. It builds the item's subtree, which keeps
   /// its state as it moves between the list and the overlay.
   final Item item;
-  int index;
+  int _index;
   OverlayOffset _position;
+  final _positionChanges = ChangeSignal();
   widgets.BoxConstraints _constraints;
 
   widgets.Size _size;
   bool _interactive;
 
   int zIndex;
+
+  /// When the item came into the overlay or was raised last, which puts it
+  /// above the items with the same [zIndex] that came or were raised
+  /// before it.
+  int _raisedAt = 0;
   MultiDragGestureRecognizerFactory? recognizerFactory;
   gestures.MultiDragGestureRecognizer? _recognizer;
   _OverlayedItemSwipe? _swipe;
@@ -46,11 +54,25 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
   Key get key => item.key;
 
+  /// The item's index, which the overlay builds it at.
+  int get index => _index;
+
+  set index(int value) {
+    if (_index == value) return;
+    _index = value;
+    notifyListeners();
+  }
+
   /// The size of the item itself, without its decoration, as the overlay
   /// lays it out. The list's placeholder takes this size.
   widgets.Size get size => _size;
 
   OverlayOffset get position => _position;
+
+  /// Notifies when the item moves. The overlay lays the item out again
+  /// rather than building it, so a moving item builds only when it changes
+  /// otherwise.
+  widgets.Listenable get positionChanges => _positionChanges;
 
   /// Where the item moves to, or where it is if it does not move.
   OverlayOffset get anchorPosition => _motion?.target ?? position;
@@ -59,7 +81,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
   void setPosition(OverlayOffset value) {
     if (_position == value) return;
     _position = value;
-    notifyListeners();
+    _positionChanges.notify();
   }
 
   widgets.BoxConstraints get constraints => _constraints;
@@ -251,6 +273,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     _motion = null;
     _decorator?.dispose();
     _decorator = null;
+    _positionChanges.dispose();
     super.dispose();
   }
 

@@ -69,24 +69,11 @@ class AnimatedReorderableController implements ItemHost {
   final _builtItems = <model.RenderedItem>{};
   bool _reconcileScheduled = false;
 
-  void insertItem(
-    int index,
-    widgets.AnimatedItemBuilder? builder,
-    Duration duration,
-  ) {
+  void insertItem(int index, Duration duration) {
     RangeError.checkValueInInterval(index, 0, checkedItemCount, 'index');
 
-    final insertedItem = _items.insertItem(index: index);
-
-    if (builder == null) {
-      insertedItem.enter(vsync: vsync, duration: duration);
-    } else {
-      insertedItem.animateItemBuilder(
-        builder: builder,
-        duration: duration,
-        vsync: vsync,
-      );
-    }
+    final insertedItem = _items.insertItem(index: index)
+      ..enter(vsync: vsync, duration: duration);
 
     _overlay?.overlayRenderedItems(
       except: insertedItem.key,

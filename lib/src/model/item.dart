@@ -58,34 +58,13 @@ extension ItemAnimations on Item {
     return value;
   }
 
-  Future animateItemBuilder({
-    required widgets.AnimatedItemBuilder builder,
-    required TickerProvider vsync,
-    required Duration duration,
-    double? from = 0,
-  }) {
-    final originalBuilder = this.builder;
-    final controller = AnimationController(vsync: vsync, duration: duration);
-
-    this.builder = ItemBuilder.adaptAnimatedItemBuilder(
-      builder,
-      controller: controller,
-    );
-
-    return controller.forward(from: from).whenComplete(() {
-      this.builder = originalBuilder;
-      controller.dispose();
-    });
-  }
-
   Future animateRemovedItemBuilder({
     required widgets.AnimatedRemovedItemBuilder builder,
     required TickerProvider vsync,
     required Duration duration,
   }) {
     final replaced = this.builder;
-    final entered = stopEntrance();
-    final from = replaced.asAnimated?.stopAnimation() ?? entered;
+    final from = stopEntrance();
     final controller = AnimationController(vsync: vsync, duration: duration);
 
     this.builder = ItemBuilder.adaptAnimatedRemovedItemBuilder(

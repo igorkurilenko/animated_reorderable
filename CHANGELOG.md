@@ -1,3 +1,55 @@
+## 2.0.0
+
+2.0 removes what 1.6.0 deprecated. Upgrade to 1.6.0 first and fix its deprecation warnings. Three changes are left after that: drop the `null` from `insertItem(index, null)`, rename `ReorderCallback` to `PermutationsCallback`, and drop the type argument from `AnimatedReorderableState<…>`.
+
+### Breaking changes
+
+- `AnimatedReorderable.list` and `.grid` take only `keyGetter`, `motion`, `reorder`, `swipeToRemove`, `insertTransition` and the view. Each flat parameter moved to an option object:
+
+  | 1.x | 2.0 |
+  |---|---|
+  | `motionAnimationDuration`, `motionAnimationCurve` | `motion: MotionOptions(duration:, curve:)` |
+  | `onReorder`, `draggableGetter`, `reorderableGetter`, `autoScrollerVelocityScalar`, `reorderGestureRecognizerFactory` | `reorder: ReorderOptions(onReorder:, draggableGetter:, reorderableGetter:, autoScrollerVelocityScalar:, gestureRecognizerFactory:)` |
+  | `draggedItemDecorator`, `draggedItemDecorationAnimationDuration` | `reorder: ReorderOptions(decoration: ItemDecoration(decorator:, duration:))` |
+  | `onItemDragStart`, `onItemDragUpdate`, `onItemDragEnd` | `reorder: ReorderOptions(callbacks: ItemDragCallbacks(onStart:, onUpdate:, onEnd:))` |
+  | `onSwipeToRemove`, `swipeToRemoveDirectionGetter`, `swipeToRemoveExtent`, `swipeToRemoveVelocity`, `swipeToRemoveSpringDescription` | `swipeToRemove: SwipeToRemoveOptions(onSwipeToRemove:, directionGetter:, extent:, velocity:, springDescription:)` |
+  | `swipedItemDecorator`, `swipedItemDecorationAnimationDuration` | `swipeToRemove: SwipeToRemoveOptions(decoration: ItemDecoration(decorator:, duration:))` |
+  | `onItemSwipeStart`, `onItemSwipeUpdate`, `onItemSwipeEnd` | `swipeToRemove: SwipeToRemoveOptions(callbacks: ItemDragCallbacks(onStart:, onUpdate:, onEnd:))` |
+
+- The getters of the same names on `AnimatedReorderable` are gone. Read the options instead, such as `widget.reorder.onReorder`.
+- `insertItem(index, builder)` is `insertItem(index)`. Move the builder's transition to `insertTransition`, which gets the item as its `child`:
+
+  ```dart
+  // 1.x
+  state.insertItem(index, (context, index, animation) =>
+      FadeTransition(opacity: animation, child: buildItem(index)));
+
+  // 2.0
+  AnimatedReorderable.list(
+    insertTransition: (child, index, animation) =>
+        FadeTransition(opacity: animation, child: child),
+    // …
+  );
+  state.insertItem(index);
+  ```
+
+- The `AnimatedReorderable` constructor and `AnimatedReorderableState.buildCollectionView` are gone. Use `AnimatedReorderable.list` and `.grid`.
+- `AnimatedReorderable` and `AnimatedReorderableState` are `final` classes, and `AnimatedReorderableState<T>` is `AnimatedReorderableState`.
+- `ReorderCallback` is `PermutationsCallback`, so that it no longer clashes with Flutter's `ReorderCallback`.
+
+### Behavior changes
+
+- An item moving to its new place whose place moves again heads for the new place at the speed it has, instead of stopping and starting over from rest. Items no longer stutter when items are inserted or removed one after another, or when a drag turns back. Each move still takes `MotionOptions.duration` along `MotionOptions.curve`, so an item comes to rest one duration after its place last moved, as before. An item flung back to its place after a drag or a swipe still starts over when its place moves.
+
+### Performance
+
+- Build a moving item only when it changes, not on every frame of its move, nor when other items come and go. The item builder runs for a moving item when it enters the overlay, when its index or the list's configuration changes, and when it lands. One reorder in a list of five items ran the item builder 138 times, and now runs it 10 times; a drag across five items, 250 times and now 66.
+
+### Fixes
+
+- Lift an item that is held again while it flies back to its slot above the other items flying back. It could stay under an item let go after it.
+- Keep moving items on course while the list scrolls by fractions of a pixel. Rounding left them a hair off their slots, so they started their move over at every rebuild, from rest.
+
 ## 1.6.1
 
 ### Fixes

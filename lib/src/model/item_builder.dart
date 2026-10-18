@@ -5,11 +5,6 @@ abstract class ItemBuilder {
     widgets.NullableIndexedWidgetBuilder builder,
   ) => NullableIndexedWidgetBuilderAdapter(builder);
 
-  factory ItemBuilder.adaptAnimatedItemBuilder(
-    widgets.AnimatedItemBuilder builder, {
-    required widgets.AnimationController controller,
-  }) => AnimatedItemBuilderAdapter(builder, controller: controller);
-
   factory ItemBuilder.adaptAnimatedRemovedItemBuilder(
     widgets.AnimatedRemovedItemBuilder builder, {
     required widgets.AnimationController controller,
@@ -33,44 +28,16 @@ class NullableIndexedWidgetBuilderAdapter implements ItemBuilder {
   void dispose() {}
 }
 
-abstract class AnimatedItemBuilder implements ItemBuilder {
-  AnimatedItemBuilder({required this.controller});
-
-  final widgets.AnimationController controller;
-
-  double stopAnimation() {
-    final result = controller.value;
-    controller.stop();
-    return result;
-  }
-
-  @override
-  void dispose() => controller.dispose();
-}
-
-class AnimatedItemBuilderAdapter extends AnimatedItemBuilder {
-  AnimatedItemBuilderAdapter(this.builder, {required super.controller});
-
-  final widgets.AnimatedItemBuilder builder;
-
-  @override
-  widgets.Widget? build(widgets.BuildContext context, int index) =>
-      builder(context, index, controller.view);
-}
-
-class AnimatedRemovedItemBuilderAdapter extends AnimatedItemBuilder {
-  AnimatedRemovedItemBuilderAdapter(this.builder, {required super.controller});
+class AnimatedRemovedItemBuilderAdapter implements ItemBuilder {
+  AnimatedRemovedItemBuilderAdapter(this.builder, {required this.controller});
 
   final widgets.AnimatedRemovedItemBuilder builder;
+  final widgets.AnimationController controller;
 
   @override
   widgets.Widget? build(widgets.BuildContext context, int index) =>
       builder(context, controller.view);
-}
 
-extension ItemBuilderExt on ItemBuilder {
-  AnimatedItemBuilder? get asAnimated => switch (this) {
-    (AnimatedItemBuilder b) => b,
-    _ => null,
-  };
+  @override
+  void dispose() => controller.dispose();
 }

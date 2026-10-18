@@ -15,6 +15,10 @@ const outgoingItemZIndex = -1;
 
 const defaultAutoScrollVelocityScalar = 50.0;
 
+/// How far, in logical pixels, an item's slot has to move for a moving
+/// item to head for it anew.
+const retargetTolerance = 0.5;
+
 const duration500ms = Duration(milliseconds: 500);
 
 const defaultMotionAnimationCurve = Curves.easeInOut;

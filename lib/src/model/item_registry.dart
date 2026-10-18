@@ -29,6 +29,9 @@ class ItemRegistry {
   OverlayedItem? swipedItem;
   int? itemCount;
 
+  /// How many times an item came into the overlay or was raised.
+  var _raises = 0;
+
   Iterable<Item> get items => _itemByKey.values;
 
   Iterable<OverlayedItem> get overlayedItems => _overlayedItemByKey.values;
@@ -91,15 +94,11 @@ class ItemRegistry {
     final replaced = _overlayedItemByKey.remove(x.key);
     if (replaced != null && replaced != x) disposeOverlayedItem(replaced);
     _overlayedItemByKey[x.key] = x;
+    _raise(x);
     x.item.placeholderSize.value = x.size;
     overlayChanges.notify();
     return x;
   }
-
-  OverlayedItem putOverlayedItemIfAbsent({
-    required Key key,
-    required OverlayedItem Function() ifAbsent,
-  }) => putOverlayedItem(overlayedItemBy(key: key) ?? ifAbsent());
 
   OverlayedItem? removeOverlayedItem({required Key key}) {
     final removed = _overlayedItemByKey.remove(key);
@@ -115,10 +114,17 @@ class ItemRegistry {
     if (overlayedItemBy(key: item.key)?.item != item) item.dispose();
   }
 
-  /// The overlayed and outgoing items, from the bottom one up.
+  /// The overlayed and outgoing items, from the bottom one up. Of the
+  /// items with the same z-index, the one raised last is on top.
   Iterable<OverlayedItem> get overlayedItemsByZIndex =>
-      [...overlayedItems, ..._outgoingItems]
-        ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+      [...overlayedItems, ..._outgoingItems]..sort(
+        (a, b) => switch (a.zIndex.compareTo(b.zIndex)) {
+          0 => a._raisedAt.compareTo(b._raisedAt),
+          final byZIndex => byZIndex,
+        },
+      );
+
+  void _raise(OverlayedItem x) => x._raisedAt = ++_raises;
 
   /// Disposes [x], and its item if the list no longer has it: an item
   /// removed while it moved where the list did not build it.
@@ -141,6 +147,7 @@ class ItemRegistry {
   }) {
     final x = _overlayedItemByKey.remove(key) ?? ifAbsent();
     _outgoingItems.add(x);
+    _raise(x);
     overlayChanges.notify();
     return x;
   }
@@ -154,9 +161,10 @@ class ItemRegistry {
     x.item.dispose();
   }
 
+  /// Shows [item] at [zIndex], above the items already there.
   void setZIndex(OverlayedItem item, int zIndex) {
-    if (item.zIndex == zIndex) return;
     item.zIndex = zIndex;
+    _raise(item);
     overlayChanges.notify();
   }
 

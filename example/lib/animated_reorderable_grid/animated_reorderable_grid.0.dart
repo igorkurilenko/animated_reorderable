@@ -193,7 +193,7 @@ class ListModel<E> {
 
   void insert(int index, E item) {
     _items.insert(index, item);
-    _animatedReorderableGrid!.insertItem(index, null);
+    _animatedReorderableGrid!.insertItem(index);
   }
 
   E removeAt(int index) {

@@ -28,9 +28,9 @@ Utilize `AnimatedReorderable.list()` or `AnimatedReorderable.grid()` to wrap `Li
 - **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks.
 - **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback in which you remove the item.
 - **motion:** `MotionOptions` sets how items move to their new places.
-- **insertTransition:** The transition items enter with, like the animation `AnimatedList` passes to its item builder. Insert an item with `insertItem(index, null)`, and it enters through the transition. Every item is built through it, so an item keeps its state when it has entered.
+- **insertTransition:** The transition items enter with, like the animation `AnimatedList` passes to its item builder. Insert an item with `insertItem(index)`, and it enters through the transition. Every item is built through it, so an item keeps its state when it has entered.
 
-Before 1.6.0 these settings were parameters of their own, such as `onReorder` and `onSwipeToRemove`, and `insertItem` took a builder for the inserted item. They still work, but are deprecated and go in 2.0.
+In 1.x these settings were parameters of their own, such as `onReorder` and `onSwipeToRemove`, and `insertItem` took a builder for the inserted item. 2.0 removed them: the [changelog](CHANGELOG.md) says what replaces each one.
 
 Here's an example of how to wrap a `ListView`:
 
