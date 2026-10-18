@@ -25,6 +25,11 @@ class ItemMotion {
   /// to its own target; the last one's is [_end].
   final _legs = <_Leg>[];
 
+  /// How many moves along a curve the item is on. A move drops out once
+  /// it is over and another starts.
+  @visibleForTesting
+  int get legCount => _legs.length;
+
   /// Where a fling started.
   var _flingBegin = const OverlayOffset(Offset.zero);
 
