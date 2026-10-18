@@ -1497,6 +1497,25 @@ void main() {
     });
   });
 
+  group('screen readers', () {
+    testWidgets('find items a reorder moves in place in their new slots', (
+      tester,
+    ) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      final slots = _semanticsRects(tester, [0, 1, 2]);
+      final node = tester.getSemantics(find.text('0')).id;
+
+      list.state.reorderItem(0, destIndex: 2);
+      await tester.pumpAndSettle();
+
+      expect(list.items, [1, 2, 0, 3, 4]);
+      expect(_semanticsRects(tester, [1, 2, 0]), slots);
+      // The screen reader stays on the item it was on.
+      expect(tester.getSemantics(find.text('0')).id, node);
+    });
+  });
+
   group('insert transition', () {
     Widget enter(Widget child, int index, Animation<double> animation) =>
         _Entrance(animation: animation, child: child);
@@ -3759,4 +3778,19 @@ Offset _paintedTopLeft(WidgetTester tester, Finder finder) {
     layer = layer!.parent;
   }
   return MatrixUtils.transformPoint(transform, Offset.zero);
+}
+
+/// Where a screen reader finds the items with [ids], in the device's pixels.
+List<Rect> _semanticsRects(WidgetTester tester, List<int> ids) => [
+  for (final id in ids) _semanticsRect(tester.getSemantics(find.text('$id'))),
+];
+
+Rect _semanticsRect(SemanticsNode node) {
+  var rect = node.rect;
+  for (SemanticsNode? n = node; n != null; n = n.parent) {
+    if (n.transform case final transform?) {
+      rect = MatrixUtils.transformRect(transform, rect);
+    }
+  }
+  return rect;
 }

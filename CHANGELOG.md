@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixes
+
+- Show a screen reader an item that moves in place in its new slot once it gets there. The frames of a move change only the item's layer, so since 2.1.0 a screen reader found each item a change moved where its move started: its focus outline stayed in the old slot, and touching that slot found it, while touching the item where it showed found another.
+
 ## 2.2.1
 
 ### Fixes

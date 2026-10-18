@@ -234,6 +234,11 @@ class _ItemWidgetState extends State<ItemWidget>
     _motion = null;
     _translation = Offset.zero;
     motion.dispose();
+    // The frames of the move changed only the item's layer, so a screen
+    // reader still finds the item where its move started.
+    if (_inPlace case final box? when box.attached) {
+      box.markNeedsSemanticsUpdate();
+    }
   }
 
   /// The overlay shows the item from now on, from where it showed.
