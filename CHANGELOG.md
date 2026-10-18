@@ -6,6 +6,10 @@
 - Let a pointer take an item moving in place where it shows, as on other platforms: a drag or a swipe can start on it on its way, from where it shows, and a swiped one goes on to its slot as it's swiped. It ignored pointers until it got to its slot. Items moving through the overlay on their way out of sight still do.
 - Bring an item a reorder moves into sight from out of it in place, in the list: it comes in from just outside the view, at its own size, rather than through the overlay. 2.0.1's note that an item bigger than the others starts its way in that much closer no longer applies. In a grid, it comes in along its own column rather than from the middle of the grid.
 
+### Docs
+
+- Correct 2.1.0's note on the raster thread in dense grids, which put its extra work down to each moving cell's own layer alone. Measured since, building only the items a change moves accounts for most of it, about 0.9 ms of the 1.3 ms a frame, with the same layers; why is yet to be found.
+
 ## 2.1.0
 
 ### Performance
