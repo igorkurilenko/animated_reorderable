@@ -354,8 +354,8 @@ void main() {
     });
   });
 
-  group('overlay', () {
-    /// The ids of the items the overlay shows.
+  group('in place', () {
+    /// The ids of the items the overlay shows, above the list or under it.
     List<int> overlayed(WidgetTester tester) => [
       for (final item in tester.widgetList<_Item>(
         find.descendant(
@@ -366,52 +366,102 @@ void main() {
         item.id,
     ]..sort();
 
-    /// The ids of the items the list built, from index [from] on.
-    List<int> renderedFrom(_TestList list, int from) => [
-      for (var i = from; i < list.items.length; i++)
-        if (list.state.isItemRendered(i)) list.items[i],
-    ];
+    // The view shows the slots of items 0 to 5, and the list lays out 6 to
+    // 8 too, out of sight.
 
-    testWidgets('lifts only the items a reorder moves', (tester) async {
+    testWidgets('moves the items a reorder moves in place, in the list', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
 
       list.state.reorderItem(2, destIndex: 4);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      final lifted = overlayed(tester);
+      expect(overlayed(tester), isEmpty);
+      final top = tester.getTopLeft(_itemWithId(2)).dy;
+      expect(top, greaterThan(2 * _extent));
+      expect(top, lessThan(4 * _extent));
+      expect(_paintedTopLeft(tester, _itemWithId(2)).dy, top);
       await tester.pumpAndSettle();
-
-      expect(lifted, [2, 3, 4]);
+      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
     });
 
-    testWidgets('lifts only the items an insert moves', (tester) async {
+    testWidgets('ignores a pointer on an item moving in place', (tester) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
-      final after = renderedFrom(list, 3);
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final swipe = await tester.startGesture(tester.getCenter(_itemWithId(2)));
+      await swipe.moveBy(const Offset(-30, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(overlayed(tester), isEmpty);
+      await swipe.up();
+      await tester.pumpAndSettle();
+      expect(list.items, [0, 1, 3, 4, 2, 5, 6, 7, 8, 9]);
+      expect(tester.getTopLeft(_itemWithId(2)).dy, 4 * _extent);
+    });
+
+    testWidgets('moves an item that goes out of sight on its way in place '
+        'on from where it shows', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      list.state.reorderItem(2, destIndex: 4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final tops = [tester.getTopLeft(_itemWithId(2)).dy];
+
+      // Three items in at the top push its slot out of sight.
+      for (final id in [10, 11, 12]) {
+        list.insert(0, id);
+      }
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(_itemWithId(2)).dy);
+      }
+
+      // Items 4 and 5 go out of sight with it.
+      expect(overlayed(tester), [2, 4, 5]);
+      expect(_steps(tops), everyElement(inInclusiveRange(0, 40)));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('moves an item an insert pushes out of sight through the '
+        'overlay', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
 
       list.insert(3, 100);
       await tester.pump();
 
+      // Items 3 and 4 move down in place, and 6 to 8 stay out of sight.
       final lifted = overlayed(tester);
       await tester.pumpAndSettle();
 
-      expect(lifted, after);
+      expect(lifted, [5]);
     });
 
-    testWidgets('lifts only the items a remove moves', (tester) async {
+    testWidgets('moves an item a remove brings into sight in place', (
+      tester,
+    ) async {
       final list = _TestList(10);
       await tester.pumpWidget(list.build());
-      // Item 3 fades out in the overlay.
-      final fromRemoved = renderedFrom(list, 3);
 
       list.removeAt(3);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
 
-      final lifted = overlayed(tester);
+      // Item 3 fades out under the list, and 4 to 6 move up in place: 6
+      // from out of sight.
+      expect(overlayed(tester), [3]);
+      expect(tester.getTopLeft(_itemWithId(6)).dy, greaterThan(5 * _extent));
+      expect(tester.getTopLeft(_itemWithId(6)).dy, lessThan(600));
       await tester.pumpAndSettle();
-
-      expect(lifted, fromRemoved);
+      expect(tester.getTopLeft(_itemWithId(6)).dy, 5 * _extent);
     });
   });
 
@@ -649,7 +699,9 @@ void main() {
       }
 
       expect(builds, lessThanOrEqualTo(10));
-      expect(frames, 33);
+      // The move starts in the frame that lays the items out in their new
+      // slots.
+      expect(frames, 32);
     });
 
     testWidgets('builds no item while items move', (tester) async {

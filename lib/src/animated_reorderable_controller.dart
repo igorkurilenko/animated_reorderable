@@ -34,6 +34,12 @@ class AnimatedReorderableController implements ItemHost {
   // so they use the latest builders and callbacks.
   KeyGetter keyGetter;
   MotionOptions motion;
+
+  @override
+  Duration get motionDuration => motion.duration;
+
+  @override
+  widgets.Curve get motionCurve => motion.curve;
   ReorderOptions reorder;
   SwipeToRemoveOptions swipeToRemove;
   model.AnimatedItemDecorator? insertTransition;
@@ -75,10 +81,7 @@ class AnimatedReorderableController implements ItemHost {
     final insertedItem = _items.insertItem(index: index)
       ..enter(vsync: vsync, duration: duration);
 
-    _overlay?.overlayRenderedItems(
-      except: insertedItem.key,
-      newIndex: (x) => x.index >= index ? x.index + 1 : x.index,
-    );
+    _overlay?.moveRenderedItems(except: insertedItem.key);
   }
 
   void removeItem(
@@ -99,10 +102,7 @@ class AnimatedReorderableController implements ItemHost {
     }
 
     overlay
-      ..overlayRenderedItems(
-        except: removedItem.key,
-        newIndex: (x) => x.index > index ? x.index - 1 : x.index,
-      )
+      ..moveRenderedItems(except: removedItem.key)
       ..animateOut(
         removedItem,
         renderedItem: _items.renderedItemBy(key: removedItem.key),
@@ -135,9 +135,7 @@ class AnimatedReorderableController implements ItemHost {
     );
 
     _overlay
-      ?..overlayRenderedItems(
-        newIndex: (x) => permutations.indexOf(x.key) ?? x.index,
-      )
+      ?..moveRenderedItems()
       ..overlayNotRenderedItem(
         itemAtIndex,
         index: index,

@@ -57,6 +57,9 @@ class ItemMotion {
 
   AnimationStatus get status => _controller.status;
 
+  /// Whether the item is on its way.
+  bool get isMoving => _controller.isAnimating;
+
   bool get _movesAlongCurve => _controller.isAnimating && _legs.isNotEmpty;
 
   /// Moves the item from [from] to [to] along [curve] in [duration]. While
