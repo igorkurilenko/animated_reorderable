@@ -110,6 +110,8 @@ class _KanbanBoardState extends State<KanbanBoard> {
       final task = _board[from.list]!.removeAt(from.index);
       _board[to.list]!.insert(to.index, task);
     }),
+    // Screen readers move a task to another column too.
+    moveToListLabel: (status) => 'Move to ${(status as Status).title}',
     child: LayoutBuilder(
       builder: (context, constraints) {
         // The columns share a wide window, and the board scrolls sideways

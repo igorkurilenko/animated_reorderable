@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -43,6 +45,14 @@ class ReorderableGroup implements SharedOverlaySpace {
     if (list == null) return null;
     return globalToLocal(GlobalOffset(list.topLeft)) & list.size;
   }
+
+  /// The group's lists, in the order they joined it: the order of the
+  /// tree, which is the order a screen reader reads them in.
+  Iterable<AnimatedReorderableController> get members => _members;
+
+  /// The list with the id [list], as [ReorderOptions.groupId] gives it.
+  AnimatedReorderableController? memberWith(Object list) =>
+      _members.where((x) => x.groupId == list).firstOrNull;
 
   void join(AnimatedReorderableController member) => _members.add(member);
 
@@ -112,17 +122,56 @@ class ReorderableGroup implements SharedOverlaySpace {
     required AnimatedReorderableController from,
     required AnimatedReorderableController to,
     required int index,
+    bool held = true,
   }) {
     final fromPlace = (list: from.groupId!, index: item.index);
     final toPlace = (list: to.groupId!, index: index);
-    final options = this.options();
-    if (!(options.canMove?.call(fromPlace, toPlace) ?? true)) return false;
+    if (!canMove(fromPlace, toPlace)) return false;
 
-    options.onMove(fromPlace, toPlace);
+    options().onMove(fromPlace, toPlace);
     from.releaseHeldItem(item);
-    to.adoptHeldItem(item, index: index);
+    to.adoptHeldItem(item, index: index, held: held);
     host(item, to);
     return true;
+  }
+
+  /// Whether the app lets an item go from [from] to [to].
+  bool canMove(ItemPlace from, ItemPlace to) =>
+      options().canMove?.call(from, to) ?? true;
+
+  /// The index an item at [index] of another list goes to in [to] as a
+  /// screen reader moves it: the same, or the end of a shorter list.
+  int moveIndexIn(AnimatedReorderableController to, int index) =>
+      math.min(index, to.registry.itemCount ?? 0);
+
+  /// Moves the item at [index] of [from] to [to], as a screen reader does:
+  /// to [moveIndexIn] there. It goes as a drag that lets it go there does,
+  /// through the layer, and flies to the new list's look.
+  ///
+  /// The layer shows it for a frame first, so it flies from its look as
+  /// that frame painted it.
+  void moveItem({
+    required AnimatedReorderableController from,
+    required int index,
+    required AnimatedReorderableController to,
+  }) {
+    final item = from.liftForMove(index);
+    if (item == null) return;
+    addPostFrame(() {
+      // It went elsewhere meanwhile, or the lists did.
+      if (_disposed || hostOf(item) != from) return;
+      final moved =
+          _members.contains(to) &&
+          to.takesGroupItems &&
+          moveHeldItem(
+            item,
+            from: from,
+            to: to,
+            index: moveIndexIn(to, item.index),
+            held: false,
+          );
+      if (!moved) from.dropMovedItem(item);
+    });
   }
 
   void dispose() {

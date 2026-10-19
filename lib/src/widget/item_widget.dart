@@ -23,7 +23,28 @@ typedef SemanticMoves = ({
   bool forward,
   bool rowBack,
   bool rowForward,
+  ListMoves toLists,
 });
+
+/// The moves a screen reader can make with an item to the other lists of
+/// its group: the id of each list, and the label of the move to it. Two
+/// are equal when they hold the same moves, so an item that keeps its
+/// moves doesn't build again.
+@immutable
+class ListMoves {
+  const ListMoves(this.moves);
+
+  static const none = ListMoves([]);
+
+  final List<({Object list, String label})> moves;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ListMoves && listEquals(moves, other.moves);
+
+  @override
+  int get hashCode => Object.hashAll(moves);
+}
 
 /// What an item widget asks of the controller, and what it tells it.
 abstract interface class ItemHost {
@@ -71,6 +92,10 @@ abstract interface class ItemHost {
 
   /// Makes [move] with the item at [index], if the item can still make it.
   void makeSemanticMove(int index, SemanticMove move);
+
+  /// Moves the item at [index] to the list of its group with the id
+  /// [list], as a screen reader does, if the item can still go there.
+  void moveToList(int index, Object list);
 }
 
 class ItemWidget extends StatefulWidget {
@@ -374,8 +399,11 @@ class _ItemWidgetState extends State<ItemWidget>
   /// [ReorderableList] gives them. Each is named after the way it takes the
   /// item on screen.
   Widget _withSemanticMoves(BuildContext context, Widget item) {
-    final (:back, :forward, :rowBack, :rowForward) = widget.semanticMoves;
-    if (!back && !forward && !rowBack && !rowForward) return item;
+    final (:back, :forward, :rowBack, :rowForward, :toLists) =
+        widget.semanticMoves;
+    if (!back && !forward && !rowBack && !rowForward && toLists.moves.isEmpty) {
+      return item;
+    }
     // An app's own tests may build the list without localizations.
     final localizations =
         Localizations.of<WidgetsLocalizations>(context, WidgetsLocalizations) ??
@@ -409,6 +437,9 @@ class _ItemWidgetState extends State<ItemWidget>
         for (final (label, move) in moves)
           CustomSemanticsAction(label: label): () =>
               host.makeSemanticMove(index, move),
+        for (final (:list, :label) in toLists.moves)
+          CustomSemanticsAction(label: label): () =>
+              host.moveToList(index, list),
       },
       child: item,
     );
