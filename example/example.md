@@ -675,6 +675,8 @@ class _KanbanBoardState extends State<KanbanBoard> {
       final task = _board[from.list]!.removeAt(from.index);
       _board[to.list]!.insert(to.index, task);
     }),
+    // Screen readers move a task to another column too.
+    moveToListLabel: (status) => 'Move to ${(status as Status).title}',
     child: LayoutBuilder(
       builder: (context, constraints) {
         // The columns share a wide window, and the board scrolls sideways
@@ -736,6 +738,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
         groupId: status,
         onReorder: (permutations) => permutations.apply(tasks),
         gestureRecognizerFactory: _dragRecognizer,
+        decoration: const ItemDecoration(decorator: _lift),
       ),
       listView: ListView.builder(
         padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -747,6 +750,41 @@ class _KanbanBoardState extends State<KanbanBoard> {
     );
   }
 }
+
+/// A held card rises off the board, as on GitHub's boards: it grows a
+/// little and casts a shadow, and stays opaque, so the cards under it don't
+/// show through it.
+Widget _lift(Widget child, int index, Animation<double> animation) {
+  final rise = animation.drive(CurveTween(curve: Curves.easeOut));
+  return ScaleTransition(
+    scale: rise.drive(Tween(begin: 1.0, end: 1.03)),
+    child: Stack(
+      children: [
+        // The shadow of the card, inside the space around it in its slot.
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: DecoratedBoxTransition(
+              decoration: rise.drive(_shadow),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+        child,
+      ],
+    ),
+  );
+}
+
+final _shadow = DecorationTween(
+  begin: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+  end: BoxDecoration(
+    borderRadius: BorderRadius.circular(8),
+    boxShadow: const [
+      BoxShadow(color: Color(0x33000000), blurRadius: 18, offset: Offset(0, 8)),
+    ],
+  ),
+);
 
 /// A card goes with the mouse at once, as on GitHub's boards. A finger
 /// holds it a moment first, so that a swipe still scrolls its column.

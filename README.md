@@ -18,7 +18,7 @@ The `AnimatedReorderable` wrapper for `ListView` and `GridView` incorporates all
 - Enables deletion through a swipe gesture.
 - Certain items can be configured as non-reorderable.
 - Callbacks for tracking item drag and swipe events.
-- Lets screen readers move items, as `ReorderableList` does: to the start, one place back or forward, or to the end.
+- Lets screen readers move items, as `ReorderableList` does: to the start, one place back or forward, or to the end, and in a grid a row up or down.
 - Lets items be dragged between lists and grids, as between the columns of a board, and flies an item from one list's look to another's.
 - In addition to programmatically initiating animated additions and removals, reordering can also be programmatically triggered.
 
@@ -120,6 +120,7 @@ AnimatedReorderableGroup(
 - **canMove:** Refuses a move before any data changes, such as into a full column.
 - **flight:** When the lists build their items differently, such as cards in a list and thumbnails in a grid, an item flies from one look to the other as it goes over, as a [hero_here](https://pub.dev/packages/hero_here) flight does. `FlightOptions` sets the flight's duration, curve and shuttle builder, and `FlightOptions.none` turns flights off.
 - **Boards that scroll:** A view around the lists that scrolls across them, such as a board that scrolls sideways, scrolls while an item is held at its edge.
+- **Screen readers:** With `moveToListLabel`, which names each list's move in the app's language, such as "Move to Done", screen readers can move each item to the group's other lists too.
 - The items' keys must be unique across the group's lists.
 
 The example's board, `example/lib/animated_reorderable_board/animated_reorderable_board.0.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.

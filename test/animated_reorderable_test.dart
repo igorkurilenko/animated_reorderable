@@ -1804,6 +1804,104 @@ void main() {
       expect(list.items, [2, 1, 0, 3]);
     });
 
+    testWidgets('moves an item a row back or forward in a grid', (
+      tester,
+    ) async {
+      // Three rows of three.
+      final list = _TestList(9, grid: true);
+      await tester.pumpWidget(list.build());
+
+      expect(
+        _moves(tester, 4),
+        unorderedEquals([
+          'Move to the start',
+          'Move left',
+          'Move up',
+          'Move right',
+          'Move down',
+          'Move to the end',
+        ]),
+      );
+      // No row before the first, or after the last.
+      expect(_moves(tester, 1), isNot(contains('Move up')));
+      expect(_moves(tester, 7), isNot(contains('Move down')));
+
+      _move(tester, 4, 'Move down');
+      await tester.pumpAndSettle();
+      expect(list.items.indexOf(4), 7);
+
+      _move(tester, 4, 'Move up');
+      await tester.pumpAndSettle();
+      expect(list.items, List.generate(9, (i) => i));
+    });
+
+    testWidgets('moves an item a row past items that cannot be reordered', (
+      tester,
+    ) async {
+      final list = _TestList(9, grid: true)
+        ..reorderableGetter = (index) => index != 7;
+      await tester.pumpWidget(list.build());
+
+      _move(tester, 4, 'Move down');
+      await tester.pumpAndSettle();
+
+      expect(list.items.indexOf(4), 8);
+      expect(list.items[7], 7);
+    });
+
+    testWidgets("names a grid's row moves after its scroll axis", (
+      tester,
+    ) async {
+      // Its rows run down the screen, and the next one is to the right.
+      final list = _TestList(9, grid: true, scrollDirection: Axis.horizontal);
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 4), containsAll(['Move left', 'Move right']));
+      _move(tester, 4, 'Move right');
+      await tester.pumpAndSettle();
+
+      expect(list.items.indexOf(4), 7);
+    });
+
+    testWidgets('offers no row moves in a grid of one column', (tester) async {
+      final list = _TestList(
+        3,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 1,
+          childAspectRatio: 4,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 1), hasLength(4));
+      expect(_moves(tester, 1), isNot(contains('Move up')));
+    });
+
+    testWidgets('keeps the row moves up to date as a resize changes the '
+        'columns', (tester) async {
+      final list = _TestList(
+        12,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      // Four columns: item 3 ends the first row.
+      expect(_moves(tester, 3), isNot(contains('Move up')));
+
+      // Three: it starts the second.
+      _resize(tester, const Size(600, 600));
+      await tester.pump();
+      await tester.pump();
+
+      expect(_moves(tester, 3), contains('Move up'));
+      _move(tester, 3, 'Move up');
+      await tester.pumpAndSettle();
+      expect(list.items.indexOf(3), 0);
+    });
+
     testWidgets('cannot move an item that cannot be dragged', (tester) async {
       final list = _TestList(3)..draggableGetter = (index) => index != 0;
       await tester.pumpWidget(list.build());
@@ -2703,6 +2801,47 @@ void main() {
       expect(list.items, List.generate(10, (i) => i));
       expect(path.last, slot);
       expect(path.map((p) => p.dx).reduce(math.max), greaterThan(slot.dx));
+    });
+
+    testWidgets('lets a bouncy spring take an item let go after a drag back '
+        'past its place', (tester) async {
+      final list = _TestList(
+        10,
+        reorderSpringDescription: SpringDescription.withDampingRatio(
+          mass: 1,
+          stiffness: 500,
+          ratio: 0.2,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getCenter(_itemWithId(1));
+      // Its middle, which the decoration of a dragged item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(1)).dx;
+
+      // Across its row, where no other item is, held still, and let go.
+      var time = Duration.zero;
+      final drag = await tester.createGesture();
+      await drag.down(slot, timeStamp: time);
+      const hold = Duration(milliseconds: 600);
+      await tester.pump(hold);
+      time += hold;
+      for (var i = 0; i < 20; i++) {
+        time += frame;
+        await drag.moveBy(const Offset(10, 0), timeStamp: time);
+        await tester.pump(frame);
+      }
+      time += const Duration(milliseconds: 200);
+      await tester.pump(const Duration(milliseconds: 200));
+      await drag.up(timeStamp: time);
+      final xs = <double>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(frame);
+        xs.add(middle());
+      }
+
+      expect(list.reorders, 0);
+      expect(xs.last, slot.dx);
+      expect(xs.reduce(math.min), lessThan(slot.dx - 1));
     });
 
     testWidgets('carries an item let go moving away from its place on before '
@@ -3969,6 +4108,7 @@ class _TestList {
     this.padding,
     this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
+    this.reorderSpringDescription = _defaultSpring,
     this.insertTransition,
   }) : items = List.generate(count, (i) => i);
 
@@ -3982,6 +4122,7 @@ class _TestList {
   /// The swipe direction of every item, or null for the default one.
   AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
+  final SpringDescription reorderSpringDescription;
 
   /// The transition items enter with, or null for none.
   AnimatedItemDecorator? insertTransition;
@@ -4004,7 +4145,13 @@ class _TestList {
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
           reorder: ReorderOptions(
-            onReorder: (permutations) => permutations.apply(items),
+            onReorder: (permutations) {
+              reorders++;
+              permutations.apply(items);
+            },
+            draggableGetter: draggableGetter,
+            reorderableGetter: reorderableGetter,
+            springDescription: reorderSpringDescription,
           ),
           swipeToRemove: SwipeToRemoveOptions(
             onSwipeToRemove: removeAt,
@@ -4030,6 +4177,7 @@ class _TestList {
             },
             draggableGetter: draggableGetter,
             reorderableGetter: reorderableGetter,
+            springDescription: reorderSpringDescription,
           ),
           swipeToRemove: SwipeToRemoveOptions(
             onSwipeToRemove: removeAt,

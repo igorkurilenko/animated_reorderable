@@ -581,7 +581,7 @@ final class _WrappedGridView extends _WrappedView {
     padding: gridView.padding,
     gridDelegate: SliverGridLayoutNotifier(
       gridDelegate: gridView.gridDelegate,
-      onLayout: controller.scrollSync.didLayOutGrid,
+      onLayout: controller.didLayOutGrid,
     ),
     childrenDelegate: controller.itemWidgets.overrideChildrenDelegate(
       childrenDelegate,

@@ -69,6 +69,7 @@ class ReorderOptions {
     this.gestureRecognizerFactory,
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     this.decoration = const ItemDecoration(),
+    this.springDescription = defaultFlingSpringDescription,
     this.callbacks = const ItemDragCallbacks(),
     this.groupId,
   });
@@ -84,8 +85,9 @@ class ReorderOptions {
   ///
   /// With it, screen readers can also move each item that can be dragged
   /// and reordered, as [ReorderableList] lets them: to the start, one place
-  /// back or forward, or to the end. A move goes as
-  /// [AnimatedReorderableState.reorderItem] does, and calls this.
+  /// back or forward, or to the end, and in a grid a row back or forward. A
+  /// move goes as [AnimatedReorderableState.reorderItem] does, and calls
+  /// this.
   final PermutationsCallback? onReorder;
 
   /// Whether the item at an index can be dragged. All can by default.
@@ -137,6 +139,10 @@ class ReorderOptions {
 
   /// The decoration of a dragged item.
   final ItemDecoration decoration;
+
+  /// The spring an item flies back to its place with as it is let go,
+  /// starting at the speed it is let go at.
+  final SpringDescription springDescription;
 
   /// The callbacks of each drag.
   final ItemDragCallbacks callbacks;

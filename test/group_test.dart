@@ -1,6 +1,7 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
@@ -10,6 +11,7 @@ void main() {
   _boardTests();
   _flightTests();
   _clipTests();
+  _screenReaderTests();
 
   group('between lists', () {
     testWidgets('drags an item from one list to another', (tester) async {
@@ -775,6 +777,148 @@ void _clipTests() => group('clips', () {
   });
 });
 
+void _screenReaderTests() => group('screen readers', () {
+  String label(Object list) => 'Move to $list';
+
+  testWidgets('moves an item to another list as a screen reader does', (
+    tester,
+  ) async {
+    final board = _Board({
+      'a': [0, 1, 2],
+      'b': [10, 11],
+    }, moveToListLabel: label);
+    await tester.pumpWidget(board.build());
+    expect(_moves(tester, 1), contains('Move to b'));
+    expect(_moves(tester, 1), isNot(contains('Move to a')));
+
+    _move(tester, 1, 'Move to b');
+    final path = <Offset>[];
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      path.add(tester.getTopLeft(find.text('1')));
+    }
+    await tester.pumpAndSettle();
+
+    expect(board.moves, [((list: 'a', index: 1), (list: 'b', index: 1))]);
+    expect(board.columns, {
+      'a': [0, 2],
+      'b': [10, 1, 11],
+    });
+    // It goes over to its new slot, without a jump, and keeps its state.
+    expect(path.first, _closeTo(const Offset(0, _extent), 1));
+    expect(path.last, _closeTo(const Offset(400, _extent), 1));
+    for (var i = 1; i < path.length; i++) {
+      expect((path[i] - path[i - 1]).distance, lessThan(60));
+    }
+    expect(board.inits[1], 1);
+    expect(_moves(tester, 1), contains('Move to a'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('moves an item to the end of a shorter list', (tester) async {
+    final board = _Board({
+      'a': [0, 1, 2],
+      'b': [10],
+    }, moveToListLabel: label);
+    await tester.pumpWidget(board.build());
+
+    _move(tester, 2, 'Move to b');
+    await tester.pumpAndSettle();
+
+    expect(board.moves, [((list: 'a', index: 2), (list: 'b', index: 1))]);
+    expect(board.columns['b'], [10, 2]);
+    expect(tester.getTopLeft(find.text('2')), const Offset(400, _extent));
+  });
+
+  testWidgets('offers no moves to other lists without their labels', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _Board({
+        'a': [0, 1],
+        'b': [10],
+      }).build(),
+    );
+
+    expect(_moves(tester, 1), isNotEmpty);
+    expect(_moves(tester, 1), isNot(contains('Move to b')));
+  });
+
+  testWidgets("offers no move to a list the app doesn't let an item go to", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _Board(
+        {
+          'a': [0, 1],
+          'b': [10],
+          'c': [20],
+        },
+        canMove: (from, to) => to.list != 'b',
+        moveToListLabel: label,
+      ).build(),
+    );
+
+    expect(_moves(tester, 1), contains('Move to c'));
+    expect(_moves(tester, 1), isNot(contains('Move to b')));
+  });
+
+  testWidgets("flies an item to the other list's look as a screen reader "
+      'moves it', (tester) async {
+    final board = _Board(
+      {
+        'a': [0, 1, 2],
+        'b': [10, 11],
+      },
+      thumbs: {'b'},
+      moveToListLabel: label,
+    );
+    await tester.pumpWidget(board.build());
+
+    _move(tester, 1, 'Move to b');
+    var flew = false;
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      flew |= find.byType(RawImage).evaluate().isNotEmpty;
+    }
+    await tester.pumpAndSettle();
+
+    expect(flew, isTrue);
+    expect(find.byType(RawImage), findsNothing);
+    expect(tester.getTopLeft(find.text('thumb 1')), const Offset(400, 50));
+  });
+
+  testWidgets('keeps an item in its list when the app refuses its move as '
+      'it happens', (tester) async {
+    var allow = true;
+    final board = _Board(
+      {
+        'a': [0, 1, 2],
+        'b': [10],
+      },
+      canMove: (from, to) => allow,
+      moveToListLabel: label,
+    );
+    await tester.pumpWidget(board.build());
+
+    _move(tester, 1, 'Move to b');
+    allow = false;
+    await tester.pumpAndSettle();
+
+    expect(board.moves, isEmpty);
+    expect(board.columns['a'], [0, 1, 2]);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('a')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.getTopLeft(find.text('1')), const Offset(0, _extent));
+    expect(tester.takeException(), isNull);
+  });
+});
+
 void _flightTests() => group('flights', () {
   // List a shows cards, list b thumbnails of half their height.
   _Board designs({FlightOptions flight = const FlightOptions()}) => _Board(
@@ -1182,6 +1326,7 @@ class _Board {
     this.headerExtent = 0,
     this.decoration = const ItemDecoration(),
     this.clipBehavior = Clip.hardEdge,
+    this.moveToListLabel,
   }) : columns = {
          for (final MapEntry(:key, :value) in columns.entries) key: [...value],
        };
@@ -1223,6 +1368,9 @@ class _Board {
 
   /// How the lists clip their items.
   final Clip clipBehavior;
+
+  /// The labels of the screen reader's moves to the lists, if any.
+  final String Function(Object list)? moveToListLabel;
 
   final moves = <(ItemPlace, ItemPlace)>[];
 
@@ -1275,6 +1423,7 @@ class _Board {
     },
     canMove: canMove,
     flight: flight,
+    moveToListLabel: moveToListLabel,
     child: child,
   );
 
@@ -1439,4 +1588,27 @@ Future<Set<Color>> _colorsIn(WidgetTester tester, Rect rect) async {
       for (var x = topLeft.dx.ceil(); x < topLeft.dx + rect.width; x++)
         at(x, y),
   };
+}
+
+/// The labels of the moves a screen reader can make with the item [label]
+/// shows.
+List<String> _moves(WidgetTester tester, Object label) => [
+  for (final id
+      in tester
+              .getSemantics(find.text('$label'))
+              .getSemanticsData()
+              .customSemanticsActionIds ??
+          const <int>[])
+    CustomSemanticsAction.getAction(id)!.label!,
+];
+
+/// Makes the move named [name] with the item [label] shows, as a screen
+/// reader does.
+void _move(WidgetTester tester, Object label, String name) {
+  final node = tester.getSemantics(find.text('$label'));
+  node.owner!.performAction(
+    node.id,
+    SemanticsAction.customAction,
+    CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: name)),
+  );
 }

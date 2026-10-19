@@ -232,8 +232,13 @@ class ItemRegistry {
 
   /// Takes in the held [item] from another list's registry at [index]: the
   /// items from there on move down, and the list shows the item's
-  /// placeholder at [index].
-  void adoptHeldItem(OverlayedItem item, {required int index}) {
+  /// placeholder at [index]. A drag goes on holding it if it is [held], as
+  /// a screen reader's move doesn't.
+  void adoptHeldItem(
+    OverlayedItem item, {
+    required int index,
+    bool held = true,
+  }) {
     for (var i in _itemKeyByIndex.keys.toList().reversed) {
       if (i < index) break;
       _itemKeyByIndex[i + 1] = _itemKeyByIndex[i]!;
@@ -248,7 +253,7 @@ class ItemRegistry {
     _overlayedItemByKey[item.key] = item;
     _raise(item);
     item.item.placeholderSize.value = item.size;
-    draggedItem = item;
+    if (held) draggedItem = item;
     itemsChanges.notify();
     overlayChanges.notify();
   }

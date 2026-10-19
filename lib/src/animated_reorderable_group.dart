@@ -51,6 +51,7 @@ final class AnimatedReorderableGroup extends StatefulWidget {
     required this.onMove,
     this.canMove,
     this.flight = const FlightOptions(),
+    this.moveToListLabel,
     required this.child,
   });
 
@@ -58,11 +59,23 @@ final class AnimatedReorderableGroup extends StatefulWidget {
   final ItemMoveCallback onMove;
 
   /// Whether a dragged item may go from one list to another. It may by
-  /// default. Asked once each time the item is dragged over a list.
+  /// default. Asked once each time the item is dragged over a list, and as
+  /// the lists work out the moves screen readers can make.
   final ItemMovePredicate? canMove;
 
   /// How an item flies from one list's look to another's.
   final FlightOptions flight;
+
+  /// The label of the move a screen reader can make with an item to the
+  /// list with the id it's given, as [ReorderOptions.groupId] gives it, in
+  /// the app's language: "Move to Done", say.
+  ///
+  /// With it, each item that can be dragged and reordered can move to each
+  /// other list of the group that the app lets it go to, in the order of
+  /// the tree. It goes to the same index there, or to the end of a shorter
+  /// list, and flies there as a drag that lets it go there does. Without
+  /// it, screen readers move items only within their lists.
+  final String Function(Object list)? moveToListLabel;
 
   /// The lists, and whatever is around them.
   final Widget child;

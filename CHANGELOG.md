@@ -1,12 +1,21 @@
-## Unreleased
+## 2.5.0
+
+### Features
+
+- Set the spring a dragged item flies back to its place with: `ReorderOptions.springDescription`, as swipes have `SwipeToRemoveOptions.springDescription`. 2.4.0's faster default spring had no option for drags. `SpringDescription(mass: 1, stiffness: 500, damping: 75)` restores the old one.
+- Let screen readers move an item to another list of a group. Give `AnimatedReorderableGroup.moveToListLabel`, which names the move to each list in the app's language, such as "Move to Done". Each item that can be dragged and reordered can then move to each other list that the group's `canMove` lets it go to, in the order of the tree. It goes to the same index there, or to the end of a shorter list, and flies there through the group's layer, to the new list's look, as a drag that lets it go there does. `onMove` moves its data. Without the labels, screen readers move items only within their lists.
+- Let screen readers move an item a row up or down in a grid, as well as along its row: Move up and Move down in a grid that scrolls down, and Move left and Move right in one that scrolls sideways. A row move takes the item to the slot a row away, or past items that can't be reordered to the nearest one beyond. A grid of one column, or with rows that aren't all alike, has none. The moves follow the grid as a resize changes its columns.
 
 ### Docs
 
 - List screen-reader moves and drags between lists among the features in the API docs of the library and of `AnimatedReorderable`, as the README does.
+- Correct 2.2.0's note on the raster thread in dense grids. The 0.9 ms a frame that building only the items a change moves seemed to cost it isn't more work. With less to build, the phone's power management runs the CPU slower, so the same work takes longer. On an iPhone 17 Pro, every step of a frame on the raster thread takes about twice as long, even those that don't depend on what's drawn, and so do the UI thread's paint and compositing, with the same layers and the same repaints. Building only the moved items keeps every frame of a drag across a 12-column grid within the 8.3 ms budget; building them all puts 22 to 28 over it.
 
 ### Example
 
 - Sign the example apps with each checkout's own team. The iOS project carried a personal development team, which broke signing for anyone else. Each checkout can now put its team in `Signing.xcconfig`, which git ignores, and the example's README says how.
+- Let screen readers move the kanban board's cards between its columns, with moves named after them, such as Move to Done.
+- Lift a held card off the kanban board, as GitHub's boards do: it grows a little and casts a shadow, and stays opaque. It faded to 70% before, so the cards under it showed through.
 
 ## 2.4.0
 

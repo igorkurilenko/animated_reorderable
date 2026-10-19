@@ -13,12 +13,38 @@ import '../util/geometry.dart';
 enum ViewEdge { leading, trailing }
 
 /// A move a screen reader can make with an item: to the start, one place
-/// back or forward, or to the end.
-enum SemanticMove { toStart, back, forward, toEnd }
+/// back or forward, or to the end, and in a grid one row back or forward.
+enum SemanticMove { toStart, back, forward, toEnd, rowBack, rowForward }
 
 /// Whether a screen reader can move an item back, towards the start, and
-/// forward, towards the end.
-typedef SemanticMoves = ({bool back, bool forward});
+/// forward, towards the end, by a place, and in a grid by a row.
+typedef SemanticMoves = ({
+  bool back,
+  bool forward,
+  bool rowBack,
+  bool rowForward,
+  ListMoves toLists,
+});
+
+/// The moves a screen reader can make with an item to the other lists of
+/// its group: the id of each list, and the label of the move to it. Two
+/// are equal when they hold the same moves, so an item that keeps its
+/// moves doesn't build again.
+@immutable
+class ListMoves {
+  const ListMoves(this.moves);
+
+  static const none = ListMoves([]);
+
+  final List<({Object list, String label})> moves;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ListMoves && listEquals(moves, other.moves);
+
+  @override
+  int get hashCode => Object.hashAll(moves);
+}
 
 /// What an item widget asks of the controller, and what it tells it.
 abstract interface class ItemHost {
@@ -66,6 +92,10 @@ abstract interface class ItemHost {
 
   /// Makes [move] with the item at [index], if the item can still make it.
   void makeSemanticMove(int index, SemanticMove move);
+
+  /// Moves the item at [index] to the list of its group with the id
+  /// [list], as a screen reader does, if the item can still go there.
+  void moveToList(int index, Object list);
 }
 
 class ItemWidget extends StatefulWidget {
@@ -369,13 +399,22 @@ class _ItemWidgetState extends State<ItemWidget>
   /// [ReorderableList] gives them. Each is named after the way it takes the
   /// item on screen.
   Widget _withSemanticMoves(BuildContext context, Widget item) {
-    final (:back, :forward) = widget.semanticMoves;
-    if (!back && !forward) return item;
+    final (:back, :forward, :rowBack, :rowForward, :toLists) =
+        widget.semanticMoves;
+    if (!back && !forward && !rowBack && !rowForward && toLists.moves.isEmpty) {
+      return item;
+    }
     // An app's own tests may build the list without localizations.
     final localizations =
         Localizations.of<WidgetsLocalizations>(context, WidgetsLocalizations) ??
         const DefaultWidgetsLocalizations();
-    final onward = _onwardDirection(context);
+    final axisDirection =
+        Scrollable.maybeOf(context)?.axisDirection ?? AxisDirection.down;
+    // Along a list, or along a grid's row, which runs across its scroll
+    // axis. A grid's next row is on along its scroll axis.
+    final onward = host.isGrid
+        ? Viewport.getDefaultCrossAxisDirection(context, axisDirection)
+        : axisDirection;
     String towards(AxisDirection direction) => switch (direction) {
       AxisDirection.up => localizations.reorderItemUp,
       AxisDirection.down => localizations.reorderItemDown,
@@ -383,14 +422,13 @@ class _ItemWidgetState extends State<ItemWidget>
       AxisDirection.right => localizations.reorderItemRight,
     };
     final moves = [
-      if (back) ...[
-        (localizations.reorderItemToStart, SemanticMove.toStart),
-        (towards(flipAxisDirection(onward)), SemanticMove.back),
-      ],
-      if (forward) ...[
-        (towards(onward), SemanticMove.forward),
-        (localizations.reorderItemToEnd, SemanticMove.toEnd),
-      ],
+      if (back) (localizations.reorderItemToStart, SemanticMove.toStart),
+      if (back) (towards(flipAxisDirection(onward)), SemanticMove.back),
+      if (rowBack)
+        (towards(flipAxisDirection(axisDirection)), SemanticMove.rowBack),
+      if (forward) (towards(onward), SemanticMove.forward),
+      if (rowForward) (towards(axisDirection), SemanticMove.rowForward),
+      if (forward) (localizations.reorderItemToEnd, SemanticMove.toEnd),
     ];
 
     return Semantics(
@@ -399,19 +437,12 @@ class _ItemWidgetState extends State<ItemWidget>
         for (final (label, move) in moves)
           CustomSemanticsAction(label: label): () =>
               host.makeSemanticMove(index, move),
+        for (final (:list, :label) in toLists.moves)
+          CustomSemanticsAction(label: label): () =>
+              host.moveToList(index, list),
       },
       child: item,
     );
-  }
-
-  /// The way the next item is from this one on screen: along a list, or
-  /// along a grid's row, which runs across its scroll axis.
-  AxisDirection _onwardDirection(BuildContext context) {
-    final axisDirection =
-        Scrollable.maybeOf(context)?.axisDirection ?? AxisDirection.down;
-    return host.isGrid
-        ? Viewport.getDefaultCrossAxisDirection(context, axisDirection)
-        : axisDirection;
   }
 
   void _recognizeSwipe(PointerDownEvent event) =>

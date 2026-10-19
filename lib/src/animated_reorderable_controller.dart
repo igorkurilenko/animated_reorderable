@@ -215,30 +215,35 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   /// Takes in the held [item] from another list of the group at [index].
-  /// The items from there on move down to make room for it.
-  void adoptHeldItem(model.OverlayedItem item, {required int index}) {
+  /// The items from there on move down to make room for it. A drag goes on
+  /// holding it if it is [held], as a screen reader's move doesn't: the
+  /// list lands it on its slot once it lays the slot out.
+  void adoptHeldItem(
+    model.OverlayedItem item, {
+    required int index,
+    bool held = true,
+  }) {
     // It flies from the look it leaves, as it last showed: the other list
     // builds another item at its index by now.
     final fly = _takeOff(item);
     // The other list's builder would build what it has at the index now.
     item.item.builder = _itemBuilder();
     _fitToSlots(item);
-    _items.adoptHeldItem(item, index: index);
+    _items.adoptHeldItem(item, index: index, held: held);
     _didChangeItems();
     _overlay?.moveRenderedItems(except: item.key);
     fly?.call();
   }
 
   /// Takes the look [item] leaves, as it last showed, and the point of it
-  /// the pointer holds, if the group flies items and the item has shown.
-  /// A flight under way turns from what its shuttle shows. Returns what
-  /// flies the item from there to the look its builder builds.
+  /// the pointer holds, or its middle without a pointer, as on a screen
+  /// reader's move, if the group flies items and the item has shown. A
+  /// flight under way turns from what its shuttle shows. Returns what flies
+  /// the item from there to the look its builder builds.
   void Function()? _takeOff(model.OverlayedItem item) {
     final flight = _group?.flightOptions;
-    final grip = item.grip;
-    if (flight == null || flight.duration <= Duration.zero || grip == null) {
-      return null;
-    }
+    final grip = item.grip ?? const Offset(0.5, 0.5);
+    if (flight == null || flight.duration <= Duration.zero) return null;
     if (LookBoundary.takeLook(item.lookKey) case (final look, final size)) {
       return () => item.fly(
         from: look,
@@ -373,7 +378,10 @@ class AnimatedReorderableController implements ItemHost {
     }
   }
 
+  var _disposed = false;
+
   void dispose() {
+    _disposed = true;
     boardScroll.dispose();
     scrollSync.dispose();
     _items.dispose();
@@ -447,7 +455,79 @@ class AnimatedReorderableController implements ItemHost {
   SemanticMoves semanticMovesAt(int index) => (
     back: _semanticDestination(index, SemanticMove.back) != null,
     forward: _semanticDestination(index, SemanticMove.forward) != null,
+    rowBack: _semanticDestination(index, SemanticMove.rowBack) != null,
+    rowForward: _semanticDestination(index, SemanticMove.rowForward) != null,
+    toLists: _listMovesAt(index),
   );
+
+  @override
+  void moveToList(int index, Object list) {
+    final group = groupForDrags;
+    final to = group?.memberWith(list);
+    if (group == null || to == null) return;
+    if (!_listMovesAt(index).moves.any((x) => x.list == list)) return;
+    group.moveItem(from: this, index: index, to: to);
+  }
+
+  /// The moves a screen reader can make with the item at [index] to the
+  /// other lists of the group that take it, in the group's order, if the
+  /// group names them. The item goes to the same index there.
+  ListMoves _listMovesAt(int index) {
+    final group = groupForDrags;
+    final label = group?.options().moveToListLabel;
+    final itemCount = _items.itemCount;
+    if (group == null ||
+        label == null ||
+        itemCount == null ||
+        index >= itemCount ||
+        !isDraggable(index) ||
+        !isReorderable(index)) {
+      return ListMoves.none;
+    }
+    final from = (list: groupId!, index: index);
+    return ListMoves([
+      for (final to in group.members)
+        if (to != this &&
+            to.takesGroupItems &&
+            group.canMove(from, (
+              list: to.groupId!,
+              index: group.moveIndexIn(to, index),
+            )))
+          (list: to.groupId!, label: label(to.groupId!)),
+    ]);
+  }
+
+  /// Lifts the item at [index] into the group's layer for a screen
+  /// reader's move to another list. It shows where it shows now,
+  /// undecorated, with no pointer to follow, and the move holds it until
+  /// it goes, so the list doesn't land it on its slot meanwhile. Null if
+  /// the list doesn't show it.
+  model.OverlayedItem? liftForMove(int index) {
+    final overlay = _overlay;
+    final group = groupForDrags;
+    final rendered = getRenderedItemAt(index);
+    if (overlay == null || group == null || rendered == null) return null;
+    final item =
+        _items.overlayedItemBy(key: rendered.key) ??
+        overlay.createOverlayedItem(rendered);
+    item.stopMotion();
+    group.host(item, this);
+    overlay.lift(
+      item,
+      decorator: null,
+      decorationDuration: Duration.zero,
+      sharedSpace: group,
+    );
+    _items.draggedItem = item;
+    return item;
+  }
+
+  /// Takes [item], lifted for a move that didn't happen, back into the
+  /// list.
+  void dropMovedItem(model.OverlayedItem item) {
+    if (_items.draggedItem == item) _items.draggedItem = null;
+    _overlay?.unoverlay(item);
+  }
 
   @override
   void makeSemanticMove(int index, SemanticMove move) {
@@ -458,9 +538,9 @@ class AnimatedReorderableController implements ItemHost {
 
   /// The index [move] takes the item at [index] to, or null if the item
   /// can't make it. Only an item that can be dragged and reordered moves,
-  /// and it moves past items that can't be reordered: one place back or
-  /// forward takes it to the nearest index it can take that way, and a move
-  /// to the start or the end to the farthest.
+  /// and it moves past items that can't be reordered: one place or row
+  /// back or forward takes it to the nearest index it can take that way,
+  /// and a move to the start or the end to the farthest.
   int? _semanticDestination(int index, SemanticMove move) {
     final itemCount = _items.itemCount;
     if (reorder.onReorder == null ||
@@ -470,12 +550,19 @@ class AnimatedReorderableController implements ItemHost {
         !isReorderable(index)) {
       return null;
     }
+    final row = _rowLength;
+    if (row == null &&
+        (move == SemanticMove.rowBack || move == SemanticMove.rowForward)) {
+      return null;
+    }
     // The indexes it can go to, from the first one to try.
     final (from, to) = switch (move) {
       SemanticMove.toStart => (0, index - 1),
       SemanticMove.back => (index - 1, 0),
       SemanticMove.forward => (index + 1, itemCount - 1),
       SemanticMove.toEnd => (itemCount - 1, index + 1),
+      SemanticMove.rowBack => (index - row!, 0),
+      SemanticMove.rowForward => (index + row!, itemCount - 1),
     };
     if (from < 0 || to < 0 || from >= itemCount || to >= itemCount) {
       return null;
@@ -485,6 +572,29 @@ class AnimatedReorderableController implements ItemHost {
       if (isReorderable(i)) return i;
     }
     return null;
+  }
+
+  /// How many items each row of the grid holds, if it holds more than
+  /// one, as a regular grid's rows do. Screen readers move items a row back
+  /// or forward then.
+  int? get _rowLength => switch (scrollSync.gridLayout) {
+    final SliverGridRegularTileLayout layout when layout.crossAxisCount > 1 =>
+      layout.crossAxisCount,
+    _ => null,
+  };
+
+  /// Takes the grid's [layout], which its items build with. The grid lays
+  /// itself out before it builds them, but one it already has builds again
+  /// once its rows hold another number of items, for its row moves.
+  void didLayOutGrid(SliverGridLayout layout, SliverConstraints constraints) {
+    final laidOut = scrollSync.gridLayout != null;
+    final rowLength = _rowLength;
+    scrollSync.didLayOutGrid(layout, constraints);
+    if (laidOut && _rowLength != rowLength) {
+      addPostFrame(() {
+        if (!_disposed) _items.itemsChanges.notify();
+      });
+    }
   }
 
   @override
