@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+
+// The team to sign with, if this checkout has one: Signing.xcconfig,
+// which git ignores.
+#include? "Signing.xcconfig"

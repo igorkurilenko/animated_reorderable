@@ -1,3 +1,13 @@
+## Unreleased
+
+### Docs
+
+- List screen-reader moves and drags between lists among the features in the API docs of the library and of `AnimatedReorderable`, as the README does.
+
+### Example
+
+- Sign the example apps with each checkout's own team. The iOS project carried a personal development team, which broke signing for anyone else. Each checkout can now put its team in `Signing.xcconfig`, which git ignores, and the example's README says how.
+
 ## 2.4.0
 
 ### Behavior changes

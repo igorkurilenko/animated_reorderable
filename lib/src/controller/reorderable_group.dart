@@ -6,7 +6,6 @@ import '../animated_reorderable_group.dart';
 import '../model/model.dart';
 import '../options.dart';
 import '../util/scheduling.dart';
-import 'held_item_sessions.dart';
 
 /// The lists of an [AnimatedReorderableGroup], and the items held in any of
 /// them, which its layer shows above them all so that they can go from one
@@ -104,17 +103,16 @@ class ReorderableGroup implements SharedOverlaySpace {
       .where((x) => x.globalRect?.contains(point) ?? false)
       .firstOrNull;
 
-  /// Moves the item [session] holds from its list to [to] at [index], if
-  /// the app lets it: the app moves the item's data, then the two lists
-  /// move their items, all in this call, so the app's data and the lists
-  /// agree on every frame.
+  /// Moves the held [item] from the list [from] to [to] at [index], if the
+  /// app lets it: the app moves the item's data, then the two lists move
+  /// their items, all in this call, so the app's data and the lists agree
+  /// on every frame.
   bool moveHeldItem(
-    DragSession session, {
+    OverlayedItem item, {
+    required AnimatedReorderableController from,
     required AnimatedReorderableController to,
     required int index,
   }) {
-    final from = session.host;
-    final item = session.item;
     final fromPlace = (list: from.groupId!, index: item.index);
     final toPlace = (list: to.groupId!, index: index);
     final options = this.options();
@@ -122,7 +120,7 @@ class ReorderableGroup implements SharedOverlaySpace {
 
     options.onMove(fromPlace, toPlace);
     from.releaseHeldItem(item);
-    to.adoptHeldItem(item, index: index, session: session);
+    to.adoptHeldItem(item, index: index);
     host(item, to);
     return true;
   }
