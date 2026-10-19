@@ -101,11 +101,13 @@ class DragSession {
     final to = group.memberAt(pointer);
     if (to != _refusedBy) _refusedBy = null;
     if (to == null || to == _host || to == _refusedBy) return;
-    if (!group.moveHeldItem(this, to: to, index: to.dropIndexAt(pointer))) {
+    final index = to.dropIndexAt(pointer);
+    if (!group.moveHeldItem(item, from: _host, to: to, index: index)) {
       _refusedBy = to;
       return;
     }
-    _host = to;
+    // The new list's auto-scrollers keep the drag going from now on.
+    _host = to..takeOverDrag(this);
     // It takes the place of the item it went in at, not the next one.
     _itemUnderThePointerKey = items.renderedItemAt(position: pointer)?.key;
   }

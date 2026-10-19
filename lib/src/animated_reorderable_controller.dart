@@ -129,6 +129,10 @@ class AnimatedReorderableController implements ItemHost {
   model.ItemRegistry get registry => _items;
   OverlayCoordinator? get overlayCoordinator => _overlay;
 
+  /// Takes over [session], whose item came in from another list of the
+  /// group: the list's auto-scrollers keep it going from now on.
+  void takeOverDrag(DragSession session) => _drag = session;
+
   /// Lets go of [session], which ends.
   void didEndDrag(DragSession session) {
     if (_drag == session) _drag = null;
@@ -210,14 +214,9 @@ class AnimatedReorderableController implements ItemHost {
     _overlay?.moveRenderedItems(except: item.key);
   }
 
-  /// Takes in the held [item] from another list of the group at [index],
-  /// where [session] goes on dragging it. The items from there on move
-  /// down to make room for it.
-  void adoptHeldItem(
-    model.OverlayedItem item, {
-    required int index,
-    required DragSession session,
-  }) {
+  /// Takes in the held [item] from another list of the group at [index].
+  /// The items from there on move down to make room for it.
+  void adoptHeldItem(model.OverlayedItem item, {required int index}) {
     // It flies from the look it leaves, as it last showed: the other list
     // builds another item at its index by now.
     final fly = _takeOff(item);
@@ -225,7 +224,6 @@ class AnimatedReorderableController implements ItemHost {
     item.item.builder = _itemBuilder();
     _fitToSlots(item);
     _items.adoptHeldItem(item, index: index);
-    _drag = session;
     _didChangeItems();
     _overlay?.moveRenderedItems(except: item.key);
     fly?.call();
