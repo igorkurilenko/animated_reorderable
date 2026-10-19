@@ -16,7 +16,7 @@ import 'model/swipe_direction.dart';
 import 'util/gesture_recognizers.dart';
 import 'util/scheduling.dart';
 import 'widget/item_widget.dart';
-import 'widget/overlayed_item_widget.dart' show LookBoundary;
+import 'widget/item_flight_shuttle.dart' show LookBoundary;
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
