@@ -4,6 +4,11 @@
 
 - Build a dense grid's items faster after a change. The package looks up each item it builds by its key. A `ValueKey` hashes its `runtimeType` with its value, and a generic class's `runtimeType`, such as `ValueKey<int>`'s, is slow to get in release builds: in a drag across a 12-column grid, it took a third of each rebuild. The package now hashes value keys by their values. On an iPhone 17 Pro, the slowest frame of that drag builds in 5.2 ms rather than 6.9.
 
+### Fixes
+
+- List an item's screen-reader moves in the same order on every item: the moves within its list first, in `ReorderableList`'s order, then the moves to the group's other lists, in the order of the board. The platform lists an item's actions in the order Flutter first numbered their labels anywhere in the app, so the order depended on which items were built first: on the example's board, "Move to Done" came before "Move to In progress".
+- Keep a screen reader's focus on an item it moves to another list. Lifting the item took away the node that had the focus, and VoiceOver's cursor went to the top of the screen. The item now takes the focus where it lands, or back in its own list if the app doesn't let it move. It scrolls into sight first, as into a column of a board that scrolls sideways: a screen reader focuses only what shows.
+
 ## 2.5.0
 
 ### Features
