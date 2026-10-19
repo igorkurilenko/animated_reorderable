@@ -86,6 +86,9 @@ typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
 /// - It animates item insertions, removals, and reordering with customizable animations.
 /// - It allows users to interactively reorder items with drag-and-drop gestures.
 /// - It supports swiping to remove items with customizable swipe actions.
+/// - It lets screen readers move items, as [ReorderableList] does.
+/// - Under an [AnimatedReorderableGroup], its items can be dragged to and from
+///   the group's other lists and grids, as between the columns of a board.
 ///
 /// This widget's [AnimatedReorderableState] can be used to dynamically insert,
 /// remove or reorder items. To refer to the [AnimatedReorderableState] either provide a

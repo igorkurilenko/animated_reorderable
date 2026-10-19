@@ -9,6 +9,11 @@
 /// - Swipe-to-remove functionality for removing items with animated effects.
 /// - Configurable decorators for the dragged and swiped items.
 /// - Callbacks for tracking item drag and swipe events.
+/// - Lets screen readers move items, as `ReorderableList` does: to the start,
+///   one place back or forward, or to the end.
+/// - Lets items be dragged between lists and grids under an
+///   [AnimatedReorderableGroup], as between the columns of a board, and flies
+///   an item from one list's look to another's.
 ///
 /// Usage:
 ///
