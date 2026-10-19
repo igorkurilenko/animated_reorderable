@@ -69,6 +69,7 @@ class ReorderOptions {
     this.gestureRecognizerFactory,
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     this.decoration = const ItemDecoration(),
+    this.springDescription = defaultFlingSpringDescription,
     this.callbacks = const ItemDragCallbacks(),
     this.groupId,
   });
@@ -137,6 +138,10 @@ class ReorderOptions {
 
   /// The decoration of a dragged item.
   final ItemDecoration decoration;
+
+  /// The spring an item flies back to its place with as it is let go,
+  /// starting at the speed it is let go at.
+  final SpringDescription springDescription;
 
   /// The callbacks of each drag.
   final ItemDragCallbacks callbacks;

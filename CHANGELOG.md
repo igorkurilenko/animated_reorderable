@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- Set the spring a dragged item flies back to its place with: `ReorderOptions.springDescription`, as swipes have `SwipeToRemoveOptions.springDescription`. 2.4.0's faster default spring had no option for drags. `SpringDescription(mass: 1, stiffness: 500, damping: 75)` restores the old one.
+
 ### Docs
 
 - List screen-reader moves and drags between lists among the features in the API docs of the library and of `AnimatedReorderable`, as the README does.

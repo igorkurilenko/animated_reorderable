@@ -2705,6 +2705,47 @@ void main() {
       expect(path.map((p) => p.dx).reduce(math.max), greaterThan(slot.dx));
     });
 
+    testWidgets('lets a bouncy spring take an item let go after a drag back '
+        'past its place', (tester) async {
+      final list = _TestList(
+        10,
+        reorderSpringDescription: SpringDescription.withDampingRatio(
+          mass: 1,
+          stiffness: 500,
+          ratio: 0.2,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final slot = tester.getCenter(_itemWithId(1));
+      // Its middle, which the decoration of a dragged item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(1)).dx;
+
+      // Across its row, where no other item is, held still, and let go.
+      var time = Duration.zero;
+      final drag = await tester.createGesture();
+      await drag.down(slot, timeStamp: time);
+      const hold = Duration(milliseconds: 600);
+      await tester.pump(hold);
+      time += hold;
+      for (var i = 0; i < 20; i++) {
+        time += frame;
+        await drag.moveBy(const Offset(10, 0), timeStamp: time);
+        await tester.pump(frame);
+      }
+      time += const Duration(milliseconds: 200);
+      await tester.pump(const Duration(milliseconds: 200));
+      await drag.up(timeStamp: time);
+      final xs = <double>[];
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(frame);
+        xs.add(middle());
+      }
+
+      expect(list.reorders, 0);
+      expect(xs.last, slot.dx);
+      expect(xs.reduce(math.min), lessThan(slot.dx - 1));
+    });
+
     testWidgets('carries an item let go moving away from its place on before '
         'it heads back', (tester) async {
       final list = _TestList(
@@ -3969,6 +4010,7 @@ class _TestList {
     this.padding,
     this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
+    this.reorderSpringDescription = _defaultSpring,
     this.insertTransition,
   }) : items = List.generate(count, (i) => i);
 
@@ -3982,6 +4024,7 @@ class _TestList {
   /// The swipe direction of every item, or null for the default one.
   AxisDirection? swipeToRemoveDirection;
   final SpringDescription swipeToRemoveSpringDescription;
+  final SpringDescription reorderSpringDescription;
 
   /// The transition items enter with, or null for none.
   AnimatedItemDecorator? insertTransition;
@@ -4030,6 +4073,7 @@ class _TestList {
             },
             draggableGetter: draggableGetter,
             reorderableGetter: reorderableGetter,
+            springDescription: reorderSpringDescription,
           ),
           swipeToRemove: SwipeToRemoveOptions(
             onSwipeToRemove: removeAt,

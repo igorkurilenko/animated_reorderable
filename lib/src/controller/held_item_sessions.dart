@@ -81,6 +81,7 @@ class DragSession {
       item,
       undecoration: item.animateUndecoration(),
       velocity: details.velocity,
+      springDescription: _options.springDescription,
     );
     _host.didEndDrag(this);
   }
