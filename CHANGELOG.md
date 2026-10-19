@@ -9,6 +9,7 @@
 ### Docs
 
 - List screen-reader moves and drags between lists among the features in the API docs of the library and of `AnimatedReorderable`, as the README does.
+- Correct 2.2.0's note on the raster thread in dense grids. The 0.9 ms a frame that building only the items a change moves seemed to cost it isn't more work. With less to build, the phone's power management runs the CPU slower, so the same work takes longer. On an iPhone 17 Pro, every step of a frame on the raster thread takes about twice as long, even those that don't depend on what's drawn, and so do the UI thread's paint and compositing, with the same layers and the same repaints. Building only the moved items keeps every frame of a drag across a 12-column grid within the 8.3 ms budget; building them all puts 22 to 28 over it.
 
 ### Example
 
