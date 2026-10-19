@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../model/model.dart';
+import '../util/key_map.dart';
 import '../util/overridden_sliver_child_builder_delegate.dart';
 import '../widget/item_widget.dart';
 
@@ -16,7 +17,7 @@ class ItemWidgetFactory {
   /// The widget built last for each item, kept while the view's own
   /// delegate stays the same. The package builds the view again after each
   /// change, and an item that keeps its index needs nothing new then.
-  final _built = <Key, ItemWidget>{};
+  final _built = keyMap<ItemWidget>();
   SliverChildDelegate? _viewDelegate;
   ChildrenDelegateSettings? _viewSettings;
 

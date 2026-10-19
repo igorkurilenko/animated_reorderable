@@ -1,3 +1,9 @@
+## Unreleased
+
+### Performance
+
+- Build a dense grid's items faster after a change. The package looks up each item it builds by its key. A `ValueKey` hashes its `runtimeType` with its value, and a generic class's `runtimeType`, such as `ValueKey<int>`'s, is slow to get in release builds: in a drag across a 12-column grid, it took a third of each rebuild. The package now hashes value keys by their values. On an iPhone 17 Pro, the slowest frame of that drag builds in 5.2 ms rather than 6.9.
+
 ## 2.5.0
 
 ### Features

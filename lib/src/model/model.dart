@@ -14,6 +14,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../animated_reorderable.dart';
 import '../const.dart';
+import '../util/key_map.dart';
 import 'coordinates.dart';
 import 'swipe_direction.dart';
 
