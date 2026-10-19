@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../util/key_map.dart';
+
 /// A class representing permutations of items in a list.
 ///
 /// This class is used to track and apply permutations of items, typically
@@ -30,7 +32,7 @@ import 'package:flutter/widgets.dart';
 /// The `Permutations` class keeps track of the mappings between original and new indices.
 class Permutations extends Iterable<Permutation> {
   final _permutations = <Permutation>[];
-  final _indexByItemKey = <Key, int>{};
+  final _indexByItemKey = keyMap<int>();
   final _itemKeyByIndex = <int, Key>{};
 
   /// Adds a permutation to the list.

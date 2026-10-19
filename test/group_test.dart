@@ -2,6 +2,7 @@ import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
@@ -917,7 +918,106 @@ void _screenReaderTests() => group('screen readers', () {
     expect(tester.getTopLeft(find.text('1')), const Offset(0, _extent));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('lists the moves in the order of the board', (tester) async {
+    // Labels no other test has, which Flutter numbers here first.
+    String ordered(Object list) => 'Order: $list';
+    await tester.pumpWidget(
+      _Board({
+        'a': [0, 1, 2],
+        'b': [10, 11, 12],
+        'c': [20, 21, 22],
+      }, moveToListLabel: ordered).build(),
+    );
+
+    expect(_moves(tester, 0), [
+      'Move down',
+      'Move to the end',
+      'Order: b',
+      'Order: c',
+    ]);
+    expect(_moves(tester, 11), [
+      'Move to the start',
+      'Move up',
+      'Move down',
+      'Move to the end',
+      'Order: a',
+      'Order: c',
+    ]);
+    expect(_moves(tester, 22), [
+      'Move to the start',
+      'Move up',
+      'Order: a',
+      'Order: b',
+    ]);
+  });
+
+  testWidgets("takes the screen reader's focus to an item where it lands", (
+    tester,
+  ) async {
+    final focused = _focusedNodes(tester);
+    final board = _Board({
+      'a': [0, 1, 2],
+      'b': [10, 11],
+    }, moveToListLabel: label);
+    await tester.pumpWidget(board.build());
+
+    _move(tester, 1, 'Move to b');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    // Not while it's on its way.
+    expect(focused, isEmpty);
+    await tester.pumpAndSettle();
+
+    expect(board.columns['b'], [10, 1, 11]);
+    expect(focused, [tester.getSemantics(find.text('1')).id]);
+  });
+
+  testWidgets("gives the screen reader's focus back to an item the app "
+      "doesn't let move", (tester) async {
+    final focused = _focusedNodes(tester);
+    var allow = true;
+    await tester.pumpWidget(
+      _Board(
+        {
+          'a': [0, 1, 2],
+          'b': [10],
+        },
+        canMove: (from, to) => allow,
+        moveToListLabel: label,
+      ).build(),
+    );
+
+    _move(tester, 1, 'Move to b');
+    allow = false;
+    await tester.pumpAndSettle();
+
+    expect(focused, [tester.getSemantics(find.text('1')).id]);
+  });
 });
+
+/// The ids of the nodes the app moves a screen reader's focus to from now
+/// on, in order.
+List<int> _focusedNodes(WidgetTester tester) {
+  final focused = <int>[];
+  final messenger = tester.binding.defaultBinaryMessenger;
+  messenger.setMockDecodedMessageHandler<Object?>(
+    SystemChannels.accessibility,
+    (message) async {
+      if (message case {'type': 'focus', 'nodeId': final int id}) {
+        focused.add(id);
+      }
+      return null;
+    },
+  );
+  addTearDown(
+    () => messenger.setMockDecodedMessageHandler<Object?>(
+      SystemChannels.accessibility,
+      null,
+    ),
+  );
+  return focused;
+}
 
 void _flightTests() => group('flights', () {
   // List a shows cards, list b thumbnails of half their height.

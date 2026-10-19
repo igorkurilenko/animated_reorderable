@@ -17,14 +17,14 @@ class ItemRegistry {
   /// under the other overlayed items.
   final overlayChanges = ChangeSignal();
 
-  final _itemByKey = <Key, Item>{};
+  final _itemByKey = keyMap<Item>();
   final _itemKeyByIndex = SplayTreeMap<int, Key>();
-  final _overlayedItemByKey = <Key, OverlayedItem>{};
+  final _overlayedItemByKey = keyMap<OverlayedItem>();
 
   /// The removed items that animate out. The overlay shows them, but not
   /// by their keys: the list can show an item with the same key meanwhile.
   final _outgoingItems = <OverlayedItem>[];
-  final _renderedItemByKey = <Key, RenderedItem>{};
+  final _renderedItemByKey = keyMap<RenderedItem>();
   OverlayedItem? draggedItem;
   OverlayedItem? swipedItem;
   int? itemCount;
@@ -75,10 +75,10 @@ class ItemRegistry {
   /// Finds an item's index by its key, so the list moves an item's element
   /// along with the item instead of building it again.
   ChildIndexGetter childIndexGetter() {
-    final indexByKey = {
-      for (final MapEntry(key: index, value: key) in _itemKeyByIndex.entries)
-        key: index,
-    };
+    final indexByKey = keyMap<int>();
+    for (final MapEntry(key: index, value: key) in _itemKeyByIndex.entries) {
+      indexByKey[key] = index;
+    }
     return (key) => indexByKey[key];
   }
 

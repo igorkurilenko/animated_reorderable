@@ -23,6 +23,9 @@ abstract interface class RenderedItem {
   /// Whether the item's slot covers [point], a point on the screen.
   bool contains(GlobalOffset point);
 
+  /// Takes a screen reader's focus to the item's moves, if it has any.
+  void focusSemanticMoves();
+
   /// Moves the item in place, in the list, from where it shows now to the
   /// slot the list lays it out in next.
   void willMove();

@@ -1,3 +1,29 @@
+## 2.6.0
+
+### Behavior changes
+
+- Put a shrink-wrapped list or grid at the start of its space, rather than in the middle. In the middle, it moved at once, with its items, as it grew or shrank: removing the last item of a grid's last row, with the rows left fitting in the space, moved every row down half a row with no animation, and over the removed item as it left. The rows now slide down as the scroll offset clamps, as in a list or grid that fills its space, which doesn't move.
+
+### Performance
+
+- Build a dense grid's items faster after a change. The package looks up each item it builds by its key. A `ValueKey` hashes its `runtimeType` with its value, and a generic class's `runtimeType`, such as `ValueKey<int>`'s, is slow to get in release builds: in a drag across a 12-column grid, it took a third of each rebuild. The package now hashes value keys by their values. On an iPhone 17 Pro, the slowest frame of that drag builds in 5.2 ms rather than 6.9.
+
+### Fixes
+
+- List an item's screen-reader moves in the same order on every item: the moves within its list first, in `ReorderableList`'s order, then the moves to the group's other lists, in the order of the board. The platform lists an item's actions in the order Flutter first numbered their labels anywhere in the app, so the order depended on which items were built first: on the example's board, "Move to Done" came before "Move to In progress".
+- Keep a screen reader's focus on an item it moves to another list. Lifting the item took away the node that had the focus, and VoiceOver's cursor went to the top of the screen. The item now takes the focus where it lands, or back in its own list if the app doesn't let it move. It scrolls into sight first, as into a column of a board that scrolls sideways: a screen reader focuses only what shows.
+
+### Docs
+
+- Correct the example of `ReorderOptions.gestureRecognizerFactory`, which didn't compile: a `DelayedMultiDragGestureRecognizer` takes its delay as it's created, and comes from `package:flutter/gestures.dart`.
+- Say what `onSwipeToRemove` does: it removes the item from the app's data, and from the list with `removeItem`, as an `AnimatedList`'s items are removed. The docs said only to remove the item, and an item removed from the data alone stayed in the list.
+- Add a Screen readers section to the README: where an item's moves are, and how to keep a `Card` in an item from taking a touch without them. The first example of the README, of the API docs and of the example app builds `ListTile` items rather than cards, so a touch finds their moves.
+
+### Example
+
+- Label the items of the list and the grid on their own nodes for screen readers, so a touch on an item finds its moves. Their cards put the text on nodes of their own, which a touch picked instead.
+- Show the list's and the grid's current code on the example's page on pub.dev, which still had them in an older formatting.
+
 ## 2.5.0
 
 ### Features

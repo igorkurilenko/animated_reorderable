@@ -33,7 +33,8 @@ class AnimatedReorderableController implements ItemHost {
     int? itemCount,
     required this.vsync,
   }) {
-    _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem);
+    _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem)
+      ..overlayChanges.addListener(_focusLandedItem);
   }
 
   // The current configuration. The state replaces it on every rebuild,
@@ -223,6 +224,7 @@ class AnimatedReorderableController implements ItemHost {
     required int index,
     bool held = true,
   }) {
+    if (!held) _focusOnLanding = item.key;
     // It flies from the look it leaves, as it last showed: the other list
     // builds another item at its index by now.
     final fly = _takeOff(item);
@@ -485,16 +487,19 @@ class AnimatedReorderableController implements ItemHost {
       return ListMoves.none;
     }
     final from = (list: groupId!, index: index);
-    return ListMoves([
-      for (final to in group.members)
-        if (to != this &&
-            to.takesGroupItems &&
-            group.canMove(from, (
-              list: to.groupId!,
-              index: group.moveIndexIn(to, index),
-            )))
-          (list: to.groupId!, label: label(to.groupId!)),
-    ]);
+    return ListMoves(
+      [
+        for (final to in group.members)
+          if (to != this &&
+              to.takesGroupItems &&
+              group.canMove(from, (
+                list: to.groupId!,
+                index: group.moveIndexIn(to, index),
+              )))
+            (list: to.groupId!, label: label(to.groupId!)),
+      ],
+      labels: [for (final list in group.members) label(list.groupId!)],
+    );
   }
 
   /// Lifts the item at [index] into the group's layer for a screen
@@ -522,10 +527,27 @@ class AnimatedReorderableController implements ItemHost {
     return item;
   }
 
+  /// The item a screen reader moved here from another list, or tried to,
+  /// which takes the screen reader's focus once it lands on its slot. The
+  /// move lifted it, which took away the node of its moves that had the
+  /// focus, and the list builds it again only as it shows the item itself.
+  Key? _focusOnLanding;
+
+  void _focusLandedItem() {
+    final key = _focusOnLanding;
+    if (key == null || _items.isOverlayed(key: key)) return;
+    _focusOnLanding = null;
+    // Once the frame that builds it has sent its node to the platform.
+    addPostFrame(() {
+      if (!_disposed) _items.renderedItemBy(key: key)?.focusSemanticMoves();
+    });
+  }
+
   /// Takes [item], lifted for a move that didn't happen, back into the
-  /// list.
+  /// list, with the screen reader's focus, which the lift took away.
   void dropMovedItem(model.OverlayedItem item) {
     if (_items.draggedItem == item) _items.draggedItem = null;
+    _focusOnLanding = item.key;
     _overlay?.unoverlay(item);
   }
 

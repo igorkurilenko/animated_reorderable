@@ -59,12 +59,8 @@
 ///       ),
 ///       listView: ListView.builder(
 ///         itemCount: items.length,
-///         itemBuilder: (context, index) => Card(
-///           child: Padding(
-///             padding: const EdgeInsets.all(16),
-///             child: Text('Item: ${items[index]}'),
-///           ),
-///         ),
+///         itemBuilder: (context, index) =>
+///             ListTile(title: Text('Item: ${items[index]}')),
 ///       ),
 ///     );
 ///   }

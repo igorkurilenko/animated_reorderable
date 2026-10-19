@@ -6,6 +6,7 @@ import '../animated_reorderable.dart' show MultiDragGestureRecognizerFactory;
 import '../const.dart';
 import '../model/model.dart';
 import '../model/swipe_direction.dart';
+import '../util/key_map.dart';
 import '../util/scheduling.dart';
 import '../widget/item_widget.dart' show ViewEdge;
 import 'scroll_sync.dart';
@@ -114,7 +115,7 @@ class OverlayCoordinator {
 
   /// The edges of the view that items a change brought into sight come in
   /// through, by key, until the frame after the change is over.
-  final _entering = <Key, ({ViewEdge edge, Object change})>{};
+  final _entering = keyMap<({ViewEdge edge, Object change})>();
 
   /// Lets [item], which was at [index] out of sight, come in through the
   /// edge of the view nearest to where it was, if the list lays it out in

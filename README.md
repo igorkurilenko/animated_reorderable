@@ -28,7 +28,7 @@ Utilize `AnimatedReorderable.list()` or `AnimatedReorderable.grid()` to wrap `Li
 
 - **keyGetter:** Required parameter to configure keys for uniquely identifying the items.
 - **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks. After a reorder, an insert or a remove, the package builds again only the items it moves; an item that keeps its index keeps what it shows. If something else about your items changes, build the view again as usual, such as with `setState`.
-- **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback in which you remove the item.
+- **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback. It removes the swiped item from your data and calls `removeItem` with its index, as you remove an `AnimatedList`'s items: the list closes the gap as the item flies off.
 - **motion:** `MotionOptions` sets how items move to their new places.
 - **insertTransition:** The transition items enter with, like the animation `AnimatedList` passes to its item builder. Insert an item with `insertItem(index)`, and it enters through the transition. Every item is built through it, so an item keeps its state when it has entered.
 
@@ -73,12 +73,8 @@ class _ListViewExampleState extends State<ListViewExample> {
 
         listView: ListView.builder(
           itemCount: items.length,
-          itemBuilder: (context, index) => Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Item: ${items[index]}'),
-            ),
-          ),
+          itemBuilder: (context, index) =>
+              ListTile(title: Text('Item: ${items[index]}')),
         ),
       );
 }
@@ -124,3 +120,20 @@ AnimatedReorderableGroup(
 - The items' keys must be unique across the group's lists.
 
 The example's board, `example/lib/animated_reorderable_board/animated_reorderable_board.0.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.
+
+## Screen readers
+
+Each item that can be dragged and reordered gets the moves a screen reader can make, named in the app's language as `ReorderableList` names them: to the start, one place up or down, and to the end. In a grid they go along the item's row, and a row up or down too. With `moveToListLabel`, an item also gets a move to each of the group's other lists, and it keeps the screen reader's focus as it goes there.
+
+The moves are on the item's own node, which also holds what the item's widgets say, such as its text. A widget in the item that makes a node of its own gets a finger's touch instead, without the moves. A `Card` does: it puts its content on a node of its own. Label the item on its own node, and leave the card's semantics out:
+
+```dart
+itemBuilder: (context, index) => Semantics(
+  label: 'Item ${items[index]}',
+  child: ExcludeSemantics(
+    child: Card(child: Text('Item ${items[index]}')),
+  ),
+),
+```
+
+Items of plain widgets, such as `Text` or a `ListTile`, buttons and all, need nothing more.

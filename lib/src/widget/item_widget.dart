@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../const.dart';
@@ -32,18 +33,25 @@ typedef SemanticMoves = ({
 /// moves doesn't build again.
 @immutable
 class ListMoves {
-  const ListMoves(this.moves);
+  const ListMoves(this.moves, {this.labels = const []});
 
   static const none = ListMoves([]);
 
   final List<({Object list, String label})> moves;
 
-  @override
-  bool operator ==(Object other) =>
-      other is ListMoves && listEquals(moves, other.moves);
+  /// The labels of the moves to all the lists of the group, the item's own
+  /// among them, in the order of the tree, which [moves] follow.
+  final List<String> labels;
 
   @override
-  int get hashCode => Object.hashAll(moves);
+  bool operator ==(Object other) =>
+      other is ListMoves &&
+      listEquals(moves, other.moves) &&
+      listEquals(labels, other.labels);
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(moves), Object.hashAll(labels));
 }
 
 /// What an item widget asks of the controller, and what it tells it.
@@ -143,6 +151,9 @@ class _ItemWidgetState extends State<ItemWidget>
   /// out in its new slot.
   Offset? _shownBeforeMove;
 
+  /// The node of the item's moves, which a screen reader can focus.
+  final _semanticMovesKey = GlobalKey(debugLabel: 'semantic moves');
+
   /// How far the item shows from its slot.
   var _translation = Offset.zero;
 
@@ -177,6 +188,23 @@ class _ItemWidgetState extends State<ItemWidget>
     return renderBox != null && renderBox.hasSize
         ? renderBox.constraints
         : null;
+  }
+
+  @override
+  void focusSemanticMoves() {
+    final moves = _semanticMovesKey.currentContext?.findRenderObject();
+    if (moves == null) return;
+    // A screen reader focuses only what shows, and the item may be out of
+    // sight, as in a column of a board that scrolls sideways. It scrolls
+    // into sight first, and takes the focus once the platform has it there.
+    moves.showOnScreen();
+    SchedulerBinding.instance
+      ..addPostFrameCallback((_) {
+        if (moves.attached) {
+          moves.sendSemanticsEvent(const FocusSemanticEvent());
+        }
+      })
+      ..scheduleFrame();
   }
 
   @override
@@ -430,8 +458,25 @@ class _ItemWidgetState extends State<ItemWidget>
       if (rowForward) (towards(axisDirection), SemanticMove.rowForward),
       if (forward) (localizations.reorderItemToEnd, SemanticMove.toEnd),
     ];
+    // The platform lists an item's actions in the order of the numbers
+    // Flutter gives their labels, each the first time it sees it anywhere
+    // in the app. So the item numbers the labels of all the moves an item
+    // can have, in their order, before it labels any: the items then list
+    // their moves in this order, whichever of them is built first.
+    for (final label in [
+      localizations.reorderItemToStart,
+      towards(flipAxisDirection(onward)),
+      if (host.isGrid) towards(flipAxisDirection(axisDirection)),
+      towards(onward),
+      if (host.isGrid) towards(axisDirection),
+      localizations.reorderItemToEnd,
+      ...toLists.labels,
+    ]) {
+      CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: label));
+    }
 
     return Semantics(
+      key: _semanticMovesKey,
       container: true,
       customSemanticsActions: {
         for (final (label, move) in moves)

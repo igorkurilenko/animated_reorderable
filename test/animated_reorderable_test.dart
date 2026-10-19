@@ -1196,6 +1196,53 @@ void main() {
     }),
   );
 
+  testWidgets('puts a shrink-wrapped list at the start of its space', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_TestList(3, shrinkWrap: true).build());
+
+    expect(tester.getTopLeft(find.text('0')), Offset.zero);
+  });
+
+  testWidgets(
+    "keeps a shrink-wrapped grid's rows from jumping as a removal of its "
+    'last row leaves it shorter than its space',
+    (tester) async {
+      final list = _TestList(
+        10,
+        grid: true,
+        shrinkWrap: true,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 1.5,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      final position = _scrollPosition(tester);
+      final clamp = position.maxScrollExtent;
+      position.jumpTo(clamp);
+      await tester.pumpAndSettle();
+      final row = tester.getSize(find.byType(_Item).first).height;
+      final tops = [tester.getTopLeft(find.text('6')).dy];
+
+      // Item 9 is alone in the last row, and the three rows left fit.
+      list.removeAt(9);
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('6')).dy);
+      }
+
+      expect(_steps(tops), everyElement(inInclusiveRange(0, row / 6)));
+      expect(tops.last, moreOrLessEquals(tops.first + clamp));
+      // At the start of its space, shorter than it.
+      expect(tester.getTopLeft(find.text('0')).dy, 0);
+    },
+    variant: TargetPlatformVariant(const {
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+    }),
+  );
+
   for (final clipBehavior in [Clip.hardEdge, Clip.none]) {
     testWidgets('clips moving items as the list does, with '
         '${clipBehavior.name}', (tester) async {
@@ -4105,6 +4152,7 @@ class _TestList {
     ),
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
+    this.shrinkWrap = false,
     this.padding,
     this.swipeToRemoveDirection,
     this.swipeToRemoveSpringDescription = _defaultSpring,
@@ -4117,6 +4165,7 @@ class _TestList {
   final SliverGridDelegate gridDelegate;
   final Axis scrollDirection;
   final bool reverse;
+  final bool shrinkWrap;
   final EdgeInsets? padding;
 
   /// The swipe direction of every item, or null for the default one.
@@ -4161,6 +4210,7 @@ class _TestList {
           gridView: GridView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
+            shrinkWrap: shrinkWrap,
             padding: padding,
             gridDelegate: gridDelegate,
             itemCount: items.length,
@@ -4188,6 +4238,7 @@ class _TestList {
           listView: ListView.builder(
             scrollDirection: scrollDirection,
             reverse: reverse,
+            shrinkWrap: shrinkWrap,
             padding: padding,
             itemCount: items.length,
             itemBuilder: (context, index) => _item(items[index]),

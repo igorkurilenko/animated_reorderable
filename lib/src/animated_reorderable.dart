@@ -38,15 +38,27 @@ typedef AxisDirectionGetter = AxisDirection? Function(int index);
 /// ```
 typedef PermutationsCallback = void Function(Permutations permutations);
 
-/// A callback function that is called when an item is swiped for removal.
+/// A callback function that is called when an item is swiped away, as it
+/// flies off.
 ///
-/// Implementations should remove the corresponding collection item at [index].
+/// Implementations remove the item at [index] from the collection, and from
+/// the list with [AnimatedReorderableState.removeItem], as an [AnimatedList]'s
+/// items are removed: the list closes the gap, and the builder builds the
+/// item as it flies off. Removed from the collection alone, the item stays
+/// in the list.
 ///
 /// ```dart
 /// final List<MyDataObject> items = <MyDataObject>[/* ... */];
+/// final listKey = GlobalKey<AnimatedReorderableState>();
 ///
-/// void onSwipedToRemove(int index) =>
-///   items.removeAt(index);
+/// void onSwipeToRemove(int index) {
+///   final item = items.removeAt(index);
+///   listKey.currentState!.removeItem(
+///     index,
+///     (context, animation) =>
+///         FadeTransition(opacity: animation, child: MyItemWidget(item)),
+///   );
+/// }
 /// ```
 typedef SwipeToRemoveCallback = void Function(int index);
 
@@ -467,8 +479,11 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
           clipBehavior: _view.clipBehavior,
           underTheList: true,
         ),
+        // A view that shrink-wraps sits at its start, as it would without
+        // the package, rather than in the middle, which moves it as it
+        // grows or shrinks, and its items with it.
         Align(
-          alignment: Alignment.center,
+          alignment: AlignmentDirectional.topStart,
           // A layout-time correction, like a clamp after the content
           // shrank, moves the scroll offset without notifying listeners.
           // Only re-mark the baseline: overlayed items are re-targeted from
