@@ -14,6 +14,7 @@
 
 - Sign the example apps with each checkout's own team. The iOS project carried a personal development team, which broke signing for anyone else. Each checkout can now put its team in `Signing.xcconfig`, which git ignores, and the example's README says how.
 - Let screen readers move the kanban board's cards between its columns, with moves named after them, such as Move to Done.
+- Lift a held card off the kanban board, as GitHub's boards do: it grows a little and casts a shadow, and stays opaque. It faded to 70% before, so the cards under it showed through.
 
 ## 2.4.0
 
