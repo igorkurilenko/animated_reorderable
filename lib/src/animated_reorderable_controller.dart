@@ -373,7 +373,10 @@ class AnimatedReorderableController implements ItemHost {
     }
   }
 
+  var _disposed = false;
+
   void dispose() {
+    _disposed = true;
     boardScroll.dispose();
     scrollSync.dispose();
     _items.dispose();
@@ -447,6 +450,8 @@ class AnimatedReorderableController implements ItemHost {
   SemanticMoves semanticMovesAt(int index) => (
     back: _semanticDestination(index, SemanticMove.back) != null,
     forward: _semanticDestination(index, SemanticMove.forward) != null,
+    rowBack: _semanticDestination(index, SemanticMove.rowBack) != null,
+    rowForward: _semanticDestination(index, SemanticMove.rowForward) != null,
   );
 
   @override
@@ -458,9 +463,9 @@ class AnimatedReorderableController implements ItemHost {
 
   /// The index [move] takes the item at [index] to, or null if the item
   /// can't make it. Only an item that can be dragged and reordered moves,
-  /// and it moves past items that can't be reordered: one place back or
-  /// forward takes it to the nearest index it can take that way, and a move
-  /// to the start or the end to the farthest.
+  /// and it moves past items that can't be reordered: one place or row
+  /// back or forward takes it to the nearest index it can take that way,
+  /// and a move to the start or the end to the farthest.
   int? _semanticDestination(int index, SemanticMove move) {
     final itemCount = _items.itemCount;
     if (reorder.onReorder == null ||
@@ -470,12 +475,19 @@ class AnimatedReorderableController implements ItemHost {
         !isReorderable(index)) {
       return null;
     }
+    final row = _rowLength;
+    if (row == null &&
+        (move == SemanticMove.rowBack || move == SemanticMove.rowForward)) {
+      return null;
+    }
     // The indexes it can go to, from the first one to try.
     final (from, to) = switch (move) {
       SemanticMove.toStart => (0, index - 1),
       SemanticMove.back => (index - 1, 0),
       SemanticMove.forward => (index + 1, itemCount - 1),
       SemanticMove.toEnd => (itemCount - 1, index + 1),
+      SemanticMove.rowBack => (index - row!, 0),
+      SemanticMove.rowForward => (index + row!, itemCount - 1),
     };
     if (from < 0 || to < 0 || from >= itemCount || to >= itemCount) {
       return null;
@@ -485,6 +497,29 @@ class AnimatedReorderableController implements ItemHost {
       if (isReorderable(i)) return i;
     }
     return null;
+  }
+
+  /// How many items each row of the grid holds, if it holds more than
+  /// one, as a regular grid's rows do. Screen readers move items a row back
+  /// or forward then.
+  int? get _rowLength => switch (scrollSync.gridLayout) {
+    final SliverGridRegularTileLayout layout when layout.crossAxisCount > 1 =>
+      layout.crossAxisCount,
+    _ => null,
+  };
+
+  /// Takes the grid's [layout], which its items build with. The grid lays
+  /// itself out before it builds them, but one it already has builds again
+  /// once its rows hold another number of items, for its row moves.
+  void didLayOutGrid(SliverGridLayout layout, SliverConstraints constraints) {
+    final laidOut = scrollSync.gridLayout != null;
+    final rowLength = _rowLength;
+    scrollSync.didLayOutGrid(layout, constraints);
+    if (laidOut && _rowLength != rowLength) {
+      addPostFrame(() {
+        if (!_disposed) _items.itemsChanges.notify();
+      });
+    }
   }
 
   @override

@@ -1804,6 +1804,104 @@ void main() {
       expect(list.items, [2, 1, 0, 3]);
     });
 
+    testWidgets('moves an item a row back or forward in a grid', (
+      tester,
+    ) async {
+      // Three rows of three.
+      final list = _TestList(9, grid: true);
+      await tester.pumpWidget(list.build());
+
+      expect(
+        _moves(tester, 4),
+        unorderedEquals([
+          'Move to the start',
+          'Move left',
+          'Move up',
+          'Move right',
+          'Move down',
+          'Move to the end',
+        ]),
+      );
+      // No row before the first, or after the last.
+      expect(_moves(tester, 1), isNot(contains('Move up')));
+      expect(_moves(tester, 7), isNot(contains('Move down')));
+
+      _move(tester, 4, 'Move down');
+      await tester.pumpAndSettle();
+      expect(list.items.indexOf(4), 7);
+
+      _move(tester, 4, 'Move up');
+      await tester.pumpAndSettle();
+      expect(list.items, List.generate(9, (i) => i));
+    });
+
+    testWidgets('moves an item a row past items that cannot be reordered', (
+      tester,
+    ) async {
+      final list = _TestList(9, grid: true)
+        ..reorderableGetter = (index) => index != 7;
+      await tester.pumpWidget(list.build());
+
+      _move(tester, 4, 'Move down');
+      await tester.pumpAndSettle();
+
+      expect(list.items.indexOf(4), 8);
+      expect(list.items[7], 7);
+    });
+
+    testWidgets("names a grid's row moves after its scroll axis", (
+      tester,
+    ) async {
+      // Its rows run down the screen, and the next one is to the right.
+      final list = _TestList(9, grid: true, scrollDirection: Axis.horizontal);
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 4), containsAll(['Move left', 'Move right']));
+      _move(tester, 4, 'Move right');
+      await tester.pumpAndSettle();
+
+      expect(list.items.indexOf(4), 7);
+    });
+
+    testWidgets('offers no row moves in a grid of one column', (tester) async {
+      final list = _TestList(
+        3,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 1,
+          childAspectRatio: 4,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+
+      expect(_moves(tester, 1), hasLength(4));
+      expect(_moves(tester, 1), isNot(contains('Move up')));
+    });
+
+    testWidgets('keeps the row moves up to date as a resize changes the '
+        'columns', (tester) async {
+      final list = _TestList(
+        12,
+        grid: true,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+        ),
+      );
+      await tester.pumpWidget(list.build());
+      // Four columns: item 3 ends the first row.
+      expect(_moves(tester, 3), isNot(contains('Move up')));
+
+      // Three: it starts the second.
+      _resize(tester, const Size(600, 600));
+      await tester.pump();
+      await tester.pump();
+
+      expect(_moves(tester, 3), contains('Move up'));
+      _move(tester, 3, 'Move up');
+      await tester.pumpAndSettle();
+      expect(list.items.indexOf(3), 0);
+    });
+
     testWidgets('cannot move an item that cannot be dragged', (tester) async {
       final list = _TestList(3)..draggableGetter = (index) => index != 0;
       await tester.pumpWidget(list.build());
@@ -4047,7 +4145,13 @@ class _TestList {
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
           reorder: ReorderOptions(
-            onReorder: (permutations) => permutations.apply(items),
+            onReorder: (permutations) {
+              reorders++;
+              permutations.apply(items);
+            },
+            draggableGetter: draggableGetter,
+            reorderableGetter: reorderableGetter,
+            springDescription: reorderSpringDescription,
           ),
           swipeToRemove: SwipeToRemoveOptions(
             onSwipeToRemove: removeAt,
