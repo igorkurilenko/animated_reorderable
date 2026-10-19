@@ -2,6 +2,7 @@
 // See README.md for how to run it.
 
 import 'package:animated_reorderable/animated_reorderable.dart';
+import 'package:example/animated_reorderable_board/animated_reorderable_board.0.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -84,6 +85,32 @@ void main() {
           120,
         );
       });
+
+      // The example's kanban board. On a phone it's wider than the screen:
+      // a card held at its edge scrolls it, and goes from column to column
+      // under the finger.
+      await tester.pumpWidget(const AnimatedReorderableBoardSample());
+      await _wait(1000);
+      final card = tester.getCenter(
+        find.text('Show typing indicators in group chats'),
+      );
+      final board = find
+          .descendant(
+            of: find.byType(KanbanBoard),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final width = tester.getSize(board).width;
+      late List<double> scrolled;
+      await _measure(binding, tester, 'board drag', () async {
+        scrolled = await _dragAlongBoard(tester, board, card, [
+          Offset(width - 24, card.dy),
+          Offset(24, card.dy),
+        ]);
+      });
+      // To its end, where the card went into Done, and back.
+      final end = tester.state<ScrollableState>(board).position.maxScrollExtent;
+      expect(scrolled, [closeTo(end, 1), closeTo(0, 1)]);
     },
     // Semantics run only under an assistive technology, which most users
     // don't have on. --dart-define=SEMANTICS=true measures as under one.
@@ -124,6 +151,36 @@ Future<void> _dragThereAndBack(
   }
   await drag.up(timeStamp: clock.elapsed);
   await _wait(1000);
+}
+
+/// Long-presses at [start], drags to each of [stops] in 40 moves 8 ms
+/// apart, and holds still at each for 1.5 s, then lets go. Returns how far
+/// [board] had scrolled at each stop.
+Future<List<double>> _dragAlongBoard(
+  WidgetTester tester,
+  Finder board,
+  Offset start,
+  List<Offset> stops,
+) async {
+  final clock = Stopwatch()..start();
+  final drag = await tester.createGesture();
+  await drag.down(start, timeStamp: clock.elapsed);
+  await _wait(650);
+  final scrolled = <double>[];
+  var at = start;
+  for (final stop in stops) {
+    final step = (stop - at) / 40;
+    for (var i = 0; i < 40; i++) {
+      await drag.moveBy(step, timeStamp: clock.elapsed);
+      await _wait(8);
+    }
+    at = stop;
+    await _wait(1500);
+    scrolled.add(tester.state<ScrollableState>(board).position.pixels);
+  }
+  await drag.up(timeStamp: clock.elapsed);
+  await _wait(1000);
+  return scrolled;
 }
 
 Future<void> _wait(int milliseconds) =>

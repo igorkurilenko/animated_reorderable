@@ -38,7 +38,8 @@ echo 'DEVELOPMENT_TEAM = <your team ID>' > ios/Flutter/Signing.xcconfig
 - reorders and drags in a list of cards;
 - quick removes and swipes;
 - reorders between the ends of a list of 1,000;
-- a drag across a grid of 12 columns.
+- a drag across a grid of 12 columns;
+- a drag of a card across the example's kanban board, which scrolls the board as the card is held at its edge.
 
 Run it in profile mode, which builds the app as a release does:
 
