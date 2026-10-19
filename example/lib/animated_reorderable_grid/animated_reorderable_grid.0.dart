@@ -245,9 +245,18 @@ class CardItem extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Card(
-          color: Colors.primaries[item.id % Colors.primaries.length],
-          child: Center(child: Text('$item', style: textStyle)),
+        // Screen readers find the item's moves on its own node, so the
+        // item is labelled there. A card would give its text a node of its
+        // own, which a touch would pick, without the moves.
+        child: Semantics(
+          label: '$item',
+          selected: selected,
+          child: ExcludeSemantics(
+            child: Card(
+              color: Colors.primaries[item.id % Colors.primaries.length],
+              child: Center(child: Text('$item', style: textStyle)),
+            ),
+          ),
         ),
       ),
     );

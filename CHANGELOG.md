@@ -19,6 +19,11 @@
 - Say what `onSwipeToRemove` does: it removes the item from the app's data, and from the list with `removeItem`, as an `AnimatedList`'s items are removed. The docs said only to remove the item, and an item removed from the data alone stayed in the list.
 - Add a Screen readers section to the README: where an item's moves are, and how to keep a `Card` in an item from taking a touch without them. The first example of the README, of the API docs and of the example app builds `ListTile` items rather than cards, so a touch finds their moves.
 
+### Example
+
+- Label the items of the list and the grid on their own nodes for screen readers, so a touch on an item finds its moves. Their cards put the text on nodes of their own, which a touch picked instead.
+- Show the list's and the grid's current code on the example's page on pub.dev, which still had them in an older formatting.
+
 ## 2.5.0
 
 ### Features
