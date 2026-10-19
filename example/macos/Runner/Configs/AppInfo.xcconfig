@@ -12,3 +12,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.example.example
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2023 com.example. All rights reserved.
+
+// The team to sign with, if this checkout has one: Signing.xcconfig,
+// which git ignores. Without it, the app is signed to run locally.
+#include? "Signing.xcconfig"
