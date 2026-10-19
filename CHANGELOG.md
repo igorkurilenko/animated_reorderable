@@ -13,6 +13,12 @@
 - List an item's screen-reader moves in the same order on every item: the moves within its list first, in `ReorderableList`'s order, then the moves to the group's other lists, in the order of the board. The platform lists an item's actions in the order Flutter first numbered their labels anywhere in the app, so the order depended on which items were built first: on the example's board, "Move to Done" came before "Move to In progress".
 - Keep a screen reader's focus on an item it moves to another list. Lifting the item took away the node that had the focus, and VoiceOver's cursor went to the top of the screen. The item now takes the focus where it lands, or back in its own list if the app doesn't let it move. It scrolls into sight first, as into a column of a board that scrolls sideways: a screen reader focuses only what shows.
 
+### Docs
+
+- Correct the example of `ReorderOptions.gestureRecognizerFactory`, which didn't compile: a `DelayedMultiDragGestureRecognizer` takes its delay as it's created, and comes from `package:flutter/gestures.dart`.
+- Say what `onSwipeToRemove` does: it removes the item from the app's data, and from the list with `removeItem`, as an `AnimatedList`'s items are removed. The docs said only to remove the item, and an item removed from the data alone stayed in the list.
+- Add a Screen readers section to the README: where an item's moves are, and how to keep a `Card` in an item from taking a touch without them. The first example of the README, of the API docs and of the example app builds `ListTile` items rather than cards, so a touch finds their moves.
+
 ## 2.5.0
 
 ### Features

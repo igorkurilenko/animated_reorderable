@@ -97,41 +97,29 @@ class ReorderOptions {
   /// All can by default.
   final BoolGetter? reorderableGetter;
 
-  /// A factory function that creates a [MultiDragGestureRecognizer] for handling
-  /// reordering gestures in an [AnimatedReorderable].
+  /// Creates the recognizer of the gesture that starts a drag.
   ///
-  /// By default, it uses [DelayedMultiDragGestureRecognizer], which introduces a delay
-  /// to detect a long press before initiating the drag. This behavior is useful in cases where
-  /// you want to distinguish between simple taps and drag gestures.
+  /// By default, a [DelayedMultiDragGestureRecognizer] starts a drag after a
+  /// long press, so a tap on an item, or a scroll of the list, still works:
   ///
-  /// Users can override this factory to:
-  /// - Customize the default delay for initiating drag gestures (e.g., changing the delay duration).
-  /// - Use different types of gesture recognizers (e.g., for specific user interactions or input devices).
-  ///
-  /// Default implementation:
   /// ```dart
-  /// MultiDragGestureRecognizer createReorderDragGestureRecognizer(
-  ///   BuildContext context,
-  /// ) =>
-  ///   DelayedMultiDragGestureRecognizer()
-  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
+  /// (context) => DelayedMultiDragGestureRecognizer()
+  ///   ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
   /// ```
   ///
-  /// Example of customizing the delay duration to 250ms using [DelayedMultiDragGestureRecognizer]:
+  /// A shorter press, of 250 ms, starts a drag with this one. A recognizer
+  /// takes its delay as it's created, and the multi-drag recognizers come
+  /// from `package:flutter/gestures.dart`, which `material.dart` doesn't
+  /// export:
+  ///
   /// ```dart
-  /// gestureRecognizerFactory: (BuildContext context) {
-  ///   final recognizer = DelayedMultiDragGestureRecognizer()
-  ///     ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
-  ///
-  ///   // Customize the delay duration to 250ms
-  ///   recognizer.delay = const Duration(milliseconds: 250);
-  ///
-  ///   return recognizer;
-  /// }
+  /// gestureRecognizerFactory: (context) => DelayedMultiDragGestureRecognizer(
+  ///   delay: const Duration(milliseconds: 250),
+  /// )..gestureSettings = MediaQuery.maybeGestureSettingsOf(context),
   /// ```
   ///
-  /// This factory allows for fine-tuned control over the gesture recognition system,
-  /// providing flexibility for various user interactions and devices.
+  /// An [ImmediateMultiDragGestureRecognizer] starts a drag at once, as a
+  /// mouse does on the example's kanban board.
   final MultiDragGestureRecognizerFactory? gestureRecognizerFactory;
 
   /// {@macro flutter.widgets.EdgeDraggingAutoScroller.velocityScalar}
@@ -215,7 +203,9 @@ class SwipeToRemoveOptions {
     this.callbacks = const ItemDragCallbacks(),
   });
 
-  /// Called with the index of an item that is swiped away, to remove it.
+  /// Called with the index of an item that is swiped away, as it flies off,
+  /// to remove it from the app's data and from the list with
+  /// [AnimatedReorderableState.removeItem], as [SwipeToRemoveCallback] shows.
   /// Without it, items cannot be swiped.
   final SwipeToRemoveCallback? onSwipeToRemove;
 
