@@ -16,6 +16,10 @@
 - Take an item that moves to its new slot through the overlay to where the slot is when the slot moves again on the way, as when a held item before it resizes, such as a card that goes into a list of smaller thumbnails. It went on to where the slot had been, then jumped back to it as it landed.
 - Keep an item let go in its place on its way back to its own look as the list builds again, as when the app sets state as a drag ends. It landed at once, and jumped from its held look, by default scaled up and faded, to its own.
 
+### Example
+
+- Add a kanban board, whose cards are dragged within and between its three columns, to the example app and to its page on pub.dev. A mouse drags a card at once and a finger after a long press, and a task that goes into Done flies to a done card with its title struck through.
+
 ## 2.3.0
 
 ### Features

@@ -14,6 +14,16 @@ Run the example for a `GridView`:
 flutter run lib/animated_reorderable_grid/animated_reorderable_grid.0.dart
 ```
 
+Run the example of a kanban board, whose cards are dragged within and between its columns:
+```
+flutter run lib/animated_reorderable_board/animated_reorderable_board.0.dart
+```
+
+`integration_test/board_test.dart` drags a task into Done on a device:
+```
+flutter test integration_test/board_test.dart -d <device id>
+```
+
 ## Measuring frame times on a device
 
 `integration_test/perf_test.dart` runs the package's moves for real and records how long each frame takes:
