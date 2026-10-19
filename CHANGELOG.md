@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Behavior changes
+
+- Put a shrink-wrapped list or grid at the start of its space, rather than in the middle. In the middle, it moved at once, with its items, as it grew or shrank: removing the last item of a grid's last row, with the rows left fitting in the space, moved every row down half a row with no animation, and over the removed item as it left. The rows now slide down as the scroll offset clamps, as in a list or grid that fills its space, which doesn't move.
+
 ### Performance
 
 - Build a dense grid's items faster after a change. The package looks up each item it builds by its key. A `ValueKey` hashes its `runtimeType` with its value, and a generic class's `runtimeType`, such as `ValueKey<int>`'s, is slow to get in release builds: in a drag across a 12-column grid, it took a third of each rebuild. The package now hashes value keys by their values. On an iPhone 17 Pro, the slowest frame of that drag builds in 5.2 ms rather than 6.9.

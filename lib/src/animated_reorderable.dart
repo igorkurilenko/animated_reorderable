@@ -467,8 +467,11 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
           clipBehavior: _view.clipBehavior,
           underTheList: true,
         ),
+        // A view that shrink-wraps sits at its start, as it would without
+        // the package, rather than in the middle, which moves it as it
+        // grows or shrinks, and its items with it.
         Align(
-          alignment: Alignment.center,
+          alignment: AlignmentDirectional.topStart,
           // A layout-time correction, like a clamp after the content
           // shrank, moves the scroll offset without notifying listeners.
           // Only re-mark the baseline: overlayed items are re-targeted from
