@@ -5,16 +5,24 @@ import 'package:animated_reorderable/src/widget/overlayed_items_layer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _extent = 100.0;
 
 /// The package's default motion duration.
-const _motionDuration = Duration(milliseconds: 500);
+const _motionDuration = Duration(milliseconds: 250);
+
+/// The package's default insert and remove duration.
+const _insertDuration = Duration(milliseconds: 300);
 
 /// The package's default fling spring.
-const _defaultSpring = SpringDescription(mass: 1, stiffness: 500, damping: 75);
+const _defaultSpring = SpringDescription(
+  mass: 1,
+  stiffness: 2000,
+  damping: 150,
+);
 
 void main() {
   group('disposal', () {
@@ -691,7 +699,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       paints = 0;
-      for (var i = 0; i < 20; i++) {
+      for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
@@ -807,7 +815,7 @@ void main() {
       expect(builds, lessThanOrEqualTo(10));
       // The move starts in the frame that lays the items out in their new
       // slots.
-      expect(frames, 32);
+      expect(frames, (_motionDuration.inMilliseconds / 16).ceil());
     });
 
     testWidgets('builds no item while items move', (tester) async {
@@ -844,7 +852,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
       builds = 0;
-      for (var i = 0; i < 25; i++) {
+      for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
@@ -1065,6 +1073,129 @@ void main() {
     expect(tester.getTopLeft(find.text('9')).dy - top, moreOrLessEquals(50));
   });
 
+  testWidgets('moves the items before a removed one down into its place as '
+      'the list clamps', (tester) async {
+    final list = _TestList(10);
+    await tester.pumpWidget(list.build());
+    final position = _scrollPosition(tester);
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    double top(int id) => tester.getTopLeft(find.text('$id')).dy;
+    final before = [top(4)];
+    final after = [top(6)];
+
+    // The list shrinks under its offset, which comes back by an item: the
+    // items after the removed one stay where they show, and those before
+    // it come down into its place rather than jump there.
+    list.removeAt(5);
+    while (tester.binding.hasScheduledFrame) {
+      await tester.pump(const Duration(milliseconds: 16));
+      before.add(top(4));
+      after.add(top(6));
+    }
+
+    expect(after, everyElement(moreOrLessEquals(after.first)));
+    expect(_steps(before), everyElement(inInclusiveRange(0, 20)));
+    expect(before.last, before.first + _extent);
+  });
+
+  testWidgets('moves an item that comes down on its way as another removal '
+      'clamps the list', (tester) async {
+    final list = _TestList(10);
+    await tester.pumpWidget(list.build());
+    final position = _scrollPosition(tester);
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    final tops = [tester.getTopLeft(find.text('4')).dy];
+
+    list.removeAt(5);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      tops.add(tester.getTopLeft(find.text('4')).dy);
+    }
+    list.removeAt(5);
+    while (tester.binding.hasScheduledFrame) {
+      await tester.pump(const Duration(milliseconds: 16));
+      tops.add(tester.getTopLeft(find.text('4')).dy);
+    }
+
+    expect(_steps(tops), everyElement(inInclusiveRange(0, 25)));
+    expect(tops.last, tops.first + 2 * _extent);
+  });
+
+  testWidgets('moves the items with the content as a resize clamps the '
+      'list', (tester) async {
+    final list = _TestList(10);
+    await tester.pumpWidget(list.build());
+    final position = _scrollPosition(tester);
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    final top = tester.getTopLeft(find.text('4')).dy;
+
+    // The view grows by an item under the list's offset, as any view's.
+    _resize(tester, const Size(800, 700));
+    await tester.pump();
+
+    expect(tester.getTopLeft(find.text('4')).dy, top + _extent);
+    expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  testWidgets('moves the items in sight a slot as an item goes or comes far '
+      'above them', (tester) async {
+    final list = _TestList(50);
+    await tester.pumpWidget(list.build());
+    _scrollPosition(tester).jumpTo(20 * _extent);
+    await tester.pumpAndSettle();
+    double top() => tester.getTopLeft(find.text('22')).dy;
+    final tops = [top()];
+
+    list.removeAt(0);
+    while (tester.binding.hasScheduledFrame) {
+      await tester.pump(const Duration(milliseconds: 16));
+      tops.add(top());
+    }
+    expect(_steps(tops), everyElement(inInclusiveRange(-20, 0)));
+    expect(tops.last, tops.first - _extent);
+
+    list.insert(0, 100);
+    tops.removeRange(0, tops.length - 1);
+    while (tester.binding.hasScheduledFrame) {
+      await tester.pump(const Duration(milliseconds: 16));
+      tops.add(top());
+    }
+    expect(_steps(tops), everyElement(inInclusiveRange(0, 20)));
+    expect(tops.last, tops.first + _extent);
+  });
+
+  testWidgets(
+    'moves the items of a grid down a row as a removal of its '
+    'last row clamps it',
+    (tester) async {
+      final list = _TestList(10, grid: true);
+      await tester.pumpWidget(list.build());
+      final position = _scrollPosition(tester);
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      final row = tester.getSize(find.byType(_Item).first).height;
+      final tops = [tester.getTopLeft(find.text('6')).dy];
+
+      // Item 9 is alone in the last row.
+      list.removeAt(9);
+      while (tester.binding.hasScheduledFrame) {
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(tester.getTopLeft(find.text('6')).dy);
+      }
+
+      expect(_steps(tops), everyElement(inInclusiveRange(0, row / 6)));
+      expect(tops.last, moreOrLessEquals(tops.first + row));
+      // Whether the physics clamp, or bounce as on macOS and iOS.
+    },
+    variant: TargetPlatformVariant(const {
+      TargetPlatform.android,
+      TargetPlatform.macOS,
+    }),
+  );
+
   for (final clipBehavior in [Clip.hardEdge, Clip.none]) {
     testWidgets('clips moving items as the list does, with '
         '${clipBehavior.name}', (tester) async {
@@ -1101,7 +1232,7 @@ void main() {
       key.currentState!.reorderItem(0, destIndex: 40);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 16));
-      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(_motionDuration * 0.7);
 
       // On its way out through the bottom edge.
       final item = tester.getRect(find.text('0'));
@@ -1733,7 +1864,7 @@ void main() {
       list.insert(0, 3);
       await tester.pump();
       expect(_entranceOf(tester, 3).value, 0);
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
       expect(_entranceOf(tester, 3).value, closeTo(0.5, 0.01));
       await tester.pumpAndSettle();
 
@@ -1746,7 +1877,7 @@ void main() {
 
       list.insert(0, 3);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
 
       expect([
         for (final id in [0, 1, 2]) _entranceOf(tester, id).value,
@@ -1759,7 +1890,7 @@ void main() {
 
       list.insert(0, 6);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
 
       expect(_entranceOf(tester, 6).value, closeTo(0.5, 0.01));
     });
@@ -1770,7 +1901,7 @@ void main() {
 
       list.insert(0, 3);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
       final state = list.states(tester)[3];
       await tester.pumpAndSettle();
       await tester.pumpWidget(list.build());
@@ -1793,7 +1924,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       // The overlay shows it on its way, still entering.
-      expect(_entranceOf(tester, 3).value, closeTo(0.4, 0.01));
+      expect(
+        _entranceOf(tester, 3).value,
+        closeTo(200 / _insertDuration.inMilliseconds, 0.01),
+      );
       await tester.pumpAndSettle();
 
       expect(list.items, [0, 1, 3, 2]);
@@ -1812,7 +1946,7 @@ void main() {
 
       list.insert(0, 3);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
       final removals = <double>[];
       list.items.removeAt(0);
       list.state.removeItem(0, (context, animation) {
@@ -1840,7 +1974,7 @@ void main() {
 
       list.insert(0, 3);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
       await tester.pumpWidget(const SizedBox());
 
       expect(controllers, isEmpty);
@@ -1852,7 +1986,7 @@ void main() {
 
       list.insert(0, 3);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(_insertDuration ~/ 2);
       list.insertTransition = (child, index, animation) =>
           _Entrance(animation: animation, label: 'latest', child: child);
       await tester.pumpWidget(list.build());
@@ -2163,6 +2297,55 @@ void main() {
       expect(list.items, [0, 1, 2, 3, 4]);
       expect(list.reorders, 0);
     });
+
+    for (final (cause, change) in [
+      // It builds the items that come into sight.
+      (
+        'its list scrolls',
+        (WidgetTester tester, _TestList list) async =>
+            _scrollPosition(tester).jumpTo(60),
+      ),
+      // As an app that sets state as a drag ends does.
+      (
+        'the app builds the list again',
+        (WidgetTester tester, _TestList list) =>
+            tester.pumpWidget(list.build()),
+      ),
+    ]) {
+      testWidgets('fades an item let go back in as $cause', (tester) async {
+        final list = _TestList(60);
+        await tester.pumpWidget(list.build());
+        double opacity() => tester
+            .widget<FadeTransition>(
+              find
+                  .ancestor(
+                    of: find.text('1'),
+                    matching: find.byType(FadeTransition),
+                  )
+                  .first,
+            )
+            .opacity
+            .value;
+
+        // Held in its place until it has faded, and let go there.
+        final drag = await _holdAndDrag(tester, find.text('1'), 0);
+        await tester.pump(const Duration(seconds: 1));
+        await drag.up();
+        final opacities = [opacity()];
+        for (var i = 0; i < 40; i++) {
+          if (i == 2) await change(tester, list);
+          await tester.pump(const Duration(milliseconds: 16));
+          opacities.add(opacity());
+        }
+
+        expect(opacities.first, lessThan(0.75));
+        expect(opacities.last, 1);
+        expect([
+          for (var i = 1; i < opacities.length; i++)
+            opacities[i] - opacities[i - 1],
+        ], everyElement(inInclusiveRange(0, 0.05)));
+      });
+    }
   });
 
   group('two changes in a frame', () {
@@ -2238,9 +2421,6 @@ void main() {
   });
 
   group('landing', () {
-    // The default motion duration.
-    const motionDuration = Duration(milliseconds: 500);
-
     /// The tops of the item [finder] finds over [frames] frames.
     Future<List<double>> track(
       WidgetTester tester,
@@ -2269,7 +2449,7 @@ void main() {
       await tester.pump();
       // It moves from this frame on, and is in its new place at the end.
       await tester.pump(const Duration(milliseconds: 16));
-      await tester.pump(motionDuration);
+      await tester.pump(_motionDuration);
       final tops = [tester.getTopLeft(_itemWithId(1)).dy];
 
       // Its move ends on the next frame, before the list lays it out in
@@ -2279,7 +2459,7 @@ void main() {
 
       expect(tops.first, 0);
       expect(tops.last, _extent);
-      expect(steps(tops), everyElement(inInclusiveRange(0, 10)));
+      expect(steps(tops), everyElement(inInclusiveRange(0, 20)));
     });
 
     testWidgets('moves an item let go on when its place moves as it gets '
@@ -2311,12 +2491,26 @@ void main() {
       expect(tops.first, moreOrLessEquals(0, epsilon: 0.5));
       expect(tops.last, _extent);
       // Up the last bit of the way back, then down to the new place.
-      expect(steps(tops), everyElement(inInclusiveRange(-0.5, 10)));
+      expect(steps(tops), everyElement(inInclusiveRange(-0.5, 20)));
     });
   });
 
   group('fling', () {
     const frame = Duration(milliseconds: 16);
+
+    /// How far the default spring takes an item let go [way] px from its
+    /// place, moving toward it at [speed] px a frame, from the first frame
+    /// of its fling to the next.
+    double firstStep(double way, {required double speed}) {
+      double seconds(Duration duration) =>
+          duration.inMicroseconds / Duration.microsecondsPerSecond;
+      return SpringSimulation(
+        _defaultSpring,
+        0,
+        way,
+        speed / seconds(frame),
+      ).x(seconds(frame));
+    }
 
     /// Swipes item 1 [distance] px along [forward], and lets it go moving
     /// back at [speed] px a frame. Returns where it is let go.
@@ -2336,10 +2530,11 @@ void main() {
         await tester.pump(frame);
       }
 
-      for (var i = 0; i < (distance + 5 * speed) / 10; i++) {
+      // Long enough back that the pointer's speed is all it goes at.
+      for (var i = 0; i < (distance + 8 * speed) / 10; i++) {
         await move(forward * 10);
       }
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 8; i++) {
         await move(-forward * speed);
       }
       final letGo = tester.getTopLeft(_itemWithId(1));
@@ -2428,8 +2623,14 @@ void main() {
         xs.add(tester.getTopLeft(_itemWithId(1)).dx);
       }
 
-      // The first frame of a fling shows the item where it was let go.
-      expect(_steps(xs)[1], inInclusiveRange(25, 35));
+      // The first frame of a fling shows the item where it was let go,
+      // and the next one where the spring takes it from there at that
+      // speed, rather than from rest.
+      expect(_steps(xs)[1], closeTo(firstStep(200, speed: 30), 2));
+      expect(
+        firstStep(200, speed: 30) - firstStep(200, speed: 0),
+        greaterThan(5),
+      );
       await tester.pumpAndSettle();
     });
 
@@ -2453,11 +2654,12 @@ void main() {
         await tester.pump(frame);
       }
 
-      // Across its row, where no other item is, and back at 30 px a frame.
-      for (var i = 0; i < 20; i++) {
+      // Across its row, where no other item is, and back at 30 px a frame,
+      // long enough that it is all it goes at, to 50 px from its place.
+      for (var i = 0; i < 29; i++) {
         await move(const Offset(10, 0));
       }
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < 8; i++) {
         await move(const Offset(-30, 0));
       }
       final xs = [middle()];
@@ -2467,8 +2669,14 @@ void main() {
         xs.add(middle());
       }
 
-      // The first frame of a fling shows the item where it was let go.
-      expect(-_steps(xs)[1], inInclusiveRange(25, 35));
+      // The first frame of a fling shows the item where it was let go,
+      // and the next one where the spring takes it from there at that
+      // speed, rather than from rest.
+      expect(-_steps(xs)[1], closeTo(firstStep(50, speed: 30), 2));
+      expect(
+        firstStep(50, speed: 30) - firstStep(50, speed: 0),
+        greaterThan(5),
+      );
       await tester.pumpAndSettle();
       expect(tester.getCenter(_itemWithId(1)), slot);
       expect(list.reorders, 0);
@@ -2666,8 +2874,9 @@ void main() {
 
           await tester.fling(_itemWithId(1), forward * extent * 0.2, 2000);
           final offsets = <Offset>[];
+          // Within the removal, which ends with the item out of sight.
           for (var i = 0; i < 11; i++) {
-            await tester.pump(const Duration(milliseconds: 50));
+            await tester.pump(_insertDuration ~/ 12);
             offsets.add(tester.getTopLeft(_itemWithId(1)) - slot);
           }
 

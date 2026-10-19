@@ -13,17 +13,19 @@ extension RenderBoxGeometry on RenderBox {
   Rect getGeometry() => localToGlobal(Offset.zero) & size;
 }
 
+extension AxisDirectionOffset on AxisDirection {
+  /// [pixels] along this direction, as an offset on the screen.
+  Offset offsetOf(double pixels) => switch (this) {
+    AxisDirection.down => Offset(0, pixels),
+    AxisDirection.up => Offset(0, -pixels),
+    AxisDirection.right => Offset(pixels, 0),
+    AxisDirection.left => Offset(-pixels, 0),
+  };
+}
+
 extension ScrollPositionOffset on ScrollPosition {
   /// The scroll offset as the distance the content moved on the screen.
-  Offset toRelativeOffset() {
-    final pixels = axisDirectionIsReversed(axisDirection)
-        ? -this.pixels
-        : this.pixels;
-    return switch (axisDirectionToAxis(axisDirection)) {
-      Axis.vertical => Offset(0, pixels),
-      Axis.horizontal => Offset(pixels, 0),
-    };
-  }
+  Offset toRelativeOffset() => axisDirection.offsetOf(pixels);
 }
 
 extension SliverGridGeometrySize on SliverGridGeometry {

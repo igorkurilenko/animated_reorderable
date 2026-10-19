@@ -1,7 +1,9 @@
 library;
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show clampDouble, visibleForTesting;
 import 'package:flutter/physics.dart';
@@ -25,3 +27,4 @@ part 'item_registry.dart';
 part 'rendered_item.dart';
 part 'change_signal.dart';
 part 'item_motion.dart';
+part 'item_flight.dart';

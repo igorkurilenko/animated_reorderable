@@ -1,3 +1,25 @@
+## 2.4.0
+
+### Behavior changes
+
+- Animate faster by default, at the pace of Flutter's own lists. Items move to their new places in 250 ms rather than 500, as a `ReorderableListView`'s do, and a held item's decoration comes and goes as fast. Inserted and removed items enter and leave in 300 ms rather than 500, as an `AnimatedList`'s do. The spring that flings an item back to its place, or out of the list, is four times as stiff and twice as damped, so it gets there in half the time with the same feel. To keep the old pace, pass `MotionOptions(duration: Duration(milliseconds: 500))`, `ItemDecoration(duration: Duration(milliseconds: 500))`, a `duration` to `insertItem` and `removeItem`, and `SwipeToRemoveOptions(springDescription: SpringDescription(mass: 1, stiffness: 500, damping: 75))`. An item let go after a drag has no option for its spring.
+
+### Features
+
+- Drag items between lists and grids, as between the columns of a board. Put the lists under an `AnimatedReorderableGroup` and give each a `ReorderOptions.groupId`. An item dragged over another of the lists goes into it, as the group's `onMove(from, to)` moves its data, and the items of both lists move in place out of its way and into its old place. Let go, it lands there, with its state kept and the size of the new list's slots. `canMove` can refuse a move before any data changes. The drag callbacks come from the list the item is in at the time, and an item dragged over no list stays in the last one it was over.
+- Scroll a board of lists to the ones out of sight. Held at an edge of a view that scrolls across the lists, such as a board that scrolls sideways, a dragged item scrolls it, and goes into each list the view brings under it. The group can be inside such a view or around it, and an item let go lands on its slot as the view scrolls.
+- Fly a dragged item from one list's look to another's, as hero_here flies a hero, when the lists of a group build their items differently, such as cards in a list and thumbnails in a grid. As the item goes into the other list, its old look, as it last showed, fades out and the new list's look fades in, while it grows or shrinks to the new list's slots around the point the pointer holds. Its old look isn't built again: the old list builds another item at its index by then. `AnimatedReorderableGroup.flight` sets the duration, the curve and the shuttle builder, which has hero_here's shape, and `FlightOptions.none` turns flights off. An item let go mid-flight lands once it has flown.
+
+### Fixes
+
+- Keep the items of a list or grid scrolled to its end where they show as an item leaves it, removed, swiped away or dragged into another list. The view shrank under its scroll offset, which came back within its range at once: the items before the gap jumped down into it, and those after it jumped down and slid back up. A grid that lost its last row, as its last item went, jumped down a row. Now the items before the gap slide down into it, and those after it stay put. It broke in 2.0.1, which left the items a change doesn't move in the list. A view that resizes still moves its items with its content, as any view does.
+- Take an item that moves to its new slot through the overlay to where the slot is when the slot moves again on the way, as when a held item before it resizes, such as a card that goes into a list of smaller thumbnails. It went on to where the slot had been, then jumped back to it as it landed.
+- Keep an item let go in its place on its way back to its own look as the list builds again, as when the app sets state as a drag ends. It landed at once, and jumped from its held look, by default scaled up and faded, to its own.
+
+### Example
+
+- Add a kanban board, whose cards are dragged within and between its three columns, to the example app and to its page on pub.dev. A mouse drags a card at once and a finger after a long press, and a task that goes into Done flies to a done card with its title struck through.
+
 ## 2.3.0
 
 ### Features

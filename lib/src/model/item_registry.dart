@@ -218,6 +218,41 @@ class ItemRegistry {
     return _itemByKey.remove(key);
   }
 
+  /// Gives up the held [item] to another list's registry: the list no
+  /// longer has it at its index, and the items after it move up. The item
+  /// keeps its placeholder, which goes with it.
+  void releaseHeldItem(OverlayedItem item) {
+    if (_overlayedItemByKey[item.key] == item) {
+      _overlayedItemByKey.remove(item.key);
+    }
+    if (draggedItem == item) draggedItem = null;
+    removeItem(index: item.index);
+    overlayChanges.notify();
+  }
+
+  /// Takes in the held [item] from another list's registry at [index]: the
+  /// items from there on move down, and the list shows the item's
+  /// placeholder at [index].
+  void adoptHeldItem(OverlayedItem item, {required int index}) {
+    for (var i in _itemKeyByIndex.keys.toList().reversed) {
+      if (i < index) break;
+      _itemKeyByIndex[i + 1] = _itemKeyByIndex[i]!;
+    }
+    for (var overlayedItem in [...overlayedItems, ..._outgoingItems]) {
+      if (overlayedItem.index >= index) overlayedItem.index++;
+    }
+    _itemByKey[item.key] = item.item;
+    _itemKeyByIndex[index] = item.key;
+    itemCount = itemCount! + 1;
+    item.index = index;
+    _overlayedItemByKey[item.key] = item;
+    _raise(item);
+    item.item.placeholderSize.value = item.size;
+    draggedItem = item;
+    itemsChanges.notify();
+    overlayChanges.notify();
+  }
+
   Permutations moveItem({
     required int index,
     required int destIndex,

@@ -44,6 +44,11 @@ abstract interface class ItemHost {
   Duration get motionDuration;
   Curve get motionCurve;
 
+  /// How far, in pixels, the frame moves the view's scroll offset as it
+  /// lays out a change, like one that shrinks the list under its offset,
+  /// or zero.
+  double get scrollAdjustment;
+
   /// The edge of the view that the item with [key] comes in through, once,
   /// if a change brought it into sight from out of it.
   ViewEdge? takeEntry(Key key);
@@ -171,34 +176,51 @@ class _ItemWidgetState extends State<ItemWidget>
     box.markNeedsCompositedLayerUpdate();
   }
 
+  @override
+  void willShift() {
+    final box = _inPlace;
+    // A placeholder shows nothing to move.
+    if (box == null || !box.attached || widget.placeholderSize.value != null) {
+      return;
+    }
+    box.markNeedsCompositedLayerUpdate();
+  }
+
   /// Where [box] is laid out, in the coordinates of the view's content.
   Offset _contentPosition(RenderBox box) {
     final global = box.localToGlobal(Offset.zero);
     final scroll = _scrollPosition;
     if (scroll == null || !scroll.hasPixels) return global;
-    return global +
-        switch (scroll.axisDirection) {
-          AxisDirection.down => Offset(0, scroll.pixels),
-          AxisDirection.up => Offset(0, -scroll.pixels),
-          AxisDirection.right => Offset(scroll.pixels, 0),
-          AxisDirection.left => Offset(-scroll.pixels, 0),
-        };
+    return global + scroll.toRelativeOffset();
   }
+
+  /// A scroll offset of [pixels], in the coordinates of the view's content.
+  Offset _contentOffset(double pixels) =>
+      _scrollPosition?.axisDirection.offsetOf(pixels) ?? Offset.zero;
 
   /// How far the item shows from its slot once the frame has laid it out.
   /// It moves from where it showed before its slot moved, and heads anew
   /// for a slot that moves under it on the way, as on a resize.
+  ///
+  /// A change that moves the view's scroll offset, as one that shrinks the
+  /// list under it does, moves the content on the screen. The item goes on
+  /// from where it showed rather than jump with the content.
   Offset _translationAfterLayout(RenderBox box) {
     final slot = _contentPosition(box);
+    final shift = _contentOffset(host.scrollAdjustment);
+    final shifted = shift != Offset.zero;
     final motion = _motion;
+    if (shifted && motion != null && motion.isMoving) motion.shift(shift);
+    final shown = _shownBeforeMove;
     final from =
-        _shownBeforeMove ??
+        (shown != null ? shown + shift : null) ??
         (motion != null &&
                 motion.isMoving &&
                 (motion.target - slot).distance >= retargetTolerance
             ? motion.position
             : null) ??
-        _enteringFrom(box, slot);
+        _enteringFrom(box, slot) ??
+        (shifted && !(motion?.isMoving ?? false) ? slot + shift : null);
     _shownBeforeMove = null;
     if (from != null && (from - slot).distance >= retargetTolerance) {
       final motion = _motion ??= ItemMotion(

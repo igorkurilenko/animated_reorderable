@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 
 import '../animated_reorderable_controller.dart';
 import '../const.dart';
-import '../controller/overlay_coordinator.dart';
 import '../model/model.dart';
 import '../util/geometry.dart';
 import 'overlayed_item_widget.dart';
@@ -80,6 +79,8 @@ class OverlayedItemsLayerState extends State<OverlayedItemsLayer>
   @override
   Widget build(BuildContext context) {
     final items = controller.overlayedItemsOrderedByZIndex
+        // A group's layer shows the items held in the group's lists.
+        .where((x) => x.sharedSpace == null)
         .where((x) => (x.zIndex < defaultZIndex) == widget.underTheList)
         .toList();
     final shown = items.toSet();

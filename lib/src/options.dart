@@ -70,7 +70,14 @@ class ReorderOptions {
     this.autoScrollerVelocityScalar = defaultAutoScrollVelocityScalar,
     this.decoration = const ItemDecoration(),
     this.callbacks = const ItemDragCallbacks(),
+    this.groupId,
   });
+
+  /// The id of the list in the [AnimatedReorderableGroup] above it, which
+  /// the group's callbacks get as an [ItemPlace]'s `list`. With it, and
+  /// with [onReorder], items can be dragged to and from the group's other
+  /// lists.
+  final Object? groupId;
 
   /// Called when items are reordered. Without it, items can still be
   /// dragged, but do not take each other's places.
@@ -133,6 +140,60 @@ class ReorderOptions {
 
   /// The callbacks of each drag.
   final ItemDragCallbacks callbacks;
+}
+
+/// Builds what a dragged item shows as it flies from the look of the list
+/// it leaves to the look of the list it goes to, as a hero_here flight's
+/// shuttle builder does.
+///
+/// [from] is the old look, as it last showed, and [to] the new one. Each is
+/// laid out as it is, and fitted to the shuttle. [animation] runs from 0 at
+/// [from] to 1 at [to].
+typedef ItemFlightShuttleBuilder = Widget Function(
+  BuildContext context,
+  Animation<double> animation,
+  Widget from,
+  Widget to,
+);
+
+/// How a dragged item flies from the look of one list of an
+/// [AnimatedReorderableGroup] to another's, as it goes from one list to the
+/// other. It grows or shrinks to the new list's slots around the point the
+/// pointer holds.
+@immutable
+class FlightOptions {
+  const FlightOptions({
+    this.duration = defaultFlightDuration,
+    this.curve = defaultFlightCurve,
+    this.shuttleBuilder = crossFadeShuttleBuilder,
+  });
+
+  /// No flight: an item shows its new list's look at once.
+  static const none = FlightOptions(duration: Duration.zero);
+
+  /// The time a flight takes. A zero duration flies no flight.
+  final Duration duration;
+
+  /// The curve a flight runs along.
+  final Curve curve;
+
+  /// Builds what a flying item shows. By default it fades the old look out
+  /// and the new one in.
+  final ItemFlightShuttleBuilder shuttleBuilder;
+
+  /// Fades [from] out and [to] in as [animation] runs.
+  static Widget crossFadeShuttleBuilder(
+    BuildContext context,
+    Animation<double> animation,
+    Widget from,
+    Widget to,
+  ) => Stack(
+    fit: StackFit.expand,
+    children: [
+      FadeTransition(opacity: ReverseAnimation(animation), child: from),
+      FadeTransition(opacity: animation, child: to),
+    ],
+  );
 }
 
 /// How items are swiped away to remove them.

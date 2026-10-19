@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_reorderable_controller.dart';
+import 'animated_reorderable_group.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
 import 'model/permutations.dart';
@@ -281,6 +282,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       insertTransition: widget.insertTransition,
       scrollDirection: _view.scrollDirection,
       isGrid: _view is _WrappedGridView,
+      clipBehavior: _view.clipBehavior,
       itemCount: childrenDelegateSettingsOf(_view.childrenDelegate).childCount,
       vsync: this,
     );
@@ -290,7 +292,13 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    _controller.scrollSync.scrollController = _effectiveScrollController;
+    _controller
+      ..scrollSync.scrollController = _effectiveScrollController
+      ..group = GroupScope.maybeOf(context)
+      ..boardScroll.board = Scrollable.maybeOf(
+        context,
+        axis: flipAxis(_view.scrollDirection),
+      );
   }
 
   @override
@@ -305,6 +313,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       ..insertTransition = widget.insertTransition
       ..scrollDirection = _view.scrollDirection
       ..isGrid = _view is _WrappedGridView
+      ..clipBehavior = _view.clipBehavior
       ..scrollSync.scrollController = _effectiveScrollController;
   }
 
@@ -433,7 +442,9 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller
+      ..group = null
+      ..dispose();
     _ownScrollController?.dispose();
     super.dispose();
   }
@@ -515,7 +526,11 @@ final class _WrappedListView extends _WrappedView {
     reverse: listView.reverse,
     controller: controller.scrollSync.scrollController,
     primary: false,
-    physics: listView.physics,
+    physics: AnchoredScrollPhysics(
+      anchor: controller.scrollSync.anchoredScrollOffset,
+      onAdjust: controller.didAdjustScrollOffset,
+      parent: listView.physics,
+    ),
     shrinkWrap: listView.shrinkWrap,
     padding: listView.padding,
     itemExtent: listView.itemExtent,
@@ -556,6 +571,7 @@ final class _WrappedGridView extends _WrappedView {
     primary: false,
     physics: AnchoredScrollPhysics(
       anchor: controller.scrollSync.anchoredScrollOffset,
+      onAdjust: controller.didAdjustScrollOffset,
       parent: gridView.physics,
     ),
     shrinkWrap: gridView.shrinkWrap,
