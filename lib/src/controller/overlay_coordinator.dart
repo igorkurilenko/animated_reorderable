@@ -295,8 +295,23 @@ class OverlayCoordinator {
             curve: motionAnimationCurve(),
           )
           .whenComplete(() => land(overlayedItem));
-    } else if (!(overlayedItem.motionAnimationStatus?.isAnimating ?? false)) {
+    } else if (!overlayedItem.isAnimating) {
+      // On its slot and done. One let go still takes off its decoration,
+      // or flies to its new look, and lands once it has.
       unoverlay(overlayedItem);
+    }
+  }
+
+  /// Moves each overlayed item whose slot [test] picks to where the list
+  /// laid the slot out.
+  void reconcileOverlayedItems(
+    bool Function(OverlayedItem item, RenderedItem slot) test,
+  ) {
+    for (final item in items.overlayedItems.toList()) {
+      if (items.renderedItemBy(key: item.key) case final slot?
+          when test(item, slot)) {
+        reconcileItem(slot);
+      }
     }
   }
 
@@ -385,13 +400,16 @@ class OverlayCoordinator {
   }
 
   /// The overlayed items move with the content as the view scrolls, except
-  /// the held ones, which stay under the pointer.
+  /// the held ones, which stay under the pointer. One that lands in a
+  /// group's layer goes out of sight at the list's edges from then on.
   void shiftOverlayedItems(Offset delta) {
+    if (delta == Offset.zero) return;
     for (var x
         in [...items.overlayedItems, ...items.outgoingItems]
             .where((x) => x != items.draggedItem)
             .where((x) => x != items.swipedItem)) {
       x.shift(-delta);
+      if (x.sharedSpace != null) x.setClippedToList(true);
     }
   }
 
@@ -415,6 +433,8 @@ class OverlayCoordinator {
         ? spaceOf(item).localToGlobal(item.position)
         : items.renderedItemBy(key: item.key)?.shownPosition;
     if (sharedSpace != null) item.sharedSpace = sharedSpace;
+    // Held again, it goes over all the lists of its group.
+    item.setClippedToList(false);
     if (shown != null) item.setPosition(spaceOf(item).globalToLocal(shown));
     if (!overlayed) items.putOverlayedItem(item);
     items.setZIndex(item, maxZIndex);
@@ -436,6 +456,8 @@ class OverlayCoordinator {
   }) {
     Future.wait([
       undecoration,
+      // It lands as its new list's look, once it has flown there.
+      ?item.flight?.done,
       item.animateFlingTo(
         spaceOf(
           item,

@@ -282,6 +282,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       insertTransition: widget.insertTransition,
       scrollDirection: _view.scrollDirection,
       isGrid: _view is _WrappedGridView,
+      clipBehavior: _view.clipBehavior,
       itemCount: childrenDelegateSettingsOf(_view.childrenDelegate).childCount,
       vsync: this,
     );
@@ -293,7 +294,11 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
 
     _controller
       ..scrollSync.scrollController = _effectiveScrollController
-      ..group = GroupScope.maybeOf(context);
+      ..group = GroupScope.maybeOf(context)
+      ..boardScroll.board = Scrollable.maybeOf(
+        context,
+        axis: flipAxis(_view.scrollDirection),
+      );
   }
 
   @override
@@ -308,6 +313,7 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
       ..insertTransition = widget.insertTransition
       ..scrollDirection = _view.scrollDirection
       ..isGrid = _view is _WrappedGridView
+      ..clipBehavior = _view.clipBehavior
       ..scrollSync.scrollController = _effectiveScrollController;
   }
 
@@ -520,7 +526,11 @@ final class _WrappedListView extends _WrappedView {
     reverse: listView.reverse,
     controller: controller.scrollSync.scrollController,
     primary: false,
-    physics: listView.physics,
+    physics: AnchoredScrollPhysics(
+      anchor: controller.scrollSync.anchoredScrollOffset,
+      onAdjust: controller.didAdjustScrollOffset,
+      parent: listView.physics,
+    ),
     shrinkWrap: listView.shrinkWrap,
     padding: listView.padding,
     itemExtent: listView.itemExtent,
@@ -561,6 +571,7 @@ final class _WrappedGridView extends _WrappedView {
     primary: false,
     physics: AnchoredScrollPhysics(
       anchor: controller.scrollSync.anchoredScrollOffset,
+      onAdjust: controller.didAdjustScrollOffset,
       parent: gridView.physics,
     ),
     shrinkWrap: gridView.shrinkWrap,

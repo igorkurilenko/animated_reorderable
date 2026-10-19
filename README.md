@@ -19,6 +19,7 @@ The `AnimatedReorderable` wrapper for `ListView` and `GridView` incorporates all
 - Certain items can be configured as non-reorderable.
 - Callbacks for tracking item drag and swipe events.
 - Lets screen readers move items, as `ReorderableList` does: to the start, one place back or forward, or to the end.
+- Lets items be dragged between lists and grids, as between the columns of a board, and flies an item from one list's look to another's.
 - In addition to programmatically initiating animated additions and removals, reordering can also be programmatically triggered.
 
 ## Usage
@@ -84,3 +85,41 @@ class _ListViewExampleState extends State<ListViewExample> {
 ```
 
 `AnimatedReorderableState` can be used to dynamically insert, remove or reorder items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static `of` method from an item's input callback. There are showcases on the [Example](https://pub.dev/packages/animated_reorderable/example) page.
+
+## Dragging between lists
+
+Put lists and grids under an `AnimatedReorderableGroup`, and give each a `ReorderOptions.groupId`. An item dragged over another of them goes into it: the group's `onMove` moves the item's data, and the items of both lists move in place, out of its way and into its old place. Let go, the item lands there.
+
+```dart
+AnimatedReorderableGroup(
+  onMove: (from, to) {
+    final task = board[from.list]!.removeAt(from.index);
+    board[to.list]!.insert(to.index, task);
+  },
+  child: Row(
+    children: [
+      for (final id in board.keys)
+        Expanded(
+          child: AnimatedReorderable.list(
+            keyGetter: (index) => ValueKey(board[id]![index].id),
+            reorder: ReorderOptions(
+              groupId: id,
+              onReorder: (permutations) => permutations.apply(board[id]!),
+            ),
+            listView: ListView.builder(
+              itemCount: board[id]!.length,
+              itemBuilder: (context, index) => TaskCard(board[id]![index]),
+            ),
+          ),
+        ),
+    ],
+  ),
+)
+```
+
+- **canMove:** Refuses a move before any data changes, such as into a full column.
+- **flight:** When the lists build their items differently, such as cards in a list and thumbnails in a grid, an item flies from one look to the other as it goes over, as a [hero_here](https://pub.dev/packages/hero_here) flight does. `FlightOptions` sets the flight's duration, curve and shuttle builder, and `FlightOptions.none` turns flights off.
+- **Boards that scroll:** A view around the lists that scrolls across them, such as a board that scrolls sideways, scrolls while an item is held at its edge.
+- The items' keys must be unique across the group's lists.
+
+The example's board, `example/lib/animated_reorderable_board/animated_reorderable_board.0.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.

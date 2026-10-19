@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import 'controller/reorderable_group.dart';
+import 'options.dart';
+import 'util/geometry.dart';
 import 'widget/overlayed_item_widget.dart';
 
 /// Where an item is in a group of lists: the id of its list, as
@@ -31,9 +33,15 @@ typedef ItemMovePredicate = bool Function(ItemPlace from, ItemPlace to);
 /// goes into it, where [onMove] moves its data, and lands there when let
 /// go. An item dragged over no list stays in the last one it was over.
 ///
+/// An item that goes to a list with another look flies to it, as [flight]
+/// says, as a hero_here flight does: from its old look, as it last showed,
+/// to its new list's look.
+///
 /// The group shows the dragged item in a layer above its child, so it can
 /// go over all the lists. The item is built under the group's ancestors
-/// then, not the list's.
+/// then, not the list's. Let go, it lands there too, and once the list it
+/// lands in scrolls it, it goes out of sight at the list's edges, as the
+/// list's items do.
 ///
 /// The keys of the items, as each list's `keyGetter` gives them, must be
 /// unique across the group's lists. The lists must not overlap.
@@ -42,6 +50,7 @@ final class AnimatedReorderableGroup extends StatefulWidget {
     super.key,
     required this.onMove,
     this.canMove,
+    this.flight = const FlightOptions(),
     required this.child,
   });
 
@@ -51,6 +60,9 @@ final class AnimatedReorderableGroup extends StatefulWidget {
   /// Whether a dragged item may go from one list to another. It may by
   /// default. Asked once each time the item is dragged over a list.
   final ItemMovePredicate? canMove;
+
+  /// How an item flies from one list's look to another's.
+  final FlightOptions flight;
 
   /// The lists, and whatever is around them.
   final Widget child;
@@ -63,8 +75,35 @@ final class AnimatedReorderableGroup extends StatefulWidget {
 class _AnimatedReorderableGroupState extends State<AnimatedReorderableGroup> {
   late final group = ReorderableGroup(options: () => widget);
 
+  /// The position of a view around the group that scrolls it, and how far
+  /// it had scrolled.
+  ScrollPosition? _scroll;
+  double? _pixels;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scroll = Scrollable.maybeOf(context)?.position;
+    if (scroll == _scroll) return;
+    _scroll?.removeListener(_didScroll);
+    _scroll = scroll?..addListener(_didScroll);
+    _pixels = scroll != null && scroll.hasPixels ? scroll.pixels : null;
+  }
+
+  /// The group's layer moves with the view, so the items held in it move
+  /// back by as much, and stay under the pointer.
+  void _didScroll() {
+    final scroll = _scroll!;
+    final pixels = scroll.pixels;
+    final delta = pixels - (_pixels ?? pixels);
+    _pixels = pixels;
+    if (delta == 0) return;
+    group.shiftHeldItems(scroll.axisDirection.offsetOf(delta));
+  }
+
   @override
   void dispose() {
+    _scroll?.removeListener(_didScroll);
     group.dispose();
     super.dispose();
   }
@@ -144,6 +183,9 @@ class _GroupLayerState extends State<_GroupLayer> {
           entranceBuilder: (child, index, entrance) =>
               group.hostOf(item)?.buildEntrance(child, index, entrance) ??
               child,
+          shuttleBuilder: group.flightOptions.shuttleBuilder,
+          listBounds: () => group.listBoundsOf(item),
+          listClipBehavior: group.hostOf(item)?.clipBehavior ?? Clip.hardEdge,
         ),
     ],
   );

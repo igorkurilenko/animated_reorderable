@@ -26,4 +26,9 @@ abstract interface class RenderedItem {
   /// Moves the item in place, in the list, from where it shows now to the
   /// slot the list lays it out in next.
   void willMove();
+
+  /// Moves the item in place from where it shows as the frame moves the
+  /// view's scroll offset, during the frame's layout, rather than lets it
+  /// jump with the content.
+  void willShift();
 }

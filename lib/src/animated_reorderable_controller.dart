@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart' as widgets;
 
 import '../animated_reorderable.dart';
 import 'const.dart';
+import 'controller/board_scroll.dart';
 import 'controller/held_item_sessions.dart';
 import 'controller/item_widget_factory.dart';
 import 'controller/overlay_coordinator.dart';
@@ -15,6 +16,7 @@ import 'model/swipe_direction.dart';
 import 'util/gesture_recognizers.dart';
 import 'util/scheduling.dart';
 import 'widget/item_widget.dart';
+import 'widget/overlayed_item_widget.dart' show LookBoundary;
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
@@ -27,6 +29,7 @@ class AnimatedReorderableController implements ItemHost {
     required this.insertTransition,
     required this.scrollDirection,
     required this.isGrid,
+    required this.clipBehavior,
     int? itemCount,
     required this.vsync,
   }) {
@@ -45,6 +48,35 @@ class AnimatedReorderableController implements ItemHost {
   @override
   widgets.Curve get motionCurve => motion.curve;
 
+  /// Whether the items changed since the frame began. The frame lays them
+  /// out anew.
+  var _changing = false;
+
+  double _scrollAdjustment = 0.0;
+
+  @override
+  double get scrollAdjustment => _scrollAdjustment;
+
+  void _didChangeItems() {
+    if (_changing) return;
+    _changing = true;
+    addPostFrame(() => _changing = false);
+  }
+
+  /// Called during layout with how far, in pixels, the view's scroll offset
+  /// moves as the content changes its dimensions, like a list that shrank
+  /// under its offset. After a change of the items, they go on from where
+  /// they showed, rather than jump with the content. Otherwise, as on a
+  /// resize, they move with the content, as any view's do.
+  void didAdjustScrollOffset(double pixels) {
+    if (!_changing) return;
+    if (_scrollAdjustment == 0.0) addPostFrame(() => _scrollAdjustment = 0.0);
+    _scrollAdjustment += pixels;
+    for (final item in _items.renderedItems) {
+      item.willShift();
+    }
+  }
+
   @override
   ViewEdge? takeEntry(widgets.Key key) => _overlay?.takeEntry(key);
 
@@ -57,6 +89,9 @@ class AnimatedReorderableController implements ItemHost {
   Axis scrollDirection;
   @override
   bool isGrid;
+
+  /// How the list clips its items at its edges, as its view does.
+  Clip clipBehavior;
   final widgets.TickerProvider vsync;
 
   late final scrollSync = ScrollSync(
@@ -72,6 +107,20 @@ class AnimatedReorderableController implements ItemHost {
     onScroll: _shiftOverlayedItems,
     onAutoScroll: () => _drag?.reorderAndAutoScroll(),
   );
+
+  /// The view around the list that scrolls across it, such as a board of
+  /// lists that scrolls sideways.
+  late final boardScroll = BoardScroll(
+    velocityScalar: () => reorder.autoScrollerVelocityScalar,
+    // The board moves the list's slots, so the list's items that fly back
+    // to them in their group's layer head for where the slots are now. A
+    // layer that moves with the board takes them along already.
+    onScroll: () => _overlay?.reconcileOverlayedItems(
+      (item, _) => item.sharedSpace != null,
+    ),
+    // The lists move under the item.
+    onAutoScroll: () => _drag?.followPointer(),
+  );
   late final itemWidgets = ItemWidgetFactory(items: _items, host: this);
   late final model.ItemRegistry _items;
   ItemsLayerState? _itemsLayer;
@@ -83,6 +132,15 @@ class AnimatedReorderableController implements ItemHost {
   /// Lets go of [session], which ends.
   void didEndDrag(DragSession session) {
     if (_drag == session) _drag = null;
+    boardScroll.stopAutoScroll();
+  }
+
+  /// Scrolls the board while [draggedItem], a rectangle on the screen, is
+  /// at one of its edges, so the item gets to the group's lists out of
+  /// sight.
+  void autoScrollBoard(Rect draggedItem) {
+    if (groupForDrags == null) return;
+    boardScroll.autoScroll(draggedItem);
   }
 
   ReorderableGroup? _group;
@@ -146,7 +204,9 @@ class AnimatedReorderableController implements ItemHost {
   void releaseHeldItem(model.OverlayedItem item) {
     if (_drag?.item == item) _drag = null;
     scrollSync.stopAutoScroll();
+    boardScroll.stopAutoScroll();
     _items.releaseHeldItem(item);
+    _didChangeItems();
     _overlay?.moveRenderedItems(except: item.key);
   }
 
@@ -158,21 +218,52 @@ class AnimatedReorderableController implements ItemHost {
     required int index,
     required DragSession session,
   }) {
+    // It flies from the look it leaves, as it last showed: the other list
+    // builds another item at its index by now.
+    final fly = _takeOff(item);
     // The other list's builder would build what it has at the index now.
     item.item.builder = _itemBuilder();
-    // It takes the size of the list's slots at once, under the pointer: a
-    // list's items share their constraints, and so do a grid's.
-    final slot =
-        _items.renderedItems.firstOrNull?.constraints ?? _slotOfEmptyList();
-    if (slot != null) {
-      item.setConstraints(slot);
-      final size = slot.constrain(item.size);
-      _overlay?.keepUnderPointer(item, size: size);
-      _items.setOverlayedItemSize(item, size);
-    }
+    _fitToSlots(item);
     _items.adoptHeldItem(item, index: index);
     _drag = session;
+    _didChangeItems();
     _overlay?.moveRenderedItems(except: item.key);
+    fly?.call();
+  }
+
+  /// Takes the look [item] leaves, as it last showed, and the point of it
+  /// the pointer holds, if the group flies items and the item has shown.
+  /// A flight under way turns from what its shuttle shows. Returns what
+  /// flies the item from there to the look its builder builds.
+  void Function()? _takeOff(model.OverlayedItem item) {
+    final flight = _group?.flightOptions;
+    final grip = item.grip;
+    if (flight == null || flight.duration <= Duration.zero || grip == null) {
+      return null;
+    }
+    if (LookBoundary.takeLook(item.lookKey) case (final look, final size)) {
+      return () => item.fly(
+        from: look,
+        fromSize: size,
+        grip: grip,
+        vsync: vsync,
+        duration: flight.duration,
+        curve: flight.curve,
+      );
+    }
+    return null;
+  }
+
+  /// Gives [item] the size of the list's slots at once, under the pointer:
+  /// a list's items share their constraints, and so do a grid's.
+  void _fitToSlots(model.OverlayedItem item) {
+    final slot =
+        _items.renderedItems.firstOrNull?.constraints ?? _slotOfEmptyList();
+    if (slot == null) return;
+    item.setConstraints(slot);
+    final size = slot.constrain(item.size);
+    _overlay?.keepUnderPointer(item, size: size);
+    _items.setOverlayedItemSize(item, size);
   }
 
   /// The constraints of a slot of the list, which has none to show yet:
@@ -206,6 +297,7 @@ class AnimatedReorderableController implements ItemHost {
     final insertedItem = _items.insertItem(index: index)
       ..enter(vsync: vsync, duration: duration);
 
+    _didChangeItems();
     _overlay?.moveRenderedItems(except: insertedItem.key);
   }
 
@@ -219,6 +311,7 @@ class AnimatedReorderableController implements ItemHost {
 
     final removedItem = _items.removeItem(index: index);
     if (removedItem == null) return;
+    _didChangeItems();
 
     final overlay = _overlay;
     if (overlay == null) {
@@ -258,6 +351,7 @@ class AnimatedReorderableController implements ItemHost {
       destIndex: destIndex,
       reorderableGetter: isReorderable,
     );
+    _didChangeItems();
 
     _overlay
       ?..moveRenderedItems()
@@ -282,6 +376,7 @@ class AnimatedReorderableController implements ItemHost {
   }
 
   void dispose() {
+    boardScroll.dispose();
     scrollSync.dispose();
     _items.dispose();
   }
@@ -455,6 +550,10 @@ class AnimatedReorderableController implements ItemHost {
     if (overlay == null) return;
     if (itemsLayerBuilt) overlay.reconcileItemsLayer();
     builtItems.forEach(overlay.reconcileItem);
+    // A build moves the slots of items it doesn't build, like those after
+    // a held item whose placeholder resized: the overlayed items head for
+    // where their slots are now.
+    overlay.reconcileOverlayedItems((_, slot) => !builtItems.contains(slot));
   }
 
   @override

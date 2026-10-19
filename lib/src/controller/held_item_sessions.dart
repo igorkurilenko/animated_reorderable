@@ -87,7 +87,9 @@ class DragSession {
 
   void reorderAndAutoScroll() {
     _reorderIfOverAnotherItem();
-    scrollSync.autoScroll(overlay.globalRectOf(item));
+    final rect = overlay.globalRectOf(item);
+    scrollSync.autoScroll(rect);
+    _host.autoScrollBoard(rect);
   }
 
   /// Moves the item to the list of its group that the pointer is over, if

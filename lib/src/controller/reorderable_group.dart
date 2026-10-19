@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../animated_reorderable_controller.dart';
 import '../animated_reorderable_group.dart';
 import '../model/model.dart';
+import '../options.dart';
 import '../util/scheduling.dart';
 import 'held_item_sessions.dart';
 
@@ -30,8 +31,19 @@ class ReorderableGroup implements SharedOverlaySpace {
 
   Iterable<OverlayedItem> get hostedItems => _hosts.keys;
 
+  /// How an item flies from one list's look to another's.
+  FlightOptions get flightOptions => options().flight;
+
   /// The list [item] is held in, while the layer shows it.
   AnimatedReorderableController? hostOf(OverlayedItem item) => _hosts[item];
+
+  /// Where the list [item] is held in is in the layer, or null while the
+  /// list doesn't show.
+  Rect? listBoundsOf(OverlayedItem item) {
+    final list = _hosts[item]?.globalRect;
+    if (list == null) return null;
+    return globalToLocal(GlobalOffset(list.topLeft)) & list.size;
+  }
 
   void join(AnimatedReorderableController member) => _members.add(member);
 
@@ -78,6 +90,13 @@ class ReorderableGroup implements SharedOverlaySpace {
     if (_hosts.remove(item) != null) hostedChanges.notify();
   }
 
+  /// Moves the items held in the group's lists by [delta] in the layer.
+  void shiftHeldItems(Offset delta) {
+    for (final MapEntry(key: item, value: host) in _hosts.entries) {
+      if (host.registry.isDragged(key: item.key)) item.shift(delta);
+    }
+  }
+
   /// The list of the group that [point] is over, which takes the group's
   /// items. Lists of a group don't overlap.
   AnimatedReorderableController? memberAt(GlobalOffset point) => _members
@@ -104,8 +123,7 @@ class ReorderableGroup implements SharedOverlaySpace {
     options.onMove(fromPlace, toPlace);
     from.releaseHeldItem(item);
     to.adoptHeldItem(item, index: index, session: session);
-    _hosts[item] = to;
-    hostedChanges.notify();
+    host(item, to);
     return true;
   }
 

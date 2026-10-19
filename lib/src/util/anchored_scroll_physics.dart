@@ -5,18 +5,33 @@ import 'package:flutter/widgets.dart';
 typedef ScrollOffsetAnchor = double? Function(ScrollMetrics position);
 
 /// Scroll physics that let [anchor] move the position when the content
-/// changes its dimensions, like a grid that gets fewer columns.
+/// changes its dimensions, like a grid that gets fewer columns, and tell
+/// [onAdjust] how far the position moves otherwise, like a list that
+/// shrinks under its offset.
 ///
 /// The position is corrected during layout, so the frame that lays out the
 /// new dimensions already shows the content in place.
 class AnchoredScrollPhysics extends ScrollPhysics {
-  const AnchoredScrollPhysics({required this.anchor, super.parent});
+  const AnchoredScrollPhysics({
+    required this.anchor,
+    this.onAdjust,
+    super.parent,
+  });
 
   final ScrollOffsetAnchor anchor;
 
+  /// Called during layout with how far, in pixels, the parent physics move
+  /// a position that [anchor] leaves as it is, like one that comes back
+  /// within the range of content that shrank under it.
+  final ValueChanged<double>? onAdjust;
+
   @override
   AnchoredScrollPhysics applyTo(ScrollPhysics? ancestor) =>
-      AnchoredScrollPhysics(anchor: anchor, parent: buildParent(ancestor));
+      AnchoredScrollPhysics(
+        anchor: anchor,
+        onAdjust: onAdjust,
+        parent: buildParent(ancestor),
+      );
 
   @override
   double adjustPositionForNewDimensions({
@@ -26,17 +41,21 @@ class AnchoredScrollPhysics extends ScrollPhysics {
     required double velocity,
   }) {
     // Like RangeMaintainingScrollPhysics, leave a moving position alone.
-    final pixels = velocity == 0.0
+    final anchored = velocity == 0.0
         ? anchor(newPosition)
               ?.clamp(newPosition.minScrollExtent, newPosition.maxScrollExtent)
         : null;
-    return super.adjustPositionForNewDimensions(
+    final pixels = super.adjustPositionForNewDimensions(
       oldPosition: oldPosition,
-      newPosition: pixels == null
+      newPosition: anchored == null
           ? newPosition
-          : newPosition.copyWith(pixels: pixels),
+          : newPosition.copyWith(pixels: anchored),
       isScrolling: isScrolling,
       velocity: velocity,
     );
+    if (anchored == null && pixels != newPosition.pixels) {
+      onAdjust?.call(pixels - newPosition.pixels);
+    }
+    return pixels;
   }
 }

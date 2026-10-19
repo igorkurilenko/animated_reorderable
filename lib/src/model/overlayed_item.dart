@@ -63,6 +63,44 @@ class OverlayedItem extends widgets.ChangeNotifier {
   GlobalOffset? _globalPointerPosition;
   ItemMotion? _motion;
   AnimatedItemDecoratorAdapter? _decorator;
+  ItemFlight? _flight;
+
+  /// Keys the boundary the item's look paints into while a group's layer
+  /// shows it, so the look can be taken as an image when the item flies.
+  final lookKey = widgets.GlobalKey();
+
+  /// The item's flight from the look of the list it left to its new
+  /// list's look, while it flies.
+  ItemFlight? get flight => _flight;
+
+  /// Flies the item from [from], the look of [fromSize] it leaves, to the
+  /// look its builder builds now, holding the point [grip] of it. A flight
+  /// under way gives way to it.
+  void fly({
+    required ui.Image from,
+    required widgets.Size fromSize,
+    required widgets.Offset grip,
+    required TickerProvider vsync,
+    required Duration duration,
+    required Curve curve,
+  }) {
+    _flight?.dispose();
+    final flight = _flight = ItemFlight(
+      from: from,
+      fromSize: fromSize,
+      grip: grip,
+      vsync: vsync,
+      duration: duration,
+      curve: curve,
+    );
+    flight.done.then((_) {
+      if (_flight != flight) return;
+      _flight = null;
+      flight.dispose();
+      notifyListeners();
+    });
+    notifyListeners();
+  }
 
   Key get key => item.key;
 
@@ -90,6 +128,13 @@ class OverlayedItem extends widgets.ChangeNotifier {
   OverlayOffset get anchorPosition => _motion?.target ?? position;
   widgets.AnimationStatus? get motionAnimationStatus => _motion?.status;
 
+  /// Whether the item is still on its way: moving, flying from one look to
+  /// another, or with its decoration coming or going.
+  bool get isAnimating =>
+      (_motion?.isMoving ?? false) ||
+      _flight != null ||
+      (_decorator?.controller.isAnimating ?? false);
+
   void setPosition(OverlayOffset value) {
     if (_position == value) return;
     _position = value;
@@ -112,7 +157,33 @@ class OverlayedItem extends widgets.ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether a group's layer clips the item to its list, as the list's own
+  /// overlay clips its items: once the list scrolls it while it lands
+  /// there, it is the list's content, which goes out of sight at the
+  /// list's edges.
+  bool get clippedToList => _clippedToList;
+  var _clippedToList = false;
+
+  void setClippedToList(bool value) {
+    if (_clippedToList == value) return;
+    _clippedToList = value;
+    notifyListeners();
+  }
+
   GlobalOffset? get globalPointerPosition => _globalPointerPosition;
+
+  /// The point of the item the pointer holds, as a part of its size, while
+  /// a group's layer shows it.
+  Offset? get grip {
+    final pointer = _globalPointerPosition;
+    final space = sharedSpace;
+    if (pointer == null || space == null || size.isEmpty) return null;
+    final topLeft = space.localToGlobal(position);
+    return Offset(
+      (pointer.dx - topLeft.dx) / size.width,
+      (pointer.dy - topLeft.dy) / size.height,
+    );
+  }
 
   bool get swiped => _swipe != null;
 
@@ -123,15 +194,25 @@ class OverlayedItem extends widgets.ChangeNotifier {
   double get swipeExtent => _swipe?.swipeExtent ?? 0.0;
 
   /// Builds the item inside its decoration. [wrap] goes between the two.
+  /// While the item flies, [shuttle] shows it with the look it leaves, and
+  /// while a group's layer shows it, [boundary] paints its look into a
+  /// layer of its own, which a flight can take as an image.
   widgets.Widget? build(
     widgets.BuildContext context, {
     widgets.Widget Function(widgets.Widget item)? wrap,
+    widgets.Widget Function(ItemFlight flight, widgets.Widget item)? shuttle,
+    widgets.Widget Function(widgets.Widget look)? boundary,
   }) {
     final child = item.builder.build(context, index);
     if (child == null) return null;
     final keyed = widgets.KeyedSubtree(key: item.childKey, child: child);
     final wrapped = wrap?.call(keyed) ?? keyed;
-    return _decorator?.decorate(wrapped, index) ?? wrapped;
+    final shown = switch (_flight) {
+      final flight? when shuttle != null => shuttle(flight, wrapped),
+      _ when sharedSpace != null => boundary?.call(wrapped) ?? wrapped,
+      _ => wrapped,
+    };
+    return _decorator?.decorate(shown, index) ?? shown;
   }
 
   void shift(Offset delta) {
@@ -283,6 +364,8 @@ class OverlayedItem extends widgets.ChangeNotifier {
     _motion = null;
     _decorator?.dispose();
     _decorator = null;
+    _flight?.dispose();
+    _flight = null;
     _positionChanges.dispose();
     super.dispose();
   }
