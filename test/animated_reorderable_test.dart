@@ -3189,6 +3189,80 @@ void main() {
       expect(list.reorders, 0);
     });
 
+    /// The opacity of item 1's lift, or 1 once it has none.
+    double lift(WidgetTester tester) {
+      final fade = find.ancestor(
+        of: _itemWithId(1),
+        matching: find.byType(FadeTransition),
+      );
+      return fade.evaluate().isEmpty
+          ? 1
+          : tester.widget<FadeTransition>(fade.first).opacity.value;
+    }
+
+    testWidgets('takes the lift of an item flung fast at its place away as '
+        'it lands', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      final slot = tester.getCenter(_itemWithId(1));
+      double middle() => tester.getCenter(_itemWithId(1)).dx;
+
+      var time = Duration.zero;
+      final drag = await tester.createGesture();
+      await drag.down(slot, timeStamp: time);
+      const hold = Duration(milliseconds: 600);
+      await tester.pump(hold);
+      time += hold;
+      Future<void> move(Offset offset) async {
+        time += frame;
+        await drag.moveBy(offset, timeStamp: time);
+        await tester.pump(frame);
+      }
+
+      // Back at 45 px a frame, let go 20 px from its place.
+      for (var i = 0; i < 29; i++) {
+        await move(const Offset(10, 0));
+      }
+      for (var i = 0; i < 6; i++) {
+        await move(const Offset(-45, 0));
+      }
+      expect(lift(tester), 0.7);
+      await drag.up(timeStamp: time);
+      final xs = <double>[];
+      final lifts = <double>[];
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(frame);
+        xs.add(middle());
+        lifts.add(lift(tester));
+      }
+
+      // In its place within 4 frames, and its lift gone in 100 ms, the
+      // least it takes, rather than in the 250 ms it took to come.
+      final landed = xs.lastIndexWhere((x) => (x - slot.dx).abs() > 0.5) + 1;
+      final lifted = lifts.lastIndexWhere((opacity) => opacity < 1) + 1;
+      expect(landed, lessThanOrEqualTo(4));
+      expect(lifted, inInclusiveRange(6, 8));
+      expect(list.reorders, 0);
+    });
+
+    testWidgets('takes the lift of an item that lands later away as long as '
+        'it took to come', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+
+      await swipeAndLetGo(tester, const Offset(-1, 0), distance: 200, speed: 0);
+      expect(lift(tester), 0.7);
+      final lifts = <double>[];
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(frame);
+        lifts.add(lift(tester));
+      }
+
+      // 250 ms, as it takes 336 ms to land 200 px away.
+      expect(lifts.lastIndexWhere((opacity) => opacity < 1) + 1, 16);
+      expect(list.items, List.generate(10, (i) => i));
+    });
+
     // A bouncy spring's fling doesn't stop at either end of its way.
     testWidgets('lets a bouncy spring take an item back past its place', (
       tester,

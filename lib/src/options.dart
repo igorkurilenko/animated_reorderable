@@ -40,7 +40,9 @@ class ItemDecoration {
   /// up a little and fades a little.
   final AnimatedItemDecorator? decorator;
 
-  /// The time it takes the decoration to appear or to go.
+  /// The time it takes the decoration to appear or to go. An item flung
+  /// back to its place that gets there sooner loses it as it lands, though
+  /// in no less than 100 ms.
   final Duration duration;
 }
 

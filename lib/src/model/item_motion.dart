@@ -33,6 +33,10 @@ class ItemMotion {
   /// Where a fling started.
   var _flingBegin = const OverlayOffset(Offset.zero);
 
+  /// The fling the item is on, from 0 at [_flingBegin] to 1 at [_end], by
+  /// the time since its run started.
+  Simulation? _fling;
+
   /// The clock of the moves along a curve, and the run the item is on.
   var _clock = _Clock(0);
   TickerFuture? _run;
@@ -91,6 +95,7 @@ class ItemMotion {
       ..clear()
       ..add(_Leg(from - to, start: 0, seconds: seconds, curve: curve));
     _end = to;
+    _fling = null;
     _clock = _Clock(seconds);
     return _run = _controller.animateWith(_clock);
   }
@@ -118,7 +123,27 @@ class ItemMotion {
       1,
       speed,
     );
-    return _run = _controller.animateWith(_FrameAhead(simulation));
+    return _run = _controller.animateWith(_fling = _FrameAhead(simulation));
+  }
+
+  /// How long the fling under way takes the item to land, from the first
+  /// frame of its run on: until it comes within [landingTolerance] of
+  /// [target] for good. [limit] if it lands later, if the item isn't
+  /// flung, or if it is let go in its place, as it has nowhere to land.
+  Duration flingLandingWithin(Duration limit) {
+    final fling = _fling;
+    final way = (_end - _flingBegin).distance;
+    if (fling == null || !isMoving || way <= landingTolerance) return limit;
+    const step = Duration(milliseconds: 1);
+    // The last moment it is further away than that, a step at a time back
+    // from [limit].
+    for (var time = limit; time > Duration.zero; time -= step) {
+      final seconds = time.inMicroseconds / Duration.microsecondsPerSecond;
+      if ((1 - fling.x(seconds)).abs() * way > landingTolerance) {
+        return time + step < limit ? time + step : limit;
+      }
+    }
+    return Duration.zero;
   }
 
   /// [spring], made just stiff enough, if it doesn't bounce, to stop an
@@ -164,6 +189,7 @@ class ItemMotion {
     _legs.clear();
     _flingBegin = from;
     _end = to;
+    _fling = null;
     final scale = SemanticsBinding.instance.disableAnimations ? 0.05 : 1.0;
     final seconds =
         scale * duration.inMicroseconds / Duration.microsecondsPerSecond;

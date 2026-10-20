@@ -5,6 +5,8 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _frame = Duration(milliseconds: 16);
+
 void main() {
   testWidgets('drops the moves that are over as new ones start, where it is', (
     tester,
@@ -61,6 +63,80 @@ void main() {
       expect(motion.position, place);
     }
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('tells how long a fling takes to land', (tester) async {
+    final motion = ItemMotion(vsync: const TestVSync(), onMove: (_) {});
+    addTearDown(motion.dispose);
+    const limit = Duration(seconds: 1);
+    const from = OverlayOffset(Offset.zero);
+    const to = OverlayOffset(Offset(0, 100));
+    final spring = SpringDescription.withDurationAndBounce(
+      duration: const Duration(milliseconds: 250),
+    );
+
+    // Not flung, it has no landing to tell.
+    expect(motion.flingLandingWithin(limit), limit);
+    motion.fling(
+      from: to,
+      to: to,
+      velocity: Velocity.zero,
+      springDescription: spring,
+    );
+    expect(motion.flingLandingWithin(limit), limit);
+
+    motion.fling(
+      from: from,
+      to: to,
+      velocity: Velocity.zero,
+      springDescription: spring,
+    );
+    final landing = motion.flingLandingWithin(limit);
+    // Later than a shorter limit.
+    expect(
+      motion.flingLandingWithin(landing - const Duration(milliseconds: 2)),
+      landing - const Duration(milliseconds: 2),
+    );
+    // Further than 0.5 px away in each frame before it lands, within 0.5 px
+    // in each frame after, and the frames start at the run's first.
+    for (var time = Duration.zero; time < limit; time += _frame) {
+      await tester.pump(_frame);
+      final away = (motion.position.dy - to.dy).abs();
+      expect(
+        away,
+        time < landing ? greaterThan(0.5) : lessThanOrEqualTo(0.5),
+        reason: '$time, landing $landing',
+      );
+    }
+    expect(landing, greaterThan(const Duration(milliseconds: 250)));
+
+    // Nor once the fling is over, or another motion takes its place.
+    expect(motion.isMoving, isFalse);
+    expect(motion.flingLandingWithin(limit), limit);
+    for (final move in <void Function()>[
+      () => motion.animate(
+        from: from,
+        to: to,
+        curve: Curves.linear,
+        duration: limit,
+      ),
+      () => motion.throwOut(
+        from: from,
+        to: to,
+        velocity: Velocity.zero,
+        duration: limit,
+      ),
+    ]) {
+      motion.fling(
+        from: from,
+        to: to,
+        velocity: Velocity.zero,
+        springDescription: spring,
+      );
+      move();
+      expect(motion.flingLandingWithin(limit), limit);
+      await tester.pumpAndSettle();
+    }
   });
 
   testWidgets('stops a fling with a spring that does not bounce at its end, '

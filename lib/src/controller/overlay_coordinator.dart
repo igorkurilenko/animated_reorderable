@@ -464,26 +464,26 @@ class OverlayCoordinator {
     );
   }
 
-  /// Flings [item] back to its slot in the list, and takes it out of the
-  /// overlay once it is there and [undecoration] is done.
+  /// Flings [item] back to its slot in the list as its decoration goes, and
+  /// takes it out of the overlay once it is there and its decoration gone.
   void flingBackToSlot(
     OverlayedItem item, {
-    required Future undecoration,
     required Velocity velocity,
     SpringDescription springDescription = defaultFlingSpringDescription,
   }) {
+    final flung = item.animateFlingTo(
+      spaceOf(item)
+          .globalToLocal(items.renderedItemBy(key: item.key)!.globalPosition!),
+      velocity: velocity,
+      springDescription: springDescription,
+      vsync: vsync,
+    );
     Future.wait([
-      undecoration,
+      // Once the fling is under way, so it goes by the time the item lands.
+      item.animateUndecoration(),
       // It lands as its new list's look, once it has flown there.
       ?item.flight?.done,
-      item.animateFlingTo(
-        spaceOf(
-          item,
-        ).globalToLocal(items.renderedItemBy(key: item.key)!.globalPosition!),
-        velocity: velocity,
-        springDescription: springDescription,
-        vsync: vsync,
-      ),
+      flung,
     ]).whenComplete(() => land(item));
   }
 

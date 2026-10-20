@@ -81,7 +81,6 @@ class DragSession {
 
     overlay.flingBackToSlot(
       item,
-      undecoration: item.animateUndecoration(),
       velocity: details.velocity,
       springDescription: _options.springDescription,
     );
@@ -201,7 +200,6 @@ class SwipeSession {
     } else {
       overlay.flingBackToSlot(
         item,
-        undecoration: item.animateUndecoration(),
         velocity: details.velocity,
         springDescription: options.springDescription,
       );
