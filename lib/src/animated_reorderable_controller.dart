@@ -35,6 +35,18 @@ class AnimatedReorderableController implements ItemHost {
   }) {
     _items = model.ItemRegistry(itemCount: itemCount, itemFactory: createItem)
       ..overlayChanges.addListener(_focusLandedItem);
+    SemanticsBinding.instance.addSemanticsEnabledListener(
+      _didChangeSemanticsEnabled,
+    );
+  }
+
+  /// The items gain or lose their moves as a screen reader comes or goes:
+  /// after the frame, as it can come while the app builds, when the items
+  /// can't build again.
+  void _didChangeSemanticsEnabled() {
+    addPostFrame(() {
+      if (!_disposed) _items.itemsChanges.notify();
+    });
   }
 
   // The current configuration. The state replaces it on every rebuild,
@@ -391,6 +403,9 @@ class AnimatedReorderableController implements ItemHost {
 
   void dispose() {
     _disposed = true;
+    SemanticsBinding.instance.removeSemanticsEnabledListener(
+      _didChangeSemanticsEnabled,
+    );
     boardScroll.dispose();
     scrollSync.dispose();
     _items.dispose();
@@ -460,8 +475,24 @@ class AnimatedReorderableController implements ItemHost {
   @override
   bool isDraggable(int index) => reorder.draggableGetter?.call(index) ?? true;
 
+  /// Without a screen reader, items have no moves, so an item that keeps
+  /// its index doesn't build again as the moves of its place change, as the
+  /// last item's do when an item after it goes.
   @override
-  SemanticMoves semanticMovesAt(int index) => (
+  SemanticMoves semanticMovesAt(int index) =>
+      SemanticsBinding.instance.semanticsEnabled
+      ? _semanticMovesAt(index)
+      : _noSemanticMoves;
+
+  static const SemanticMoves _noSemanticMoves = (
+    back: false,
+    forward: false,
+    rowBack: false,
+    rowForward: false,
+    toLists: ListMoves.none,
+  );
+
+  SemanticMoves _semanticMovesAt(int index) => (
     back: _semanticDestination(index, SemanticMove.back) != null,
     forward: _semanticDestination(index, SemanticMove.forward) != null,
     rowBack: _semanticDestination(index, SemanticMove.rowBack) != null,

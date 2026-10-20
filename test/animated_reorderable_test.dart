@@ -789,6 +789,31 @@ void main() {
       expect(built, {2, 3, 4});
     });
 
+    testWidgets(
+      'builds no item again for its moves with no screen reader',
+      semanticsEnabled: false,
+      (tester) async {
+        final built = <int>{};
+        final items = List.generate(5, (i) => i);
+        final key = GlobalKey<AnimatedReorderableState>();
+        await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: buildList(key, items, built))),
+        );
+        built.clear();
+
+        // The item before it loses its moves forward, which only a screen
+        // reader would show.
+        items.removeAt(4);
+        key.currentState!.removeItem(
+          4,
+          (context, animation) => const SizedBox(),
+        );
+        await tester.pumpAndSettle();
+
+        expect(built, isEmpty);
+      },
+    );
+
     testWidgets('builds every item again when the app builds its view again', (
       tester,
     ) async {
@@ -1844,6 +1869,53 @@ void main() {
       'Move down',
       'Move to the end',
     ];
+
+    testWidgets(
+      'gives items their moves once a screen reader runs',
+      semanticsEnabled: false,
+      (tester) async {
+        final list = _TestList(5);
+        await tester.pumpWidget(list.build());
+
+        final handle = tester.ensureSemantics();
+        await tester.pumpAndSettle();
+
+        expect(_moves(tester, 2), unorderedEquals(allMoves));
+        handle.dispose();
+      },
+    );
+
+    testWidgets(
+      'gives items their moves once a screen reader runs as the app builds',
+      semanticsEnabled: false,
+      (tester) async {
+        final list = _TestList(5);
+        late StateSetter setState;
+        var reader = false;
+        await tester.pumpWidget(
+          Column(
+            children: [
+              // Beside the list, so the list isn't what builds.
+              StatefulBuilder(
+                builder: (context, set) {
+                  setState = set;
+                  return reader
+                      ? const _ScreenReader()
+                      : const SizedBox.shrink();
+                },
+              ),
+              Expanded(child: list.build()),
+            ],
+          ),
+        );
+
+        setState(() => reader = true);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(_moves(tester, 2), unorderedEquals(allMoves));
+      },
+    );
 
     testWidgets('can move each item', (tester) async {
       final list = _TestList(5);
@@ -4813,6 +4885,34 @@ VoidCallback _semanticMove(WidgetTester tester, int id, String name) {
   return semantics.properties.customSemanticsActions![CustomSemanticsAction(
     label: name,
   )]!;
+}
+
+/// Turns semantics on as it builds first, as an app's accessibility setup
+/// may.
+class _ScreenReader extends StatefulWidget {
+  const _ScreenReader();
+
+  @override
+  State<_ScreenReader> createState() => _ScreenReaderState();
+}
+
+class _ScreenReaderState extends State<_ScreenReader> {
+  late final SemanticsHandle _handle;
+
+  @override
+  void initState() {
+    super.initState();
+    _handle = SemanticsBinding.instance.ensureSemantics();
+  }
+
+  @override
+  void dispose() {
+    _handle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Two of the names Flutter's German localizations give the moves.
