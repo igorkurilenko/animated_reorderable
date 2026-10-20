@@ -498,7 +498,12 @@ class AnimatedReorderableController implements ItemHost {
               )))
             (list: to.groupId!, label: label(to.groupId!)),
       ],
-      labels: [for (final list in group.members) label(list.groupId!)],
+      // Of the lists that take the group's items: a list without an id,
+      // like one that reorders the board's columns, is no place to go.
+      labels: [
+        for (final list in group.members)
+          if (list.takesGroupItems) label(list.groupId!),
+      ],
     );
   }
 
