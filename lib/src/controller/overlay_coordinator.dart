@@ -485,12 +485,12 @@ class OverlayCoordinator {
 
   /// Throws [item], which is swiped away, out of the overlay through its
   /// edge in [direction], on at the speed it is let go at.
-  void flingOut(
+  void throwOut(
     OverlayedItem item, {
     required SwipeDirection direction,
     required Velocity velocity,
   }) => item.animateThrowOut(
-    direction.flingTarget(
+    direction.throwTarget(
       item.position,
       itemSize: item.size,
       bounds: overlay.size,

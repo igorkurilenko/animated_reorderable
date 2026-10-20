@@ -204,7 +204,7 @@ class SwipeSession {
         ..swipedAway = true;
       onSwipeToRemove(item.index);
 
-      overlay.flingOut(
+      overlay.throwOut(
         item,
         direction: swipeDirection,
         velocity: details.velocity,

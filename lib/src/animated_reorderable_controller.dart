@@ -311,10 +311,10 @@ class AnimatedReorderableController implements ItemHost {
   void insertItem(int index, Duration duration) {
     RangeError.checkValueInInterval(index, 0, checkedItemCount, 'index');
 
-    // An item still going as it is with the key of the one that comes goes
-    // at once, so the two don't show the app's subtree, and its global
-    // keys, twice.
-    _items.removeItemsLeavingAsTheyAre(key: keyGetter(index));
+    // An item swiped away that is still going with the key of the one that
+    // comes goes at once, so the two don't show the app's subtree, and its
+    // global keys, twice.
+    _items.removeSwipedAwayItems(key: keyGetter(index));
     final insertedItem = _items.insertItem(index: index)
       ..enter(vsync: vsync, duration: duration);
 
