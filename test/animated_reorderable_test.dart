@@ -3318,14 +3318,15 @@ void main() {
         ) async {
           final list = createList();
           await tester.pumpWidget(list.build());
-          final slot = tester.getTopLeft(_itemWithId(1));
+          // Its center, which its decoration scales it about.
+          final slot = tester.getCenter(_itemWithId(1));
 
           await tester.fling(_itemWithId(1), forward * extent * 0.2, 2000);
           final offsets = <Offset>[];
           // Within the removal, which ends with the item out of sight.
           for (var i = 0; i < 11; i++) {
             await tester.pump(_insertDuration ~/ 12);
-            offsets.add(tester.getTopLeft(_itemWithId(1)) - slot);
+            offsets.add(tester.getCenter(_itemWithId(1)) - slot);
           }
 
           // On its way until it is just outside the overlay, which covers
@@ -3337,15 +3338,209 @@ void main() {
             expect(ways[i], greaterThan(ways[i - 1]));
           }
           expect(ways.sublist(out), everyElement(moreOrLessEquals(extent)));
-          // Its decoration scales it a little about its center.
           expect(
             offsets.map((offset) => offset - forward * along(offset)),
-            everyElement(_offsetCloseTo(Offset.zero, 3)),
+            everyElement(_offsetCloseTo(Offset.zero, 0.5)),
           );
           await tester.pumpAndSettle();
         });
       });
     }
+
+    group('as it is', () {
+      /// A list that a swipe removes items of with a removed item builder,
+      /// which builds something else and counts its builds. With
+      /// [globalKeys], each item's subtree has a global key of its own.
+      Widget swipeList(
+        GlobalKey<AnimatedReorderableState> key,
+        List<int> items, {
+        VoidCallback? onRemovedBuild,
+        Duration duration = _insertDuration,
+        bool globalKeys = false,
+      }) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            swipeToRemove: SwipeToRemoveOptions(
+              onSwipeToRemove: (index) {
+                items.removeAt(index);
+                key.currentState!.removeItem(index, (context, animation) {
+                  onRemovedBuild?.call();
+                  return const Text('removed');
+                }, duration: duration);
+              },
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = _Item(id: items[index], onInit: () {});
+                return globalKeys
+                    ? KeyedSubtree(
+                        key: GlobalObjectKey(items[index]),
+                        child: item,
+                      )
+                    : item;
+              },
+            ),
+          ),
+        ),
+      );
+
+      Future<void> swipeAway(WidgetTester tester, int id) => tester.timedDrag(
+        _itemWithId(id),
+        const Offset(-600, 0),
+        const Duration(milliseconds: 400),
+      );
+
+      testWidgets('flies an item swiped away off as it is', (tester) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        var removedBuilds = 0;
+        await tester.pumpWidget(
+          swipeList(key, items, onRemovedBuild: () => removedBuilds++),
+        );
+        final state = tester.state(_itemWithId(1));
+
+        await swipeAway(tester, 1);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // On its way, the same item with the same state.
+        expect(items, isNot(contains(1)));
+        expect(tester.state(_itemWithId(1)), same(state));
+        expect(find.text('removed'), findsNothing);
+        await tester.pumpAndSettle();
+
+        expect(_itemWithId(1), findsNothing);
+        expect(removedBuilds, 0);
+      });
+
+      testWidgets('keeps the look a swiped item is let go with', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items));
+        // The default decoration's fade, the nearest one around the item.
+        double opacity() => tester
+            .widget<FadeTransition>(
+              find
+                  .ancestor(
+                    of: _itemWithId(1),
+                    matching: find.byType(FadeTransition),
+                  )
+                  .first,
+            )
+            .opacity
+            .value;
+
+        // Slowly, lifted all the way.
+        await tester.timedDrag(
+          _itemWithId(1),
+          const Offset(-500, 0),
+          const Duration(seconds: 1),
+        );
+        expect(opacity(), moreOrLessEquals(0.7));
+        final opacities = <double>[];
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          opacities.add(opacity());
+        }
+
+        expect(opacities, everyElement(moreOrLessEquals(0.7)));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('keeps the look a swiped item is let go with as it lifts', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items));
+
+        // Flicked before its lift goes far.
+        await tester.fling(_itemWithId(1), const Offset(-200, 0), 3000);
+        await tester.pump();
+        final letGo = tester
+            .widget<FadeTransition>(
+              find
+                  .ancestor(
+                    of: _itemWithId(1),
+                    matching: find.byType(FadeTransition),
+                  )
+                  .first,
+            )
+            .opacity;
+        final opacities = <double>[];
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          opacities.add(letGo.value);
+        }
+
+        expect(opacities, everyElement(moreOrLessEquals(opacities.first)));
+        expect(opacities.first, greaterThan(0.7));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('keeps an item swiped away until its removal is over', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(
+          swipeList(key, items, duration: const Duration(milliseconds: 600)),
+        );
+
+        await swipeAway(tester, 1);
+        // Out of sight, and still going.
+        await tester.pump(const Duration(milliseconds: 400));
+        // Its center, half its width out.
+        expect(tester.getCenter(_itemWithId(1)).dx, -400);
+        await tester.pump(const Duration(milliseconds: 250));
+
+        expect(_itemWithId(1), findsNothing);
+      });
+
+      testWidgets('keeps an item swiped away until it is out of sight', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(
+          swipeList(key, items, duration: const Duration(milliseconds: 50)),
+        );
+
+        // Slowly, so it takes the throw's quarter of a second to get out.
+        await tester.timedDrag(
+          _itemWithId(1),
+          const Offset(-500, 0),
+          const Duration(seconds: 1),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(tester.getTopLeft(_itemWithId(1)).dx, greaterThan(-800));
+        await tester.pumpAndSettle();
+        expect(_itemWithId(1), findsNothing);
+      });
+
+      testWidgets('takes out at once an item swiped away as its key comes '
+          'back', (tester) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items, globalKeys: true));
+
+        await swipeAway(tester, 1);
+        await tester.pump(const Duration(milliseconds: 50));
+        items.insert(1, 1);
+        key.currentState!.insertItem(1);
+        await tester.pumpAndSettle();
+
+        // Its subtree's global key shows once.
+        expect(tester.takeException(), isNull);
+        expect(_itemWithId(1), findsOneWidget);
+        expect(tester.getTopLeft(_itemWithId(1)), const Offset(0, _extent));
+      });
+    });
 
     group('thrown out', () {
       const frame = Duration(milliseconds: 16);

@@ -159,6 +159,18 @@ class ItemRegistry {
     return x;
   }
 
+  /// Takes out of the overlay at once the outgoing items of [key] that
+  /// leave as they are. They show the app's own subtree, which an item
+  /// inserted with [key] shows again, global keys and all. One that a
+  /// removed item builder builds goes on, as an [AnimatedList]'s does.
+  void removeItemsLeavingAsTheyAre({required Key key}) {
+    for (final x in _outgoingItems.toList()) {
+      if (x.key == key && x.item.builder is KeptItemBuilder) {
+        removeOutgoingItem(x);
+      }
+    }
+  }
+
   /// Takes [x] out of the overlay once it has animated out, and disposes
   /// it with its item, which the list no longer has.
   void removeOutgoingItem(OverlayedItem x) {

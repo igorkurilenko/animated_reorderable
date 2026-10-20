@@ -203,7 +203,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     widgets.Widget Function(ItemFlight flight, widgets.Widget item)? shuttle,
     widgets.Widget Function(widgets.Widget look)? boundary,
   }) {
-    final child = item.builder.build(context, index);
+    final child = _builtChild = item.builder.build(context, index);
     if (child == null) return null;
     final keyed = widgets.KeyedSubtree(key: item.childKey, child: child);
     final wrapped = wrap?.call(keyed) ?? keyed;
@@ -325,20 +325,39 @@ class OverlayedItem extends widgets.ChangeNotifier {
     );
   }
 
-  Future animateThrowOut(
+  /// Throws the item out to [position], out of sight, as it is swiped away.
+  void animateThrowOut(
     OverlayOffset position, {
     required widgets.Velocity velocity,
     required Duration duration,
     required TickerProvider vsync,
   }) {
-    if (position == this.position) return Future.value();
+    if (position == this.position) return _didThrow();
+    _motionWith(vsync)
+        .throwOut(
+          from: this.position,
+          to: position,
+          velocity: velocity,
+          duration: duration,
+        )
+        .whenCompleteOrCancel(_didThrow);
+  }
 
-    return _motionWith(vsync).throwOut(
-      from: this.position,
-      to: position,
-      velocity: velocity,
-      duration: duration,
-    );
+  /// Whether the item is swiped away. It leaves as it is, thrown out of
+  /// sight, once the list removes it.
+  bool swipedAway = false;
+
+  /// What the item's builder built for the overlay last, which the item
+  /// keeps showing as it leaves as it is.
+  widgets.Widget? get builtChild => _builtChild;
+  widgets.Widget? _builtChild;
+
+  /// Completes once the item is thrown out of sight, or its throw stops.
+  Future get thrown => _thrown.future;
+  final _thrown = Completer<void>();
+
+  void _didThrow() {
+    if (!_thrown.isCompleted) _thrown.complete();
   }
 
   ItemMotion _motionWith(TickerProvider vsync) =>
@@ -365,6 +384,9 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
     return _decorator!.forwardAnimation();
   }
+
+  /// Keeps the item's decoration as far as it has come or gone.
+  void stopDecoration() => _decorator?.controller.stop();
 
   Future animateUndecoration() => switch (_decorator) {
     (AnimatedItemDecoratorAdapter d) => d.reverseAnimation(),

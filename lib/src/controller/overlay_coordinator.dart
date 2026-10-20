@@ -166,6 +166,19 @@ class OverlayCoordinator {
       // It keeps its size while the removed item builder animates it.
       ..setConstraints(BoxConstraints.tight(outgoingItem.size))
       ..setInteractive(false);
+    // An item swiped away flies off as it is: its throw is all of its
+    // going, so the removed item builder doesn't build it.
+    if (outgoingItem.swipedAway) {
+      Future.wait([
+        removedItem.leaveAsItIs(
+          outgoingItem.builtChild,
+          vsync: vsync,
+          duration: duration,
+        ),
+        outgoingItem.thrown,
+      ]).whenComplete(() => items.removeOutgoingItem(outgoingItem));
+      return;
+    }
     removedItem
         .animateRemovedItemBuilder(
           builder: builder,

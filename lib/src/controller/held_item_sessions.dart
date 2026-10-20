@@ -185,7 +185,6 @@ class SwipeSession {
 
     items.swipedItem = null;
 
-    final undecoration = item.animateUndecoration();
     final swipeDirection = item.swipeToRemoveDirection;
     final onSwipeToRemove = options.onSwipeToRemove;
     final removes =
@@ -198,6 +197,11 @@ class SwipeSession {
         false;
 
     if (swipeDirection != null && onSwipeToRemove != null && removes) {
+      // It flies off as it is let go, decorated as far as it is, and its
+      // removal, which the app makes now or later, lets it go as it is.
+      item
+        ..stopDecoration()
+        ..swipedAway = true;
       onSwipeToRemove(item.index);
 
       overlay.flingOut(
@@ -208,7 +212,7 @@ class SwipeSession {
     } else {
       overlay.flingBackToSlot(
         item,
-        undecoration: undecoration,
+        undecoration: item.animateUndecoration(),
         velocity: details.velocity,
         springDescription: options.springDescription,
       );
