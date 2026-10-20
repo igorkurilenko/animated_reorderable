@@ -1204,6 +1204,40 @@ void main() {
     expect(tester.getTopLeft(find.text('0')), Offset.zero);
   });
 
+  /// [list] in a column of a scroll view, which gives it no height limit.
+  Widget inColumn(_TestList list) => MaterialApp(
+    home: Scaffold(
+      body: SingleChildScrollView(child: Column(children: [list.buildList()])),
+    ),
+  );
+
+  testWidgets('drags an item of a shrink-wrapped list in a column', (
+    tester,
+  ) async {
+    final list = _TestList(3, shrinkWrap: true);
+    await tester.pumpWidget(inColumn(list));
+
+    final drag = await _holdAndDrag(tester, find.text('0'), 6);
+    await drag.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(list.items, [1, 0, 2]);
+  });
+
+  testWidgets('removes an item of a shrink-wrapped grid in a column', (
+    tester,
+  ) async {
+    final list = _TestList(6, grid: true, shrinkWrap: true);
+    await tester.pumpWidget(inColumn(list));
+
+    list.removeAt(0);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('0'), findsNothing);
+  });
+
   testWidgets(
     "keeps a shrink-wrapped grid's rows from jumping as a removal of its "
     'last row leaves it shorter than its space',
