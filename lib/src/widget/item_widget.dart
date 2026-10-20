@@ -366,6 +366,14 @@ class _ItemWidgetState extends State<ItemWidget>
     super.deactivate();
   }
 
+  /// Back in the tree, as an item is when a list around its list moves it,
+  /// subtree and all, while one of the outer list's items is dragged.
+  @override
+  void activate() {
+    super.activate();
+    host.didInitItem(this);
+  }
+
   @override
   void dispose() {
     widget.placeholderSize.removeListener(_rebuild);

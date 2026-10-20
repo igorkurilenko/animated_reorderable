@@ -2525,6 +2525,51 @@ void main() {
         ], everyElement(inInclusiveRange(0, 0.05)));
       });
     }
+
+    testWidgets('keeps a list in an item working after the item is dragged', (
+      tester,
+    ) async {
+      final inner = _TestList(2);
+      final sections = ['a', 'b'];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              keyGetter: (index) => ValueKey(sections[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(sections),
+              ),
+              listView: ListView.builder(
+                itemCount: sections.length,
+                itemBuilder: (context, index) => Column(
+                  children: [
+                    SizedBox(height: 50, child: Text(sections[index])),
+                    SizedBox(
+                      height: 2 * _extent,
+                      child: sections[index] == 'a' ? inner.buildList() : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Section a, by its header, after section b: the outer list moves it,
+      // with the inner list, into its layer and back.
+      final outer = await _holdAndDrag(tester, find.text('a'), 15);
+      await outer.up();
+      await tester.pumpAndSettle();
+      expect(sections, ['b', 'a']);
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 6);
+      await drag.up();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(inner.items, [1, 0]);
+    });
   });
 
   group('two changes in a frame', () {
