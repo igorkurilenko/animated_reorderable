@@ -20,6 +20,11 @@ abstract interface class RenderedItem {
   /// The constraints the list lays the item out with.
   BoxConstraints? get constraints;
 
+  /// Whether the list keeps the item alive out of sight, as it keeps an
+  /// item that asks to be kept alive, such as one with a text field that
+  /// has the focus. The list doesn't lay it out or paint it then.
+  bool get keptAlive;
+
   /// Whether the item's slot covers [point], a point on the screen.
   bool contains(GlobalOffset point);
 

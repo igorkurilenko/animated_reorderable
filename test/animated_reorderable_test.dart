@@ -1263,6 +1263,73 @@ void main() {
     expect(list.items, [1, 0, 2]);
   });
 
+  group('kept alive', () {
+    /// 30 items that ask to be kept alive. Those that showed on the way
+    /// down and back, item 20 among them, stay alive out of sight.
+    Future<(List<int>, AnimatedReorderableState)> keptAlive(
+      WidgetTester tester,
+    ) async {
+      final items = List.generate(30, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedReorderable.list(
+              key: key,
+              keyGetter: (index) => ValueKey(items[index]),
+              reorder: ReorderOptions(
+                onReorder: (permutations) => permutations.apply(items),
+              ),
+              listView: ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (context, index) => _KeptAlive(id: items[index]),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.drag(find.byType(Scrollable), const Offset(0, -1500));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable), const Offset(0, 1500));
+      await tester.pumpAndSettle();
+      expect(find.text('20', skipOffstage: false), findsOneWidget);
+      return (items, key.currentState!);
+    }
+
+    testWidgets('counts an item kept alive out of sight as not rendered', (
+      tester,
+    ) async {
+      final (_, state) = await keptAlive(tester);
+
+      expect(state.isItemRendered(0), isTrue);
+      expect(state.isItemRendered(20), isFalse);
+    });
+
+    testWidgets('removes an item while others are kept alive out of sight', (
+      tester,
+    ) async {
+      final (items, state) = await keptAlive(tester);
+
+      final removed = items.removeAt(1);
+      state.removeItem(1, (context, animation) => _KeptAlive(id: removed));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(tester.getTopLeft(find.text('2')), const Offset(0, _extent));
+    });
+
+    testWidgets('removes an item kept alive out of sight', (tester) async {
+      final (items, state) = await keptAlive(tester);
+
+      items.removeAt(20);
+      state.removeItem(20, (context, animation) => const _KeptAlive(id: 20));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('20', skipOffstage: false), findsNothing);
+    });
+  });
+
   testWidgets('removes an item of a shrink-wrapped grid in a column', (
     tester,
   ) async {
@@ -4412,6 +4479,28 @@ class _ItemState extends State<_Item> {
   @override
   Widget build(BuildContext context) =>
       SizedBox.square(dimension: _extent, child: Text('${widget.id}'));
+}
+
+/// An item that asks its list to keep it alive out of sight.
+class _KeptAlive extends StatefulWidget {
+  const _KeptAlive({required this.id});
+
+  final int id;
+
+  @override
+  State<_KeptAlive> createState() => _KeptAliveState();
+}
+
+class _KeptAliveState extends State<_KeptAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return SizedBox(height: _extent, child: Text('${widget.id}'));
+  }
 }
 
 /// The objects of [className] created from now on that are not disposed yet.

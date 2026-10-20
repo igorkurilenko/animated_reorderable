@@ -191,6 +191,12 @@ class _ItemWidgetState extends State<ItemWidget>
   }
 
   @override
+  bool get keptAlive => switch (_inPlace?.parentData) {
+    final SliverMultiBoxAdaptorParentData data => data.keptAlive,
+    _ => false,
+  };
+
+  @override
   void focusSemanticMoves() {
     final moves = _semanticMovesKey.currentContext?.findRenderObject();
     if (moves == null) return;
