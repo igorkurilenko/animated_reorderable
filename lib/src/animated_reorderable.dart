@@ -60,6 +60,12 @@ typedef PermutationsCallback = void Function(Permutations permutations);
 ///   );
 /// }
 /// ```
+///
+/// The removed item keeps its state, rather than being built anew, if the
+/// builder returns widgets of the same types as the item builder does, down
+/// to the item's own widget: here, if the item builder returns a
+/// `FadeTransition` around `MyItemWidget` too, at
+/// [kAlwaysCompleteAnimation].
 typedef SwipeToRemoveCallback = void Function(int index);
 
 /// A callback function that is called when dragging of an item starts.
@@ -372,6 +378,10 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
   /// will no longer be passed to the `itemBuilder`. However, the
   /// item will still appear for `duration` and during that time
   /// `builder` must construct its widget as needed.
+  ///
+  /// The item keeps its state, rather than being built anew, if `builder`
+  /// returns widgets of the same types as the item builder does, down to the
+  /// item's own widget.
   ///
   /// This method's semantics are the same as Dart's [List.remove] method: it
   /// decreases the length of items by one and shifts all items at or before
