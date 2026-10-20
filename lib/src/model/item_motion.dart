@@ -116,7 +116,7 @@ class ItemMotion {
       1,
       _speedAlongTheWay(velocity, from: from, to: to),
     );
-    return _run = _controller.animateWith(simulation);
+    return _run = _controller.animateWith(_FrameAhead(simulation));
   }
 
   /// Throws the item from [from] out to [to], out of sight, at the part of
@@ -148,7 +148,7 @@ class ItemMotion {
       2 * (1 - speed * seconds) / (seconds * seconds),
     );
     return _run = _controller.animateWith(
-      _Throw(speed: speed, acceleration: acceleration, lead: _frameSeconds),
+      _FrameAhead(_Throw(speed: speed, acceleration: acceleration)),
     );
   }
 
@@ -213,29 +213,41 @@ class _Leg {
   }
 }
 
+/// [simulation] a frame of the display ahead of its clock. A run's clock
+/// starts at the first frame after the item is let go, which would show the
+/// item where the frame before did, as if it stopped for a frame.
+class _FrameAhead extends Simulation {
+  _FrameAhead(this.simulation) : _lead = ItemMotion._frameSeconds;
+
+  final Simulation simulation;
+  final double _lead;
+
+  @override
+  double x(double time) => simulation.x(time + _lead);
+
+  @override
+  double dx(double time) => simulation.dx(time + _lead);
+
+  @override
+  bool isDone(double time) => simulation.isDone(time + _lead);
+}
+
 /// A throw along the way, from 0 to 1: it starts at [speed] and speeds up
 /// by [acceleration], as parts of the way per second.
-///
-/// It runs [lead] ahead of its clock. Its clock starts at the first frame
-/// after the item is let go, which would show the item where the frame
-/// before did, as if it stopped for a frame.
 class _Throw extends Simulation {
-  _Throw({required this.speed, required this.acceleration, required this.lead});
+  _Throw({required this.speed, required this.acceleration});
 
   final double speed;
   final double acceleration;
-  final double lead;
 
   // It stops at the end of the way, out of sight, as a spring would come
   // to rest there.
   @override
-  double x(double time) {
-    final t = time + lead;
-    return math.min(1, speed * t + acceleration * t * t / 2);
-  }
+  double x(double time) =>
+      math.min(1, speed * time + acceleration * time * time / 2);
 
   @override
-  double dx(double time) => speed + acceleration * (time + lead);
+  double dx(double time) => speed + acceleration * time;
 
   @override
   bool isDone(double time) => x(time) >= 1;

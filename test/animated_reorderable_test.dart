@@ -3030,10 +3030,10 @@ void main() {
         xs.add(tester.getTopLeft(_itemWithId(1)).dx);
       }
 
-      // The first frame of a fling shows the item where it was let go,
-      // and the next one where the spring takes it from there at that
-      // speed, rather than from rest.
-      expect(_steps(xs)[1], closeTo(firstStep(200, speed: 30), 2));
+      // The first frame of a fling shows the item where the spring takes it
+      // in a frame from where it was let go, at that speed, rather than from
+      // rest, and rather than where it was let go, as if it stood still.
+      expect(_steps(xs)[0], closeTo(firstStep(200, speed: 30), 2));
       expect(
         firstStep(200, speed: 30) - firstStep(200, speed: 0),
         greaterThan(5),
@@ -3076,10 +3076,10 @@ void main() {
         xs.add(middle());
       }
 
-      // The first frame of a fling shows the item where it was let go,
-      // and the next one where the spring takes it from there at that
-      // speed, rather than from rest.
-      expect(-_steps(xs)[1], closeTo(firstStep(50, speed: 30), 2));
+      // The first frame of a fling shows the item where the spring takes it
+      // in a frame from where it was let go, at that speed, rather than from
+      // rest, and rather than where it was let go, as if it stood still.
+      expect(-_steps(xs)[0], closeTo(firstStep(50, speed: 30), 2));
       expect(
         firstStep(50, speed: 30) - firstStep(50, speed: 0),
         greaterThan(5),
