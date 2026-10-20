@@ -789,6 +789,31 @@ void main() {
       expect(built, {2, 3, 4});
     });
 
+    testWidgets(
+      'builds no item again for its moves with no screen reader',
+      semanticsEnabled: false,
+      (tester) async {
+        final built = <int>{};
+        final items = List.generate(5, (i) => i);
+        final key = GlobalKey<AnimatedReorderableState>();
+        await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: buildList(key, items, built))),
+        );
+        built.clear();
+
+        // The item before it loses its moves forward, which only a screen
+        // reader would show.
+        items.removeAt(4);
+        key.currentState!.removeItem(
+          4,
+          (context, animation) => const SizedBox(),
+        );
+        await tester.pumpAndSettle();
+
+        expect(built, isEmpty);
+      },
+    );
+
     testWidgets('builds every item again when the app builds its view again', (
       tester,
     ) async {
@@ -1844,6 +1869,53 @@ void main() {
       'Move down',
       'Move to the end',
     ];
+
+    testWidgets(
+      'gives items their moves once a screen reader runs',
+      semanticsEnabled: false,
+      (tester) async {
+        final list = _TestList(5);
+        await tester.pumpWidget(list.build());
+
+        final handle = tester.ensureSemantics();
+        await tester.pumpAndSettle();
+
+        expect(_moves(tester, 2), unorderedEquals(allMoves));
+        handle.dispose();
+      },
+    );
+
+    testWidgets(
+      'gives items their moves once a screen reader runs as the app builds',
+      semanticsEnabled: false,
+      (tester) async {
+        final list = _TestList(5);
+        late StateSetter setState;
+        var reader = false;
+        await tester.pumpWidget(
+          Column(
+            children: [
+              // Beside the list, so the list isn't what builds.
+              StatefulBuilder(
+                builder: (context, set) {
+                  setState = set;
+                  return reader
+                      ? const _ScreenReader()
+                      : const SizedBox.shrink();
+                },
+              ),
+              Expanded(child: list.build()),
+            ],
+          ),
+        );
+
+        setState(() => reader = true);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(_moves(tester, 2), unorderedEquals(allMoves));
+      },
+    );
 
     testWidgets('can move each item', (tester) async {
       final list = _TestList(5);
@@ -2958,10 +3030,10 @@ void main() {
         xs.add(tester.getTopLeft(_itemWithId(1)).dx);
       }
 
-      // The first frame of a fling shows the item where it was let go,
-      // and the next one where the spring takes it from there at that
-      // speed, rather than from rest.
-      expect(_steps(xs)[1], closeTo(firstStep(200, speed: 30), 2));
+      // The first frame of a fling shows the item where the spring takes it
+      // in a frame from where it was let go, at that speed, rather than from
+      // rest, and rather than where it was let go, as if it stood still.
+      expect(_steps(xs)[0], closeTo(firstStep(200, speed: 30), 2));
       expect(
         firstStep(200, speed: 30) - firstStep(200, speed: 0),
         greaterThan(5),
@@ -3004,10 +3076,10 @@ void main() {
         xs.add(middle());
       }
 
-      // The first frame of a fling shows the item where it was let go,
-      // and the next one where the spring takes it from there at that
-      // speed, rather than from rest.
-      expect(-_steps(xs)[1], closeTo(firstStep(50, speed: 30), 2));
+      // The first frame of a fling shows the item where the spring takes it
+      // in a frame from where it was let go, at that speed, rather than from
+      // rest, and rather than where it was let go, as if it stood still.
+      expect(-_steps(xs)[0], closeTo(firstStep(50, speed: 30), 2));
       expect(
         firstStep(50, speed: 30) - firstStep(50, speed: 0),
         greaterThan(5),
@@ -3246,14 +3318,15 @@ void main() {
         ) async {
           final list = createList();
           await tester.pumpWidget(list.build());
-          final slot = tester.getTopLeft(_itemWithId(1));
+          // Its center, which its decoration scales it about.
+          final slot = tester.getCenter(_itemWithId(1));
 
           await tester.fling(_itemWithId(1), forward * extent * 0.2, 2000);
           final offsets = <Offset>[];
           // Within the removal, which ends with the item out of sight.
           for (var i = 0; i < 11; i++) {
             await tester.pump(_insertDuration ~/ 12);
-            offsets.add(tester.getTopLeft(_itemWithId(1)) - slot);
+            offsets.add(tester.getCenter(_itemWithId(1)) - slot);
           }
 
           // On its way until it is just outside the overlay, which covers
@@ -3265,15 +3338,189 @@ void main() {
             expect(ways[i], greaterThan(ways[i - 1]));
           }
           expect(ways.sublist(out), everyElement(moreOrLessEquals(extent)));
-          // Its decoration scales it a little about its center.
           expect(
             offsets.map((offset) => offset - forward * along(offset)),
-            everyElement(_offsetCloseTo(Offset.zero, 3)),
+            everyElement(_offsetCloseTo(Offset.zero, 0.5)),
           );
           await tester.pumpAndSettle();
         });
       });
     }
+
+    group('as it is', () {
+      /// A list that a swipe removes items of with a removed item builder,
+      /// which builds something else and counts its builds. With
+      /// [globalKeys], each item's subtree has a global key of its own.
+      Widget swipeList(
+        GlobalKey<AnimatedReorderableState> key,
+        List<int> items, {
+        VoidCallback? onRemovedBuild,
+        Duration duration = _insertDuration,
+        bool globalKeys = false,
+      }) => MaterialApp(
+        home: Scaffold(
+          body: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            swipeToRemove: SwipeToRemoveOptions(
+              onSwipeToRemove: (index) {
+                items.removeAt(index);
+                key.currentState!.removeItem(index, (context, animation) {
+                  onRemovedBuild?.call();
+                  return const Text('removed');
+                }, duration: duration);
+              },
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = _Item(id: items[index], onInit: () {});
+                return globalKeys
+                    ? KeyedSubtree(
+                        key: GlobalObjectKey(items[index]),
+                        child: item,
+                      )
+                    : item;
+              },
+            ),
+          ),
+        ),
+      );
+
+      Future<void> swipeAway(WidgetTester tester, int id) => tester.timedDrag(
+        _itemWithId(id),
+        const Offset(-600, 0),
+        const Duration(milliseconds: 400),
+      );
+
+      testWidgets('flies an item swiped away off as it is', (tester) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        var removedBuilds = 0;
+        await tester.pumpWidget(
+          swipeList(key, items, onRemovedBuild: () => removedBuilds++),
+        );
+        final state = tester.state(_itemWithId(1));
+
+        await swipeAway(tester, 1);
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // On its way, the same item with the same state.
+        expect(items, isNot(contains(1)));
+        expect(tester.state(_itemWithId(1)), same(state));
+        expect(find.text('removed'), findsNothing);
+        await tester.pumpAndSettle();
+
+        expect(_itemWithId(1), findsNothing);
+        expect(removedBuilds, 0);
+      });
+
+      testWidgets('keeps the look a swiped item is let go with', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items));
+        double opacity() => _nearestFade(tester, _itemWithId(1)).value;
+
+        // Slowly, lifted all the way.
+        await tester.timedDrag(
+          _itemWithId(1),
+          const Offset(-500, 0),
+          const Duration(seconds: 1),
+        );
+        expect(opacity(), moreOrLessEquals(0.7));
+        final opacities = <double>[];
+        for (var i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          opacities.add(opacity());
+        }
+
+        expect(opacities, everyElement(moreOrLessEquals(0.7)));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('keeps the look a swiped item is let go with as it lifts', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items));
+
+        // Flicked before its lift goes far.
+        await tester.fling(_itemWithId(1), const Offset(-200, 0), 3000);
+        await tester.pump();
+        final letGo = _nearestFade(tester, _itemWithId(1));
+        final opacities = <double>[];
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          opacities.add(letGo.value);
+        }
+
+        expect(opacities, everyElement(moreOrLessEquals(opacities.first)));
+        expect(opacities.first, greaterThan(0.7));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('keeps an item swiped away until its removal is over', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(
+          swipeList(key, items, duration: const Duration(milliseconds: 600)),
+        );
+
+        await swipeAway(tester, 1);
+        // Out of sight, and still going.
+        await tester.pump(const Duration(milliseconds: 400));
+        // Its center, half its width out.
+        expect(tester.getCenter(_itemWithId(1)).dx, -400);
+        await tester.pump(const Duration(milliseconds: 250));
+
+        expect(_itemWithId(1), findsNothing);
+      });
+
+      testWidgets('keeps an item swiped away until it is out of sight', (
+        tester,
+      ) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(
+          swipeList(key, items, duration: const Duration(milliseconds: 50)),
+        );
+
+        // Slowly, so it takes the throw's quarter of a second to get out.
+        await tester.timedDrag(
+          _itemWithId(1),
+          const Offset(-500, 0),
+          const Duration(seconds: 1),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(tester.getTopLeft(_itemWithId(1)).dx, greaterThan(-800));
+        await tester.pumpAndSettle();
+        expect(_itemWithId(1), findsNothing);
+      });
+
+      testWidgets('takes out at once an item swiped away as its key comes '
+          'back', (tester) async {
+        final key = GlobalKey<AnimatedReorderableState>();
+        final items = List.generate(10, (i) => i);
+        await tester.pumpWidget(swipeList(key, items, globalKeys: true));
+
+        await swipeAway(tester, 1);
+        await tester.pump(const Duration(milliseconds: 50));
+        items.insert(1, 1);
+        key.currentState!.insertItem(1);
+        await tester.pumpAndSettle();
+
+        // Its subtree's global key shows once.
+        expect(tester.takeException(), isNull);
+        expect(_itemWithId(1), findsOneWidget);
+        expect(tester.getTopLeft(_itemWithId(1)), const Offset(0, _extent));
+      });
+    });
 
     group('thrown out', () {
       const frame = Duration(milliseconds: 16);
@@ -4813,6 +5060,42 @@ VoidCallback _semanticMove(WidgetTester tester, int id, String name) {
   return semantics.properties.customSemanticsActions![CustomSemanticsAction(
     label: name,
   )]!;
+}
+
+/// The opacity of the fade nearest around what [finder] finds, as the
+/// default decoration of a held item fades it.
+Animation<double> _nearestFade(WidgetTester tester, Finder finder) => tester
+    .widget<FadeTransition>(
+      find.ancestor(of: finder, matching: find.byType(FadeTransition)).first,
+    )
+    .opacity;
+
+/// Turns semantics on as it builds first, as an app's accessibility setup
+/// may.
+class _ScreenReader extends StatefulWidget {
+  const _ScreenReader();
+
+  @override
+  State<_ScreenReader> createState() => _ScreenReaderState();
+}
+
+class _ScreenReaderState extends State<_ScreenReader> {
+  late final SemanticsHandle _handle;
+
+  @override
+  void initState() {
+    super.initState();
+    _handle = SemanticsBinding.instance.ensureSemantics();
+  }
+
+  @override
+  void dispose() {
+    _handle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Two of the names Flutter's German localizations give the moves.

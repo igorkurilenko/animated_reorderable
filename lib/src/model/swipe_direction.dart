@@ -71,9 +71,9 @@ enum SwipeDirection {
       extent * sign > minExtent ||
       along(velocity.pixelsPerSecond) * sign > minVelocity;
 
-  /// Where a removed item at [position] is flung to: just outside
+  /// Where a removed item at [position] is thrown to: just outside
   /// [bounds], which it moves in.
-  OverlayOffset flingTarget(
+  OverlayOffset throwTarget(
     OverlayOffset position, {
     required Size itemSize,
     required Size bounds,

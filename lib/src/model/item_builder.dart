@@ -28,6 +28,22 @@ class NullableIndexedWidgetBuilderAdapter implements ItemBuilder {
   void dispose() {}
 }
 
+/// Builds what an item showed last, as it leaves as it is: the list no
+/// longer has it at an index for its builder to build. [controller] counts
+/// the time it takes to leave.
+class KeptItemBuilder implements ItemBuilder {
+  KeptItemBuilder(this.child, {required this.controller});
+
+  final widgets.Widget? child;
+  final widgets.AnimationController controller;
+
+  @override
+  widgets.Widget? build(widgets.BuildContext context, int index) => child;
+
+  @override
+  void dispose() => controller.dispose();
+}
+
 class AnimatedRemovedItemBuilderAdapter implements ItemBuilder {
   AnimatedRemovedItemBuilderAdapter(this.builder, {required this.controller});
 

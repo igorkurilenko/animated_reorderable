@@ -58,6 +58,20 @@ extension ItemAnimations on Item {
     return value;
   }
 
+  /// Keeps the item showing [child], the same widget it showed last, for
+  /// [duration], so it builds nothing again as it leaves as it is.
+  Future leaveAsItIs(
+    widgets.Widget? child, {
+    required TickerProvider vsync,
+    required Duration duration,
+  }) {
+    final replaced = builder;
+    final controller = AnimationController(vsync: vsync, duration: duration);
+    builder = KeptItemBuilder(child, controller: controller);
+    replaced.dispose();
+    return controller.forward();
+  }
+
   Future animateRemovedItemBuilder({
     required widgets.AnimatedRemovedItemBuilder builder,
     required TickerProvider vsync,

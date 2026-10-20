@@ -43,9 +43,13 @@ typedef PermutationsCallback = void Function(Permutations permutations);
 ///
 /// Implementations remove the item at [index] from the collection, and from
 /// the list with [AnimatedReorderableState.removeItem], as an [AnimatedList]'s
-/// items are removed: the list closes the gap, and the builder builds the
-/// item as it flies off. Removed from the collection alone, the item stays
-/// in the list.
+/// items are removed: the list closes the gap as the item flies off.
+/// Removed from the collection alone, the item stays in the list.
+///
+/// The item flies off as it is, with its state, at the speed it is let go
+/// at: `removeItem` doesn't build it with the builder, which builds the
+/// items removed otherwise. Inserted again while it flies off, it goes at
+/// once, so the app's widgets show once.
 ///
 /// ```dart
 /// final List<MyDataObject> items = <MyDataObject>[/* ... */];
@@ -55,17 +59,10 @@ typedef PermutationsCallback = void Function(Permutations permutations);
 ///   final item = items.removeAt(index);
 ///   listKey.currentState!.removeItem(
 ///     index,
-///     (context, animation) =>
-///         FadeTransition(opacity: animation, child: MyItemWidget(item)),
+///     (context, animation) => MyItemWidget(item),
 ///   );
 /// }
 /// ```
-///
-/// The removed item keeps its state, rather than being built anew, if the
-/// builder returns widgets of the same types as the item builder does, down
-/// to the item's own widget: here, if the item builder returns a
-/// `FadeTransition` around `MyItemWidget` too, at
-/// [kAlwaysCompleteAnimation].
 typedef SwipeToRemoveCallback = void Function(int index);
 
 /// A callback function that is called when dragging of an item starts.
@@ -381,7 +378,8 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
   ///
   /// The item keeps its state, rather than being built anew, if `builder`
   /// returns widgets of the same types as the item builder does, down to the
-  /// item's own widget.
+  /// item's own widget. An item swiped away flies off as it is, and `builder`
+  /// doesn't build it.
   ///
   /// This method's semantics are the same as Dart's [List.remove] method: it
   /// decreases the length of items by one and shifts all items at or before
