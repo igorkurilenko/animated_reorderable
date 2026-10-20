@@ -331,9 +331,16 @@ class AnimatedReorderableController implements ItemHost {
         renderedItem: _items.renderedItemBy(key: removedItem.key),
         builder: builder,
         duration: duration,
-        zIndex: zIndex ?? outgoingItemZIndex,
+        zIndex: zIndex ?? _outgoingZIndexOf(removedItem.key),
       );
   }
+
+  /// Where the removed item with [key] shows as it goes: under the items
+  /// that move into its place, unless the overlay shows it above them
+  /// already, as it shows an item swiped away, which flies out over its
+  /// neighbors.
+  int _outgoingZIndexOf(widgets.Key key) =>
+      _items.overlayedItemBy(key: key)?.zIndex ?? outgoingItemZIndex;
 
   void reorderItem(int index, {required int destIndex}) {
     final onReorder =

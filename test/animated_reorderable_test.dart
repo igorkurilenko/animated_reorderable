@@ -629,6 +629,44 @@ void main() {
       expect(_paintOrder(tester).last, 1);
       await tester.pumpAndSettle();
     });
+
+    testWidgets('keeps an item swiped away above the items it flies over', (
+      tester,
+    ) async {
+      // Item 1, in the middle column, flies out over item 0.
+      final list = _TestList(6, grid: true);
+      await tester.pumpWidget(list.build());
+
+      await tester.timedDrag(
+        _itemWithId(1),
+        const Offset(-800 / 3 * 0.7, 0),
+        const Duration(seconds: 1),
+      );
+      await tester.pump();
+
+      expect(list.items, isNot(contains(1)));
+      final order = _paintOrder(tester);
+      expect(order.indexOf(0), lessThan(order.indexOf(1)));
+      expect(order.last, 1);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('keeps an item removed on its way out of sight above the '
+        'list', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      // Item 0 goes out of sight through the overlay, above the list.
+      list.state.reorderItem(0, destIndex: 8);
+      await tester.pump();
+      await tester.pump(_motionDuration * 0.3);
+      expect(_paintOrder(tester).last, 0);
+
+      list.removeAt(8);
+      await tester.pump();
+
+      expect(_paintOrder(tester).last, 0);
+      await tester.pumpAndSettle();
+    });
   });
 
   group('paints', () {
