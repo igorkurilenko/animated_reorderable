@@ -3421,18 +3421,7 @@ void main() {
         final key = GlobalKey<AnimatedReorderableState>();
         final items = List.generate(10, (i) => i);
         await tester.pumpWidget(swipeList(key, items));
-        // The default decoration's fade, the nearest one around the item.
-        double opacity() => tester
-            .widget<FadeTransition>(
-              find
-                  .ancestor(
-                    of: _itemWithId(1),
-                    matching: find.byType(FadeTransition),
-                  )
-                  .first,
-            )
-            .opacity
-            .value;
+        double opacity() => _nearestFade(tester, _itemWithId(1)).value;
 
         // Slowly, lifted all the way.
         await tester.timedDrag(
@@ -3461,16 +3450,7 @@ void main() {
         // Flicked before its lift goes far.
         await tester.fling(_itemWithId(1), const Offset(-200, 0), 3000);
         await tester.pump();
-        final letGo = tester
-            .widget<FadeTransition>(
-              find
-                  .ancestor(
-                    of: _itemWithId(1),
-                    matching: find.byType(FadeTransition),
-                  )
-                  .first,
-            )
-            .opacity;
+        final letGo = _nearestFade(tester, _itemWithId(1));
         final opacities = <double>[];
         for (var i = 0; i < 3; i++) {
           await tester.pump(const Duration(milliseconds: 16));
@@ -5081,6 +5061,14 @@ VoidCallback _semanticMove(WidgetTester tester, int id, String name) {
     label: name,
   )]!;
 }
+
+/// The opacity of the fade nearest around what [finder] finds, as the
+/// default decoration of a held item fades it.
+Animation<double> _nearestFade(WidgetTester tester, Finder finder) => tester
+    .widget<FadeTransition>(
+      find.ancestor(of: finder, matching: find.byType(FadeTransition)).first,
+    )
+    .opacity;
 
 /// Turns semantics on as it builds first, as an app's accessibility setup
 /// may.

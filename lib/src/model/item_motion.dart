@@ -141,15 +141,15 @@ class ItemMotion {
       0.0,
       _speedAlongTheWay(velocity, from: from, to: to),
     );
-    final simulation = _Throw(
-      speed: speed,
-      acceleration: math.max(
-        0.0,
-        2 * (1 - speed * seconds) / (seconds * seconds),
-      ),
-      lead: _frameSeconds,
+    // Even, to get the rest of the way in the time; none if the speed gets
+    // it there sooner.
+    final acceleration = math.max(
+      0.0,
+      2 * (1 - speed * seconds) / (seconds * seconds),
     );
-    return _run = _controller.animateWith(simulation);
+    return _run = _controller.animateWith(
+      _Throw(speed: speed, acceleration: acceleration, lead: _frameSeconds),
+    );
   }
 
   /// The part of [velocity] along the way from [from] to [to], as a part

@@ -343,9 +343,16 @@ class OverlayedItem extends widgets.ChangeNotifier {
         .whenCompleteOrCancel(_didThrow);
   }
 
-  /// Whether the item is swiped away. It leaves as it is, thrown out of
-  /// sight, once the list removes it.
-  bool swipedAway = false;
+  /// Swipes the item away: it keeps its decoration as far as it has come,
+  /// and once the list removes it, it leaves as it is, thrown out of sight.
+  void swipeAway() {
+    _swipedAway = true;
+    _decorator?.controller.stop();
+  }
+
+  /// Whether the item is swiped away.
+  bool get swipedAway => _swipedAway;
+  var _swipedAway = false;
 
   /// What the item's builder built for the overlay last, which the item
   /// keeps showing as it leaves as it is.
@@ -384,9 +391,6 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
     return _decorator!.forwardAnimation();
   }
-
-  /// Keeps the item's decoration as far as it has come or gone.
-  void stopDecoration() => _decorator?.controller.stop();
 
   Future animateUndecoration() => switch (_decorator) {
     (AnimatedItemDecoratorAdapter d) => d.reverseAnimation(),

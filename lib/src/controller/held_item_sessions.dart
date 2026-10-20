@@ -216,9 +216,7 @@ class SwipeSession {
     Velocity velocity,
     SwipeToRemoveCallback onSwipeToRemove,
   ) {
-    item
-      ..stopDecoration()
-      ..swipedAway = true;
+    item.swipeAway();
     onSwipeToRemove(item.index);
     overlay.throwOut(item, direction: direction, velocity: velocity);
   }
