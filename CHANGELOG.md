@@ -1,3 +1,18 @@
+## 2.7.0
+
+### Behavior changes
+
+- Fly an item swiped away off as it is, with its state. `removeItem` built it with its builder as it flew off: the sample's builder faded it on its way out, and a builder whose widgets weren't the item builder's built it anew. The swipe's throw is now all of its going, and the release builds it no more: in the package's measurements, a swipe's release builds only the items it moves, and with widgets cached by id only the item that comes into sight. The builder still builds the items removed otherwise.
+- Take an item swiped away out at once when an item with its key is inserted while it flies off, so the app's widgets, and any global keys in them, show once. An item that a removed item builder builds goes on as before, as an `AnimatedList`'s does.
+
+### Fixes
+
+- Spring a dragged or swiped item back to its place without it standing still for a frame as it's let go. A spring's clock started at the first frame after the release, which showed the item where the frame before had, so it stopped dead for a frame before it moved on. It now runs a frame ahead, as the throw of an item swiped away has since 2.6.1.
+
+### Performance
+
+- Build no item again for the moves a screen reader can make with it while no screen reader runs. Removing the last item built the one before it again, and a grid's last row, for moves nobody could make. Items gain their moves as a screen reader turns on.
+
 ## 2.6.1
 
 ### Behavior changes
