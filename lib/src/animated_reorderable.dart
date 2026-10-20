@@ -108,6 +108,13 @@ typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
 /// This widget's [AnimatedReorderableState] can be used to dynamically insert,
 /// remove or reorder items. To refer to the [AnimatedReorderableState] either provide a
 /// [GlobalKey] or use the static [of] method from an item's input callback.
+///
+/// As items are reordered, inserted or removed, it builds again only the
+/// items whose index changes, and the item builder runs again for each of
+/// them, since it takes the index. Return the same widget for the same
+/// item, such as one cached by its id, and Flutter doesn't build it again,
+/// so heavy items don't build again as they move. Take an item's widget out
+/// of the cache when the item changes, and build the view again.
 final class AnimatedReorderable extends StatefulWidget {
   /// Creates an [AnimatedReorderable] for a [ListView].
   ///
