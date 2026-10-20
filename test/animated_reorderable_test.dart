@@ -17,6 +17,9 @@ const _motionDuration = Duration(milliseconds: 250);
 /// The package's default insert and remove duration.
 const _insertDuration = Duration(milliseconds: 300);
 
+/// How long the package takes at most to throw an item swiped away out.
+const _throwOutDuration = Duration(milliseconds: 250);
+
 /// The package's default fling spring.
 const _defaultSpring = SpringDescription(
   mass: 1,
@@ -180,10 +183,10 @@ void main() {
       }
     });
 
-    testWidgets('flings removed items with swipeToRemoveSpringDescription', (
+    testWidgets('throws removed items out whatever the swipe spring', (
       tester,
     ) async {
-      Future<double> flungOffset(SpringDescription spring) async {
+      Future<double> thrownOffset(SpringDescription spring) async {
         final list = _TestList(5, swipeToRemoveSpringDescription: spring);
         await tester.pumpWidget(list.build());
         await tester.fling(find.text('1'), const Offset(-400, 0), 2000);
@@ -191,15 +194,18 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
         final offset = tester.getTopLeft(find.text('1')).dx;
         await tester.pumpAndSettle();
+        expect(list.items, [0, 2, 3, 4]);
         return offset;
       }
 
-      final stiff = await flungOffset(_defaultSpring);
-      final soft = await flungOffset(
+      final stiff = await thrownOffset(_defaultSpring);
+      final soft = await thrownOffset(
         const SpringDescription(mass: 1, stiffness: 10, damping: 10),
       );
 
-      expect(soft, greaterThan(stiff + 50));
+      // The spring takes an item back to its place. One swiped away goes on
+      // at its speed.
+      expect(soft, stiff);
     });
 
     testWidgets(
@@ -3250,23 +3256,176 @@ void main() {
             offsets.add(tester.getTopLeft(_itemWithId(1)) - slot);
           }
 
-          for (var i = 1; i < offsets.length; i++) {
-            expect(along(offsets[i]), greaterThan(along(offsets[i - 1])));
+          // On its way until it is just outside the overlay, which covers
+          // the list, and there from then on.
+          final ways = offsets.map(along).toList();
+          final out = ways.indexWhere((way) => way > extent - 0.5);
+          expect(out, isNot(-1));
+          for (var i = 1; i <= out; i++) {
+            expect(ways[i], greaterThan(ways[i - 1]));
           }
+          expect(ways.sublist(out), everyElement(moreOrLessEquals(extent)));
           // Its decoration scales it a little about its center.
           expect(
             offsets.map((offset) => offset - forward * along(offset)),
             everyElement(_offsetCloseTo(Offset.zero, 3)),
           );
-          // On its way to just outside the overlay, which covers the list.
-          expect(
-            along(offsets.last),
-            allOf(lessThan(extent), greaterThan(extent * 0.95)),
-          );
           await tester.pumpAndSettle();
         });
       });
     }
+
+    group('thrown out', () {
+      const frame = Duration(milliseconds: 16);
+
+      /// The speeds of item 1 along a swipe to the left, in px/s: in the
+      /// last frame of the swipe, which goes [distance] at [speed] and then
+      /// back by [back] in a frame, then waits for [hold], and in each
+      /// frame after it is let go until it is out of sight.
+      Future<(double, List<double>)> speedsOfASwipe(
+        WidgetTester tester, {
+        required double distance,
+        required double speed,
+        double back = 0,
+        Duration hold = Duration.zero,
+      }) async {
+        final list = _TestList(20, swipeToRemoveDirection: AxisDirection.left);
+        await tester.pumpWidget(list.build());
+        double left() => -tester.getCenter(_itemWithId(1)).dx;
+        final steps = (distance / speed / 0.016).ceil();
+        var time = Duration.zero;
+        final swipe = await tester.startGesture(
+          tester.getCenter(_itemWithId(1)),
+        );
+        final lefts = [left()];
+        Future<void> move(Offset offset, Duration duration) async {
+          time += duration;
+          await swipe.moveBy(offset, timeStamp: time);
+          await tester.pump(duration);
+          lefts.add(left());
+        }
+
+        for (var i = 0; i < steps; i++) {
+          await move(Offset(-distance / steps, 0), frame);
+        }
+        if (back > 0) await move(Offset(back, 0), frame);
+        if (hold > Duration.zero) await move(Offset.zero, hold);
+        final swiped = lefts.length;
+        await swipe.up(timeStamp: time + frame);
+        // Out of sight, the item's center is half its width out.
+        while (lefts.last < 400 && lefts.length < swiped + 40) {
+          await tester.pump(frame);
+          lefts.add(left());
+        }
+        final speeds = [
+          for (var i = 1; i < lefts.length; i++)
+            (lefts[i] - lefts[i - 1]) / 0.016,
+        ];
+        expect(list.items, isNot(contains(1)));
+        await tester.pumpAndSettle();
+        return (speeds[swiped - 2], speeds.sublist(swiped - 1));
+      }
+
+      testWidgets('throws an item let go fast out at its speed', (
+        tester,
+      ) async {
+        final (letGo, thrown) = await speedsOfASwipe(
+          tester,
+          distance: 520,
+          speed: 1300,
+        );
+
+        expect(letGo, moreOrLessEquals(1300, epsilon: 1));
+        // Every frame on until the last, which ends just out of sight.
+        expect(
+          thrown.sublist(0, thrown.length - 1),
+          everyElement(closeTo(1300, 1300 * 0.05)),
+        );
+      });
+
+      testWidgets('speeds an item let go slowly evenly out of sight', (
+        tester,
+      ) async {
+        final (letGo, thrown) = await speedsOfASwipe(
+          tester,
+          distance: 520,
+          speed: 400,
+        );
+
+        expect(letGo, moreOrLessEquals(400, epsilon: 5));
+        // It goes on at its speed, rather than stops or leaps.
+        expect(thrown.first, allOf(greaterThan(400), lessThan(400 * 1.25)));
+        // Faster by as much each frame after the first, which starts a
+        // frame on.
+        final rising = thrown.sublist(1, thrown.length - 1);
+        for (var i = 1; i < rising.length; i++) {
+          expect(rising[i] - rising[i - 1], closeTo(rising[1] - rising[0], 1));
+        }
+        // Out by the first frame of the throw's end.
+        expect(
+          frame * thrown.length,
+          lessThanOrEqualTo(_throwOutDuration + frame),
+        );
+      });
+
+      testWidgets('speeds an item let go still evenly out of sight', (
+        tester,
+      ) async {
+        final (letGo, thrown) = await speedsOfASwipe(
+          tester,
+          distance: 520,
+          speed: 1300,
+          hold: const Duration(milliseconds: 300),
+        );
+
+        expect(letGo, 0);
+        expect(thrown.first, allOf(greaterThan(0), lessThan(200)));
+        // Faster by as much each frame after the first, which starts a
+        // frame on.
+        final rising = thrown.sublist(1, thrown.length - 1);
+        for (var i = 1; i < rising.length; i++) {
+          expect(rising[i] - rising[i - 1], closeTo(rising[1] - rising[0], 1));
+        }
+        // Out by the first frame of the throw's end.
+        expect(
+          frame * thrown.length,
+          lessThanOrEqualTo(_throwOutDuration + frame),
+        );
+      });
+
+      testWidgets('throws an item let go moving back out from rest', (
+        tester,
+      ) async {
+        // Far enough to remove it, and back a little at the end.
+        final (letGo, thrown) = await speedsOfASwipe(
+          tester,
+          distance: 600,
+          speed: 1300,
+          back: 40,
+        );
+
+        expect(letGo, lessThan(0));
+        expect(thrown.first, allOf(greaterThan(0), lessThan(200)));
+        expect(thrown, everyElement(greaterThan(0)));
+      });
+
+      testWidgets('throws an item out at once when animations are off', (
+        tester,
+      ) async {
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        final (_, thrown) = await speedsOfASwipe(
+          tester,
+          distance: 520,
+          speed: 400,
+        );
+
+        expect(thrown, hasLength(1));
+      });
+    });
   });
 
   group('grid', () {

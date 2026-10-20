@@ -48,7 +48,11 @@ const defaultInsertItemAnimationDuration = Duration(milliseconds: 300);
 
 const defaultRemoveItemAnimationDuration = Duration(milliseconds: 300);
 
-/// The spring that flings an item back to its place, or out of the list.
+/// How long an item swiped away and let go at rest takes to get out of
+/// sight, as long as a move takes. Let go faster, it gets out sooner.
+const throwOutDuration = Duration(milliseconds: 250);
+
+/// The spring that flings an item back to its place.
 /// Overdamped, it takes an item let go at rest most of the way in a fifth
 /// of a second, without going past its place.
 const defaultFlingSpringDescription = SpringDescription(

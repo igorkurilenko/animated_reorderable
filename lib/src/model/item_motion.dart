@@ -109,17 +109,71 @@ class ItemMotion {
     _flingBegin = from;
     _end = to;
     // The spring runs from 0 at [from] to 1 at [to], so it starts at the
-    // speed along the way, as a part of the way per second: positive
-    // toward [to], and negative away from it. An item let go in its place
-    // has no way to go.
+    // speed along the way.
+    final simulation = SpringSimulation(
+      springDescription,
+      0,
+      1,
+      _speedAlongTheWay(velocity, from: from, to: to),
+    );
+    return _run = _controller.animateWith(simulation);
+  }
+
+  /// Throws the item from [from] out to [to], out of sight, at the part of
+  /// [velocity] that heads for [to], speeding it up evenly only as much as
+  /// it takes to get there in [duration]. Let go fast enough, it keeps its
+  /// speed. A spring would pull it hardest as it is let go, so its speed
+  /// would leap, and would slow it down on its way out.
+  TickerFuture throwOut({
+    required OverlayOffset from,
+    required OverlayOffset to,
+    required Velocity velocity,
+    required Duration duration,
+  }) {
+    _legs.clear();
+    _flingBegin = from;
+    _end = to;
+    final scale = SemanticsBinding.instance.disableAnimations ? 0.05 : 1.0;
+    final seconds =
+        scale * duration.inMicroseconds / Duration.microsecondsPerSecond;
+    // Let go moving back, it goes out from rest.
+    final speed = math.max(
+      0.0,
+      _speedAlongTheWay(velocity, from: from, to: to),
+    );
+    final simulation = _Throw(
+      speed: speed,
+      acceleration: math.max(
+        0.0,
+        2 * (1 - speed * seconds) / (seconds * seconds),
+      ),
+      lead: _frameSeconds,
+    );
+    return _run = _controller.animateWith(simulation);
+  }
+
+  /// The part of [velocity] along the way from [from] to [to], as a part
+  /// of the way per second: positive toward [to], and negative away from
+  /// it. An item let go in its place has no way to go.
+  static double _speedAlongTheWay(
+    Velocity velocity, {
+    required OverlayOffset from,
+    required OverlayOffset to,
+  }) {
     final pixelsPerSecond = velocity.pixelsPerSecond;
     final way = to - from;
-    final unitVelocity = way == Offset.zero
+    return way == Offset.zero
         ? 0.0
         : (pixelsPerSecond.dx * way.dx + pixelsPerSecond.dy * way.dy) /
               (way.distance * way.distance);
-    final simulation = SpringSimulation(springDescription, 0, 1, unitVelocity);
-    return _run = _controller.animateWith(simulation);
+  }
+
+  /// How long a frame shows on the display.
+  static double get _frameSeconds {
+    final display =
+        WidgetsBinding.instance.platformDispatcher.implicitView?.display;
+    final rate = display?.refreshRate ?? 0;
+    return 1 / (rate >= 1 ? rate : 60);
   }
 
   /// Moves the whole way by [delta], as the view scrolls.
@@ -157,6 +211,34 @@ class _Leg {
         : clampDouble((time - start) / seconds, 0.0, 1.0);
     return distance * (1 - curve.transform(t));
   }
+}
+
+/// A throw along the way, from 0 to 1: it starts at [speed] and speeds up
+/// by [acceleration], as parts of the way per second.
+///
+/// It runs [lead] ahead of its clock. Its clock starts at the first frame
+/// after the item is let go, which would show the item where the frame
+/// before did, as if it stopped for a frame.
+class _Throw extends Simulation {
+  _Throw({required this.speed, required this.acceleration, required this.lead});
+
+  final double speed;
+  final double acceleration;
+  final double lead;
+
+  // It stops at the end of the way, out of sight, as a spring would come
+  // to rest there.
+  @override
+  double x(double time) {
+    final t = time + lead;
+    return math.min(1, speed * t + acceleration * t * t / 2);
+  }
+
+  @override
+  double dx(double time) => speed + acceleration * (time + lead);
+
+  @override
+  bool isDone(double time) => x(time) >= 1;
 }
 
 /// Counts the seconds until [end], which a move that starts on the way

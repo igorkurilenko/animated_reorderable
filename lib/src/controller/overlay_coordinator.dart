@@ -470,21 +470,20 @@ class OverlayCoordinator {
     ]).whenComplete(() => land(item));
   }
 
-  /// Flings [item], which is swiped away, out of the overlay through its
-  /// edge in [direction].
+  /// Throws [item], which is swiped away, out of the overlay through its
+  /// edge in [direction], on at the speed it is let go at.
   void flingOut(
     OverlayedItem item, {
     required SwipeDirection direction,
     required Velocity velocity,
-    required SpringDescription springDescription,
-  }) => item.animateFlingTo(
+  }) => item.animateThrowOut(
     direction.flingTarget(
       item.position,
       itemSize: item.size,
       bounds: overlay.size,
     ),
     velocity: velocity,
-    springDescription: springDescription,
+    duration: throwOutDuration,
     vsync: vsync,
   );
 }

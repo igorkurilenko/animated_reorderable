@@ -204,7 +204,6 @@ class SwipeSession {
         item,
         direction: swipeDirection,
         velocity: details.velocity,
-        springDescription: options.springDescription,
       );
     } else {
       overlay.flingBackToSlot(
