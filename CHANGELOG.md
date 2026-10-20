@@ -1,3 +1,9 @@
+## 2.8.1
+
+### Docs
+
+- Say in a Rebuilds section of the README, with code, how to keep heavy items from building again as items move: return the same widget for the same item, cached by its id, and take it out of the cache when the item changes. A removed item keeps its state when the builder given to `removeItem` returns the item builder's widget types, such as the same transition around the cached widget. The `AnimatedReorderable` docs say it too.
+
 ## 2.8.0
 
 ### Behavior changes

@@ -27,7 +27,7 @@ The `AnimatedReorderable` wrapper for `ListView` and `GridView` incorporates all
 Utilize `AnimatedReorderable.list()` or `AnimatedReorderable.grid()` to wrap `ListView` or `GridView` accordingly. Configure the following parameters:
 
 - **keyGetter:** Required parameter to configure keys for uniquely identifying the items.
-- **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks. After a reorder, an insert or a remove, the package builds again only the items it moves; an item that keeps its index keeps what it shows. If something else about your items changes, build the view again as usual, such as with `setState`. An item the package moves gets a new index, so your builder runs for it again. Return the same widget for the same item, such as one you cache by its id, and Flutter doesn't build it again: a swipe to remove then builds none of the other items again, and a drag none of the items it passes.
+- **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks. After a reorder, an insert or a remove, the package builds again only the items it moves; an item that keeps its index keeps what it shows. If something else about your items changes, build the view again as usual, such as with `setState`. To keep heavy items from building again as they move, see [Rebuilds](#rebuilds).
 - **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback. It removes the swiped item from your data and calls `removeItem` with its index, as you remove an `AnimatedList`'s items: the list closes the gap as the item flies off, at the speed it's let go at. The item flies off as it is, with its state: the builder you give `removeItem` builds only the items you remove otherwise. Such an item keeps its state if the builder returns widgets of the same types as your item builder, down to the item's own widget. Otherwise it's built anew.
 - **motion:** `MotionOptions` sets how items move to their new places.
 - **insertTransition:** The transition items enter with, like the animation `AnimatedList` passes to its item builder. Insert an item with `insertItem(index)`, and it enters through the transition. Every item is built through it, so an item keeps its state when it has entered.
@@ -81,6 +81,43 @@ class _ListViewExampleState extends State<ListViewExample> {
 ```
 
 `AnimatedReorderableState` can be used to dynamically insert, remove or reorder items. To refer to the `AnimatedReorderableState` either provide a GlobalKey or use the static `of` method from an item's input callback. There are showcases on the [Example](https://pub.dev/packages/animated_reorderable/example) page.
+
+## Rebuilds
+
+As items are reordered, inserted or removed, the package builds again only the items whose index changes. Your item builder takes the index, so it runs again for each of them. For light items, such as a `ListTile`, that costs little. If your items are heavy, such as a page of content each, return the same widget for the same item, and Flutter doesn't build it again. Cache it by the item's id:
+
+```dart
+final _cells = <int, Widget>{};
+
+Widget _cell(Item item) => _cells.putIfAbsent(item.id, () => ItemCard(item));
+
+// In the view:
+ListView.builder(
+  itemCount: items.length,
+  itemBuilder: (context, index) => _cell(items[index]),
+)
+```
+
+When an item changes, take its widget out of the cache, with `_cells.remove(item.id)`, and build the view again, such as with `setState`. Only that item builds again. With widgets cached by id, the items around one you remove, swipe away or drag don't build again, apart from one that comes into sight, and a `setState` above the list builds none of your items' widgets.
+
+An item you remove with `removeItem` keeps its state as it leaves if the builder you give `removeItem` returns widgets of the same types as your item builder, down to the item's own widget. Otherwise it's built anew. Give both the same transition, and the removed item its cached widget:
+
+```dart
+itemBuilder: (context, index) => FadeTransition(
+  opacity: kAlwaysCompleteAnimation,
+  child: _cell(items[index]),
+),
+
+// Removing the item at index:
+final item = items.removeAt(index);
+final cell = _cells.remove(item.id) ?? ItemCard(item);
+listKey.currentState!.removeItem(
+  index,
+  (context, animation) => FadeTransition(opacity: animation, child: cell),
+);
+```
+
+An item swiped away needs none of this: it flies off as it is, and the builder you give `removeItem` doesn't build it.
 
 ## Dragging between lists
 
