@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
+import '../animated_reorderable.dart' show SwipeToRemoveCallback;
 import '../animated_reorderable_controller.dart';
 import '../options.dart';
 import '../model/model.dart';
+import '../model/swipe_direction.dart';
 import '../util/scheduling.dart';
 import 'overlay_coordinator.dart';
 import 'scroll_sync.dart';
@@ -185,30 +187,17 @@ class SwipeSession {
 
     items.swipedItem = null;
 
-    final swipeDirection = item.swipeToRemoveDirection;
+    final direction = item.swipeToRemoveDirection;
     final onSwipeToRemove = options.onSwipeToRemove;
-    final removes =
-        swipeDirection?.removes(
+    if (direction != null &&
+        onSwipeToRemove != null &&
+        direction.removes(
           extent: item.swipeExtent,
           velocity: details.velocity,
           minExtent: options.extent,
           minVelocity: options.velocity,
-        ) ??
-        false;
-
-    if (swipeDirection != null && onSwipeToRemove != null && removes) {
-      // It flies off as it is let go, decorated as far as it is, and its
-      // removal, which the app makes now or later, lets it go as it is.
-      item
-        ..stopDecoration()
-        ..swipedAway = true;
-      onSwipeToRemove(item.index);
-
-      overlay.throwOut(
-        item,
-        direction: swipeDirection,
-        velocity: details.velocity,
-      );
+        )) {
+      _swipeAway(direction, details.velocity, onSwipeToRemove);
     } else {
       overlay.flingBackToSlot(
         item,
@@ -217,5 +206,20 @@ class SwipeSession {
         springDescription: options.springDescription,
       );
     }
+  }
+
+  /// Throws the item out in [direction] as it is let go, decorated as far
+  /// as it is. Its removal, which [onSwipeToRemove] makes now or later,
+  /// lets it go as it is.
+  void _swipeAway(
+    SwipeDirection direction,
+    Velocity velocity,
+    SwipeToRemoveCallback onSwipeToRemove,
+  ) {
+    item
+      ..stopDecoration()
+      ..swipedAway = true;
+    onSwipeToRemove(item.index);
+    overlay.throwOut(item, direction: direction, velocity: velocity);
   }
 }

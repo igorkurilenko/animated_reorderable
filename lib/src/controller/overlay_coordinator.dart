@@ -163,30 +163,34 @@ class OverlayCoordinator {
     );
     items.setZIndex(outgoingItem, zIndex);
     outgoingItem
-      // It keeps its size while the removed item builder animates it.
+      // It keeps its size while it goes.
       ..setConstraints(BoxConstraints.tight(outgoingItem.size))
       ..setInteractive(false);
-    // An item swiped away flies off as it is: its throw is all of its
-    // going, so the removed item builder doesn't build it.
-    if (outgoingItem.swipedAway) {
-      Future.wait([
-        removedItem.leaveAsItIs(
-          outgoingItem.builtChild,
-          vsync: vsync,
-          duration: duration,
-        ),
-        outgoingItem.thrown,
-      ]).whenComplete(() => items.removeOutgoingItem(outgoingItem));
-      return;
-    }
-    removedItem
-        .animateRemovedItemBuilder(
-          builder: builder,
-          duration: duration,
-          vsync: vsync,
-        )
-        .whenComplete(() => items.removeOutgoingItem(outgoingItem));
+    final gone = outgoingItem.swipedAway
+        ? _goAsItIs(outgoingItem, removedItem, duration: duration)
+        : removedItem.animateRemovedItemBuilder(
+            builder: builder,
+            duration: duration,
+            vsync: vsync,
+          );
+    gone.whenComplete(() => items.removeOutgoingItem(outgoingItem));
   }
+
+  /// Lets [removedItem], which [outgoingItem] shows swiped away, go as it
+  /// is: its throw is all of its going, so the removed item builder doesn't
+  /// build it. It is gone once it is out of sight and [duration] is over.
+  Future _goAsItIs(
+    OverlayedItem outgoingItem,
+    Item removedItem, {
+    required Duration duration,
+  }) => Future.wait([
+    removedItem.leaveAsItIs(
+      outgoingItem.builtChild,
+      vsync: vsync,
+      duration: duration,
+    ),
+    outgoingItem.thrown,
+  ]);
 
   /// Takes [item] out of the overlay once it gets where it moved, unless
   /// the list has yet to lay it out at its index: its place moves as it
