@@ -1,3 +1,11 @@
+## 2.8.0
+
+### Behavior changes
+
+- Spring a dragged or swiped item back to its place smoothly. The default spring pulled hardest as the item was let go, whatever its speed: in the package's measurements, an item let go at rest 320 px from its place jumped 43 px in the first frame and 55 px in the next, then crept in, within half a pixel only after 448 ms. The default is now the spring that `SpringDescription.withDurationAndBounce` makes for 250 ms with no bounce. The item speeds up over the first frames and lands within half a pixel after 352 ms. To keep the old spring, pass `springDescription: SpringDescription(mass: 1, stiffness: 2000, damping: 150)` to `ReorderOptions` and `SwipeToRemoveOptions`.
+- Stop an item flung fast at its place there when its spring doesn't bounce. An item let go toward its place faster than such a spring could stop it went past its place and came back: a critically damped spring like the new default took one flung at 2,000 px/s from 20 px away 17 px past. The spring is now made just stiff enough to stop the item there, so it goes on at its speed and slows down as it gets there. A bouncy spring takes an item past its place and back, as before.
+- Take a dragged or swiped item's decoration away as it lands in its place, if it lands sooner than the decoration would go, though in no less than 100 ms. The decoration took its whole duration, 250 ms by default, so an item flung fast at its place got there in four frames, then shrank and brightened in its place for ten more. An item let go further away, which lands later, loses it as before.
+
 ## 2.7.0
 
 ### Behavior changes
