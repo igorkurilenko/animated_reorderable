@@ -38,7 +38,10 @@ class ItemRegistry {
 
   Iterable<OverlayedItem> get outgoingItems => _outgoingItems;
 
-  Iterable<RenderedItem> get renderedItems => _renderedItemByKey.values;
+  /// The items the list lays out, in sight or in its cache extent. Those it
+  /// keeps alive out of sight it doesn't lay out, so they have no slot.
+  Iterable<RenderedItem> get renderedItems =>
+      _renderedItemByKey.values.where((x) => !x.keptAlive);
 
   bool isDragged({required Key key}) => key == draggedItem?.key;
 
@@ -63,14 +66,18 @@ class ItemRegistry {
 
   RenderedItem putRenderedItem(RenderedItem x) => _renderedItemByKey[x.key] = x;
 
-  RenderedItem? renderedItemBy({required Key key}) => _renderedItemByKey[key];
+  RenderedItem? renderedItemBy({required Key key}) =>
+      switch (_renderedItemByKey[key]) {
+        final x? when !x.keptAlive => x,
+        _ => null,
+      };
 
   /// Forgets [x], unless another rendered item has its key by now.
   void removeRenderedItem(RenderedItem x) {
     if (_renderedItemByKey[x.key] == x) _renderedItemByKey.remove(x.key);
   }
 
-  bool isRendered({required Key key}) => _renderedItemByKey.containsKey(key);
+  bool isRendered({required Key key}) => renderedItemBy(key: key) != null;
 
   /// Finds an item's index by its key, so the list moves an item's element
   /// along with the item instead of building it again.

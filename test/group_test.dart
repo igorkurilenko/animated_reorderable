@@ -864,6 +864,27 @@ void _screenReaderTests() => group('screen readers', () {
     expect(_moves(tester, 1), isNot(contains('Move to b')));
   });
 
+  testWidgets('offers no move to a list under the group without an id', (
+    tester,
+  ) async {
+    // As a list that reorders the board's columns would be.
+    await tester.pumpWidget(
+      _Board(
+        {
+          'a': [0, 1],
+          'b': [10],
+          'c': [20],
+        },
+        withoutGroupId: {'c'},
+        moveToListLabel: label,
+      ).build(),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(_moves(tester, 1), contains('Move to b'));
+    expect(_moves(tester, 1), isNot(contains('Move to c')));
+  });
+
   testWidgets("flies an item to the other list's look as a screen reader "
       'moves it', (tester) async {
     final board = _Board(

@@ -191,6 +191,12 @@ class _ItemWidgetState extends State<ItemWidget>
   }
 
   @override
+  bool get keptAlive => switch (_inPlace?.parentData) {
+    final SliverMultiBoxAdaptorParentData data => data.keptAlive,
+    _ => false,
+  };
+
+  @override
   void focusSemanticMoves() {
     final moves = _semanticMovesKey.currentContext?.findRenderObject();
     if (moves == null) return;
@@ -364,6 +370,14 @@ class _ItemWidgetState extends State<ItemWidget>
   void deactivate() {
     host.didDeactivateItem(this);
     super.deactivate();
+  }
+
+  /// Back in the tree, as an item is when a list around its list moves it,
+  /// subtree and all, while one of the outer list's items is dragged.
+  @override
+  void activate() {
+    super.activate();
+    host.didInitItem(this);
   }
 
   @override

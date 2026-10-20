@@ -222,7 +222,12 @@ class SwipeToRemoveOptions {
   /// second.
   final double velocity;
 
-  /// The spring an item flies out with, or back to its place.
+  /// The spring an item flies back to its place with as it is let go, when
+  /// the swipe doesn't remove it, starting at the speed it is let go at.
+  ///
+  /// An item swiped away flies off with no spring, at the speed it is let
+  /// go at. It speeds up evenly only if it would take longer than a quarter
+  /// of a second to get out of sight.
   final SpringDescription springDescription;
 
   /// The decoration of a swiped item.

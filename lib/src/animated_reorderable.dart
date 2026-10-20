@@ -60,6 +60,12 @@ typedef PermutationsCallback = void Function(Permutations permutations);
 ///   );
 /// }
 /// ```
+///
+/// The removed item keeps its state, rather than being built anew, if the
+/// builder returns widgets of the same types as the item builder does, down
+/// to the item's own widget: here, if the item builder returns a
+/// `FadeTransition` around `MyItemWidget` too, at
+/// [kAlwaysCompleteAnimation].
 typedef SwipeToRemoveCallback = void Function(int index);
 
 /// A callback function that is called when dragging of an item starts.
@@ -373,6 +379,10 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
   /// item will still appear for `duration` and during that time
   /// `builder` must construct its widget as needed.
   ///
+  /// The item keeps its state, rather than being built anew, if `builder`
+  /// returns widgets of the same types as the item builder does, down to the
+  /// item's own widget.
+  ///
   /// This method's semantics are the same as Dart's [List.remove] method: it
   /// decreases the length of items by one and shifts all items at or before
   /// `index` towards the beginning of the list of items.
@@ -474,10 +484,15 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
     // items fit the new layout.
     builder: (context) => Stack(
       children: [
-        OverlayedItemsLayer(
-          controller: _controller,
-          clipBehavior: _view.clipBehavior,
-          underTheList: true,
+        // The layers take the view's size. They have none of their own,
+        // and no height in a column of a scroll view, where the view
+        // shrink-wraps.
+        Positioned.fill(
+          child: OverlayedItemsLayer(
+            controller: _controller,
+            clipBehavior: _view.clipBehavior,
+            underTheList: true,
+          ),
         ),
         // A view that shrink-wraps sits at its start, as it would without
         // the package, rather than in the middle, which moves it as it
@@ -502,9 +517,11 @@ final class AnimatedReorderableState extends State<AnimatedReorderable>
             ),
           ),
         ),
-        OverlayedItemsLayer(
-          controller: _controller,
-          clipBehavior: _view.clipBehavior,
+        Positioned.fill(
+          child: OverlayedItemsLayer(
+            controller: _controller,
+            clipBehavior: _view.clipBehavior,
+          ),
         ),
       ],
     ),

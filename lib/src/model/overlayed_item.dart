@@ -325,6 +325,22 @@ class OverlayedItem extends widgets.ChangeNotifier {
     );
   }
 
+  Future animateThrowOut(
+    OverlayOffset position, {
+    required widgets.Velocity velocity,
+    required Duration duration,
+    required TickerProvider vsync,
+  }) {
+    if (position == this.position) return Future.value();
+
+    return _motionWith(vsync).throwOut(
+      from: this.position,
+      to: position,
+      velocity: velocity,
+      duration: duration,
+    );
+  }
+
   ItemMotion _motionWith(TickerProvider vsync) =>
       _motion ??= ItemMotion(vsync: vsync, onMove: setPosition);
 

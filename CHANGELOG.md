@@ -1,3 +1,22 @@
+## 2.6.1
+
+### Behavior changes
+
+- Fly an item swiped away off at the speed it's let go at. It flew off with the spring that takes an item back to its place, which pulls hardest as the item is let go. So the item stood still for a frame, went on at two to eight times the finger's speed, and slowed down on its way out. It now goes on at its speed, and speeds up evenly only if it would otherwise take longer than a quarter of a second to get out of sight. `SwipeToRemoveOptions.springDescription` now sets only the spring that takes an item back to its place when a swipe doesn't remove it.
+
+### Fixes
+
+- Keep an item swiped away above the items it flies over as it's removed. A removal put the removed item under the list, so an item swiped away from a grid's right column dropped under its neighbours as it was let go.
+- Build the items of a group's lists when a list under the group has no `groupId`, such as a list that reorders a board's columns. With `moveToListLabel` set, each item's build threw a null check error as it listed the moves to the group's lists. This broke in 2.6.0.
+- Drag and remove the items of a shrink-wrapped list or grid that has no height limit, such as one in a `Column` in a `SingleChildScrollView`. Lifting or removing an item threw "A Stack requires bounded constraints".
+- Keep the items of a list in another list's item working after that item is dragged. Moving the item left the inner list's items unregistered, so the next drag of one didn't reorder and ended with a null check error.
+- Remove items while items that keep themselves alive, with `AutomaticKeepAliveClientMixin`, are out of sight, and remove such an item. Either threw errors in debug builds, because the package moved items that the list doesn't lay out. `isItemRendered` is now false for an item kept alive out of sight, as its docs say.
+
+### Docs
+
+- Say how to keep a removal from building the other items again: return the same widget for an item that only moves, such as one cached by its id. Also say that the removed item keeps its state if the builder given to `removeItem` returns widgets of the same types as the item builder.
+- Say that `SwipeToRemoveOptions.springDescription` takes back only an item that a swipe doesn't remove.
+
 ## 2.6.0
 
 ### Behavior changes
