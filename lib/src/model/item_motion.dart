@@ -96,9 +96,10 @@ class ItemMotion {
   }
 
   /// Moves the item from [from] to [to] with [springDescription], starting
-  /// at the part of [velocity] that heads for [to]. A spring takes the item
-  /// past [to] if it is let go fast enough, or back past [from] if it is
-  /// let go moving away, as it would.
+  /// at the part of [velocity] that heads for [to]. A bouncy spring takes
+  /// the item past [to] if it is let go fast enough, as it would; one that
+  /// doesn't bounce stops it there. Let go moving away, the item goes on
+  /// back past [from] before it heads for [to].
   TickerFuture fling({
     required OverlayOffset from,
     required OverlayOffset to,
@@ -110,13 +111,43 @@ class ItemMotion {
     _end = to;
     // The spring runs from 0 at [from] to 1 at [to], so it starts at the
     // speed along the way.
+    final speed = _speedAlongTheWay(velocity, from: from, to: to);
     final simulation = SpringSimulation(
-      springDescription,
+      _stoppingAtTheEnd(springDescription, speed: speed),
       0,
       1,
-      _speedAlongTheWay(velocity, from: from, to: to),
+      speed,
     );
     return _run = _controller.animateWith(_FrameAhead(simulation));
+  }
+
+  /// [spring], made just stiff enough, if it doesn't bounce, to stop an
+  /// item that starts at [speed] at the end of its way. A spring that
+  /// doesn't bounce takes an item past the end only if the item starts
+  /// toward it faster than the spring's faster rate of decay, in parts of
+  /// the way per second. An item that starts at that rate slows down in
+  /// step with the way left, and stops at the end.
+  static SpringDescription _stoppingAtTheEnd(
+    SpringDescription spring, {
+    required double speed,
+  }) {
+    final SpringDescription(:mass, :stiffness, :damping) = spring;
+    final ratio = damping / (2 * math.sqrt(mass * stiffness));
+    // A bouncy spring takes the item past the end however fast it starts.
+    // The margin is for rounding, in a spring made with a ratio of 1.
+    if (ratio < 1 - 1e-9) return spring;
+    final fasterDecay =
+        math.sqrt(stiffness / mass) *
+        (ratio + math.sqrt(math.max(0.0, ratio * ratio - 1)));
+    if (speed <= fasterDecay) return spring;
+    // Stiffer by the square of how much faster the item starts, and more
+    // damped by as much, so the spring keeps its damping ratio.
+    final scale = speed / fasterDecay;
+    return SpringDescription(
+      mass: mass,
+      stiffness: stiffness * scale * scale,
+      damping: damping * scale,
+    );
   }
 
   /// Throws the item from [from] out to [to], out of sight, at the part of

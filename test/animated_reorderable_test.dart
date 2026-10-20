@@ -20,11 +20,11 @@ const _insertDuration = Duration(milliseconds: 300);
 /// How long the package takes at most to throw an item swiped away out.
 const _throwOutDuration = Duration(milliseconds: 250);
 
-/// The package's default fling spring.
+/// The package's default fling spring: 250 ms, critically damped.
 const _defaultSpring = SpringDescription(
   mass: 1,
-  stiffness: 2000,
-  damping: 150,
+  stiffness: 64 * math.pi * math.pi,
+  damping: 16 * math.pi,
 );
 
 void main() {
@@ -583,7 +583,14 @@ void main() {
     testWidgets('lifts an item held again above the items flying back', (
       tester,
     ) async {
-      final list = _TestList(5);
+      // Slow enough that item 0 is still on its way back once item 2 is
+      // held and let go.
+      final list = _TestList(
+        5,
+        reorderSpringDescription: SpringDescription.withDurationAndBounce(
+          duration: const Duration(seconds: 2),
+        ),
+      );
       await tester.pumpWidget(list.build());
       // Item 0 and then item 2 are let go, and fly back to their slots.
       for (final id in [0, 2]) {
@@ -3062,8 +3069,9 @@ void main() {
       }
 
       // Across its row, where no other item is, and back at 30 px a frame,
-      // long enough that it is all it goes at, to 50 px from its place.
-      for (var i = 0; i < 29; i++) {
+      // long enough that it is all it goes at, to 100 px from its place:
+      // slow enough for the spring to stop it there of itself.
+      for (var i = 0; i < 34; i++) {
         await move(const Offset(10, 0));
       }
       for (var i = 0; i < 8; i++) {
@@ -3079,9 +3087,9 @@ void main() {
       // The first frame of a fling shows the item where the spring takes it
       // in a frame from where it was let go, at that speed, rather than from
       // rest, and rather than where it was let go, as if it stood still.
-      expect(-_steps(xs)[0], closeTo(firstStep(50, speed: 30), 2));
+      expect(-_steps(xs)[0], closeTo(firstStep(100, speed: 30), 2));
       expect(
-        firstStep(50, speed: 30) - firstStep(50, speed: 0),
+        firstStep(100, speed: 30) - firstStep(100, speed: 0),
         greaterThan(5),
       );
       await tester.pumpAndSettle();
@@ -3089,7 +3097,99 @@ void main() {
       expect(list.reorders, 0);
     });
 
-    // A fling is a spring's: it doesn't stop at either end of its way.
+    test('springs items back by default with a 250 ms spring that does not '
+        'bounce', () {
+      final spring = SpringDescription.withDurationAndBounce(
+        duration: const Duration(milliseconds: 250),
+      );
+      expect(_defaultSpring.mass, spring.mass);
+      expect(_defaultSpring.stiffness, closeTo(spring.stiffness, 1e-9));
+      expect(_defaultSpring.damping, closeTo(spring.damping, 1e-9));
+      for (final description in [
+        const ReorderOptions().springDescription,
+        const SwipeToRemoveOptions().springDescription,
+      ]) {
+        expect(description.mass, _defaultSpring.mass);
+        expect(description.stiffness, _defaultSpring.stiffness);
+        expect(description.damping, _defaultSpring.damping);
+      }
+    });
+
+    testWidgets('speeds an item let go at rest up over its first frames', (
+      tester,
+    ) async {
+      final list = _TestList(
+        10,
+        swipeToRemoveSpringDescription:
+            const SwipeToRemoveOptions().springDescription,
+      );
+      await tester.pumpWidget(list.build());
+
+      final letGo = await swipeAndLetGo(
+        tester,
+        const Offset(-1, 0),
+        distance: 200,
+        speed: 0,
+      );
+      final xs = [letGo.dx];
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(frame);
+        xs.add(tester.getTopLeft(_itemWithId(1)).dx);
+      }
+
+      // Rather than at its fastest from the first frame, as a stiff spring
+      // takes it, so it looks as if it jumped.
+      final steps = _steps(xs);
+      expect(steps[0], lessThan(steps[1]));
+      expect(steps[1], lessThan(steps[2]));
+      expect(steps[0], lessThan(steps.reduce(math.max) * 0.6));
+      await tester.pumpAndSettle();
+      expect(list.items, List.generate(10, (i) => i));
+    });
+
+    testWidgets('stops an item flung fast at its place there', (tester) async {
+      final list = _TestList(10);
+      await tester.pumpWidget(list.build());
+      final slot = tester.getCenter(_itemWithId(1));
+      // Its middle, which the decoration of a dragged item doesn't move.
+      double middle() => tester.getCenter(_itemWithId(1)).dx;
+
+      var time = Duration.zero;
+      final drag = await tester.createGesture();
+      await drag.down(slot, timeStamp: time);
+      const hold = Duration(milliseconds: 600);
+      await tester.pump(hold);
+      time += hold;
+      Future<void> move(Offset offset) async {
+        time += frame;
+        await drag.moveBy(offset, timeStamp: time);
+        await tester.pump(frame);
+      }
+
+      // Across its row and back at 45 px a frame, to 20 px from its place,
+      // fast enough that the spring alone would take it 27 px past it.
+      for (var i = 0; i < 29; i++) {
+        await move(const Offset(10, 0));
+      }
+      for (var i = 0; i < 6; i++) {
+        await move(const Offset(-45, 0));
+      }
+      final xs = [middle()];
+      await drag.up(timeStamp: time);
+      for (var i = 0; i < 60 && tester.binding.hasScheduledFrame; i++) {
+        await tester.pump(frame);
+        xs.add(middle());
+      }
+
+      // On at its speed rather than braked as it is let go, and no further
+      // than its place.
+      expect(-_steps(xs)[0], greaterThan(15));
+      expect(xs.reduce(math.min), greaterThanOrEqualTo(slot.dx - 0.5));
+      expect(xs.last, slot.dx);
+      expect(list.reorders, 0);
+    });
+
+    // A bouncy spring's fling doesn't stop at either end of its way.
     testWidgets('lets a bouncy spring take an item back past its place', (
       tester,
     ) async {

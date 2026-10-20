@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
@@ -52,11 +54,13 @@ const defaultRemoveItemAnimationDuration = Duration(milliseconds: 300);
 /// sight, as long as a move takes. Let go faster, it gets out sooner.
 const throwOutDuration = Duration(milliseconds: 250);
 
-/// The spring that flings an item back to its place.
-/// Overdamped, it takes an item let go at rest most of the way in a fifth
-/// of a second, without going past its place.
+/// The spring that flings an item back to its place, the one
+/// `SpringDescription.withDurationAndBounce` makes for 250 ms with no
+/// bounce. It speeds an item let go at rest up over the first frames, and
+/// takes it most of the way in a fifth of a second.
 const defaultFlingSpringDescription = SpringDescription(
   mass: 1.0,
-  stiffness: 2000.0,
-  damping: 150.0,
+  // (2π / 0.25 s)², and twice its root, so it is critically damped.
+  stiffness: 64 * math.pi * math.pi,
+  damping: 16 * math.pi,
 );

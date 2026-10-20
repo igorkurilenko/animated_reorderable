@@ -130,6 +130,11 @@ class ReorderOptions {
 
   /// The spring an item flies back to its place with as it is let go,
   /// starting at the speed it is let go at.
+  ///
+  /// The default doesn't bounce, and takes an item let go at rest most of
+  /// the way in a fifth of a second. A spring that doesn't bounce stops an
+  /// item flung at its place there, however fast; a bouncy one takes it
+  /// past and back.
   final SpringDescription springDescription;
 
   /// The callbacks of each drag.
@@ -224,6 +229,11 @@ class SwipeToRemoveOptions {
 
   /// The spring an item flies back to its place with as it is let go, when
   /// the swipe doesn't remove it, starting at the speed it is let go at.
+  ///
+  /// The default doesn't bounce, and takes an item let go at rest most of
+  /// the way in a fifth of a second. A spring that doesn't bounce stops an
+  /// item flung at its place there, however fast; a bouncy one takes it
+  /// past and back.
   ///
   /// An item swiped away flies off with no spring, at the speed it is let
   /// go at. It speeds up evenly only if it would take longer than a quarter
