@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 
@@ -42,6 +44,15 @@ const defaultDraggedItemDecorationAnimationDuration = Duration(
   milliseconds: 250,
 );
 
+/// How long a held item's decoration takes to go at the least, when the
+/// item lands in its place sooner than the decoration would go: about six
+/// frames, so it doesn't flash off.
+const shortestUndecorationDuration = Duration(milliseconds: 100);
+
+/// How close, in logical pixels, a flung item has to stay to its place to
+/// have landed there.
+const landingTolerance = 0.5;
+
 /// How long an inserted item takes to come in, and a removed one to go, as
 /// the items of Flutter's `AnimatedList` do.
 const defaultInsertItemAnimationDuration = Duration(milliseconds: 300);
@@ -52,11 +63,13 @@ const defaultRemoveItemAnimationDuration = Duration(milliseconds: 300);
 /// sight, as long as a move takes. Let go faster, it gets out sooner.
 const throwOutDuration = Duration(milliseconds: 250);
 
-/// The spring that flings an item back to its place.
-/// Overdamped, it takes an item let go at rest most of the way in a fifth
-/// of a second, without going past its place.
+/// The spring that flings an item back to its place, the one
+/// `SpringDescription.withDurationAndBounce` makes for 250 ms with no
+/// bounce. It speeds an item let go at rest up over the first frames, and
+/// takes it most of the way in a fifth of a second.
 const defaultFlingSpringDescription = SpringDescription(
   mass: 1.0,
-  stiffness: 2000.0,
-  damping: 150.0,
+  // (2π / 0.25 s)², and twice its root, so it is critically damped.
+  stiffness: 64 * math.pi * math.pi,
+  damping: 16 * math.pi,
 );

@@ -392,10 +392,24 @@ class OverlayedItem extends widgets.ChangeNotifier {
     return _decorator!.forwardAnimation();
   }
 
-  Future animateUndecoration() => switch (_decorator) {
-    (AnimatedItemDecoratorAdapter d) => d.reverseAnimation(),
-    _ => Future.value(),
-  };
+  /// Takes the item's decoration away, as long as it took to come. A flung
+  /// item that lands in its place sooner loses it as it lands, though in no
+  /// less than [shortestUndecorationDuration], so it doesn't shrink and
+  /// brighten in its place after it gets there.
+  Future animateUndecoration() {
+    final decorator = _decorator;
+    if (decorator == null) return Future.value();
+    final controller = decorator.controller;
+    // From as far as it has come.
+    final whole =
+        (controller.reverseDuration ?? controller.duration!) * controller.value;
+    final landing = _motion?.flingLandingWithin(whole) ?? whole;
+    final duration = landing < shortestUndecorationDuration
+        ? shortestUndecorationDuration
+        : landing;
+    if (duration >= whole) return decorator.reverseAnimation();
+    return controller.animateBack(0, duration: duration);
+  }
 
   @override
   void dispose() {
