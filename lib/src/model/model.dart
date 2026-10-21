@@ -15,6 +15,7 @@ import 'package:flutter/widgets.dart';
 import '../../animated_reorderable.dart';
 import '../const.dart';
 import '../util/key_map.dart';
+import '../widget/ink_surface.dart';
 import 'coordinates.dart';
 import 'swipe_direction.dart';
 

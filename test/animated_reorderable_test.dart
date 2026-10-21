@@ -760,6 +760,143 @@ void main() {
     });
   });
 
+  group('ink', () {
+    testWidgets('moves with an item that moves in place', (tester) async {
+      final list = _InkList(5);
+      await tester.pumpWidget(list.build());
+      final from = tester.getRect(_tileWithId(2));
+      final to = tester.getRect(_tileWithId(1));
+
+      list.removeAt(1);
+      await tester.pump();
+      await tester.pump(_motionDuration ~/ 2);
+
+      final shown = tester.getRect(_tileWithId(2));
+      expect(shown.top, inExclusiveRange(to.top, from.top));
+      final inked = await _rowsInked(tester, _inkColor(2));
+      expect(inked, hasLength(1));
+      expect(inked.single.top, closeTo(shown.top, 1));
+      expect(inked.single.bottom, closeTo(shown.bottom, 1));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('fades with a held item', (tester) async {
+      final list = _InkList(5);
+      await tester.pumpWidget(list.build());
+
+      final drag = await _holdAndDrag(tester, find.text('0'), 2);
+      await tester.pumpAndSettle();
+
+      // The decoration fades the item by default, so its ink shows nowhere
+      // in its own color.
+      expect(await _rowsInked(tester, _inkColor(0)), isEmpty);
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(await _rowsInked(tester, _inkColor(0)), hasLength(1));
+    });
+
+    testWidgets('keeps the text style items inherit', (tester) async {
+      final list = _InkList(
+        5,
+        tile: (id) => SizedBox(height: _extent, child: Text('$id')),
+      );
+      Widget build(double fontSize) => list.build(
+        around: (list) => DefaultTextStyle(
+          style: TextStyle(fontSize: fontSize),
+          textAlign: TextAlign.center,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+          textWidthBasis: TextWidthBasis.longestLine,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+          ),
+          child: list,
+        ),
+      );
+      void expectInherited(double fontSize, String reason) {
+        final text = tester.renderObject<RenderParagraph>(find.text('0'));
+        expect(text.text.style?.fontSize, fontSize, reason: reason);
+        expect(text.textAlign, TextAlign.center, reason: reason);
+        expect(text.softWrap, isFalse, reason: reason);
+        expect(text.overflow, TextOverflow.ellipsis, reason: reason);
+        expect(text.maxLines, 1, reason: reason);
+        expect(text.textWidthBasis, TextWidthBasis.longestLine, reason: reason);
+        expect(
+          text.textHeightBehavior?.applyHeightToFirstAscent,
+          isFalse,
+          reason: reason,
+        );
+      }
+
+      await tester.pumpWidget(build(42));
+      expectInherited(42, 'in place');
+      final drag = await _holdAndDrag(tester, find.text('0'), 2);
+      expectInherited(42, 'held');
+      await drag.up();
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(build(24));
+      expectInherited(24, 'changed');
+    });
+
+    testWidgets('moves items without building their surfaces again', (
+      tester,
+    ) async {
+      final list = _InkList(5);
+      await tester.pumpWidget(list.build());
+      Map<Element, Widget> surfaces() => {
+        for (final element in find.byType(Material).evaluate())
+          element: element.widget,
+      };
+      final before = surfaces();
+
+      list.removeAt(0);
+      await tester.pumpAndSettle();
+
+      final after = surfaces();
+      final kept = [
+        for (final element in after.keys)
+          if (before.containsKey(element)) element,
+      ];
+      // The Scaffold's, and the surfaces of the four items that stay.
+      expect(kept, hasLength(5));
+      for (final element in kept) {
+        expect(after[element], same(before[element]));
+      }
+    });
+
+    testWidgets('needs no Material above the list', (tester) async {
+      final items = List.generate(5, (i) => i);
+      final key = GlobalKey<AnimatedReorderableState>();
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: AnimatedReorderable.list(
+            key: key,
+            keyGetter: (index) => ValueKey(items[index]),
+            reorder: ReorderOptions(
+              onReorder: (permutations) => permutations.apply(items),
+            ),
+            listView: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) =>
+                  SizedBox(height: _extent, child: Text('${items[index]}')),
+            ),
+          ),
+        ),
+      );
+
+      key.currentState!.reorderItem(0, destIndex: 3);
+      await tester.pumpAndSettle();
+
+      expect(items, [1, 2, 3, 0, 4]);
+      // The items' text has no style to inherit, rather than the Material's.
+      final text = tester.renderObject<RenderParagraph>(find.text('0'));
+      expect(text.text.style?.fontSize, isNull);
+    });
+  });
+
   group('builds', () {
     /// A list of 10 items that tells which items it built.
     Widget buildList(
@@ -5150,6 +5287,94 @@ class _PaintCounter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PaintCounter oldDelegate) => false;
+}
+
+/// A list of tiles that paint their own colors as ink, as a [ListTile]'s
+/// tile color is, by default.
+class _InkList {
+  _InkList(int count, {this.tile = _inkTile})
+    : items = List.generate(count, (i) => i);
+
+  final List<int> items;
+  final Widget Function(int id) tile;
+  final key = GlobalKey<AnimatedReorderableState>();
+
+  Widget build({Widget Function(Widget list)? around}) {
+    final list = AnimatedReorderable.list(
+      key: key,
+      keyGetter: (index) => ValueKey(items[index]),
+      reorder: ReorderOptions(
+        onReorder: (permutations) => permutations.apply(items),
+      ),
+      listView: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) => tile(items[index]),
+      ),
+    );
+    return MaterialApp(
+      home: RepaintBoundary(
+        key: _screen,
+        child: Scaffold(body: around?.call(list) ?? list),
+      ),
+    );
+  }
+
+  void removeAt(int index) {
+    final id = items.removeAt(index);
+    key.currentState!.removeItem(index, (context, animation) => tile(id));
+  }
+}
+
+Widget _inkTile(int id) => ListTile(
+  key: ValueKey('tile $id'),
+  tileColor: _inkColor(id),
+  title: Text('$id'),
+);
+
+Finder _tileWithId(int id) => find.byKey(ValueKey('tile $id'));
+
+/// The tile color of the item with [id] in an [_InkList].
+Color _inkColor(int id) => Color.fromARGB(255, 40 + 40 * id, 160, 80);
+
+/// What an [_InkList] paints on, which [_rowsInked] takes as an image.
+const _screen = ValueKey('screen');
+
+/// The runs of rows that show [color], as last painted, in a column of the
+/// screen away from the items' text.
+Future<List<({double top, double bottom})>> _rowsInked(
+  WidgetTester tester,
+  Color color,
+) async {
+  const x = 700;
+  final (pixels, width, height) = (await tester.runAsync(() async {
+    final image = await captureImage(find.byKey(_screen).evaluate().single);
+    final pixels = await image.toByteData();
+    final size = (image.width, image.height);
+    image.dispose();
+    return (pixels!, size.$1, size.$2);
+  }))!;
+  bool shows(int y) {
+    final i = (y * width + x) * 4;
+    final argb =
+        pixels.getUint8(i + 3) << 24 |
+        pixels.getUint8(i) << 16 |
+        pixels.getUint8(i + 1) << 8 |
+        pixels.getUint8(i + 2);
+    return argb == color.toARGB32();
+  }
+
+  final runs = <({double top, double bottom})>[];
+  int? top;
+  for (var y = 0; y <= height; y++) {
+    final inked = y < height && shows(y);
+    if (inked && top == null) {
+      top = y;
+    } else if (!inked && top != null) {
+      runs.add((top: top.toDouble(), bottom: y.toDouble()));
+      top = null;
+    }
+  }
+  return runs;
 }
 
 /// Where the layers that [finder]'s widget is painted on put its top left

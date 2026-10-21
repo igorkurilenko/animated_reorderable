@@ -8,6 +8,7 @@ import '../model/model.dart'
     show GlobalOffset, ItemMotion, OverlayOffset, RenderedItem;
 import '../model/swipe_direction.dart';
 import '../util/geometry.dart';
+import 'ink_surface.dart';
 
 /// An edge of the view along its scroll axis: the leading one, where the
 /// list starts, or the trailing one.
@@ -420,7 +421,10 @@ class _ItemWidgetState extends State<ItemWidget>
           onPointerDown: draggable ? _recognizeDrag : null,
           child: child != null
               ? host.buildEntrance(
-                  KeyedSubtree(key: widget.childKey, child: child),
+                  KeyedSubtree(
+                    key: widget.childKey,
+                    child: InkSurface(child: child),
+                  ),
                   index,
                   widget.entrance,
                 )
