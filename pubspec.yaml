@@ -1,7 +1,13 @@
 name: animated_reorderable
-description: The best way to make Flutter's ListView or GridView animated and reorderable.
-version: 2.8.1
+description: "Reorderable list and grid: drag and drop an item to reorder a ListView or GridView, or to move it between multiple lists, swipe to delete, and animate each insert, remove and move."
+version: 2.8.2
 homepage: https://github.com/igorkurilenko/animated_reorderable
+topics:
+  - animation
+  - draggable
+  - sortable
+  - list-view
+  - kanban-board
 
 environment:
   sdk: ^3.13.0

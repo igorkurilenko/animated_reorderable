@@ -1,1055 +1,180 @@
-### List Example 
+<h1 align="center">Flutter reorderable list example</h1>
+
+<p align="center">This Flutter reorderable list example is the card sample from the docs of Flutter's ReorderableListView, animated:<sup>1</sup> drag and drop a card to reorder the list, swipe it away to delete it, or tap + to insert one. The other cards slide out of its way, and close the gap it leaves, as in an animated list.</p>
+
+<p align="center">
+  <a href="#take-a-closer-look">See the code ›</a>&emsp;<a href="https://pub.dev/packages/animated_reorderable/install">Install animated_reorderable ›</a>
+</p>
+
+<p align="center">
+  <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_list.webp?raw=true"
+    alt="Flutter reorderable list example: + inserts a card, a long press drags it down the list, and a swipe deletes it" width="300"/>
+</p>
+
+## Get the highlights.
+
+- **Drag and drop.** A long press lifts a card, as in Flutter's sample, and the reorder animation slides the cards it passes in the list out of its way.
+- **Swipe to delete.** A swipe flies the card off the screen, and the cards below close the gap.
+- **Insert and remove animations.** + inserts a card at the top: the cards below slide down, and it fades in.
+- **Your own ListView.** `AnimatedReorderable.list` makes the `ListView.builder` you have a reorderable, animated list, with a key for each item.
+
+## Take a closer look.
+
+Three steps, all in one `build` method:
+
+1. **The wrapper.** `AnimatedReorderable.list` wraps the `ListView.builder`, and `keyGetter` gives each card a key.
+2. **The gestures.** `ReorderOptions.onReorder` puts the cards in their new order as a drag goes, and `SwipeToRemoveOptions.onSwipeToRemove` deletes a swiped card from the items and from the list, with `removeItem`.
+3. **The insert.** A tap on + inserts a card into the items and into the list, with `insertItem`, and it fades in as the cards below slide down.
+
 ```dart
 import 'package:animated_reorderable/animated_reorderable.dart';
 import 'package:flutter/material.dart';
 
-import 'dart:math';
+import 'item_card.dart';
 
-/// Flutter code sample of [AnimatedReorderable] wrapping [ListView].
-
-void main() {
-  runApp(const AnimatedReorderableListSample());
-}
-
-class AnimatedReorderableListSample extends StatefulWidget {
-  const AnimatedReorderableListSample({super.key});
-
-  @override
-  State<AnimatedReorderableListSample> createState() =>
-      _AnimatedReorderableListSampleState();
-}
-
-class _AnimatedReorderableListSampleState
-    extends State<AnimatedReorderableListSample> {
-  final _animatedReorderableKey = GlobalKey<AnimatedReorderableState>();
-  late final ListModel<Item> _list;
-  Item? _selectedItem;
-  late int _nextItemId; // The next item id inserted when the user presses the '+' button.
-
-  @override
-  void initState() {
-    super.initState();
-    _list = ListModel<Item>(
-      animatedReorderableKey: _animatedReorderableKey,
-      initialItems: List.generate(4, (i) => _createItem(i)),
-      removedItemBuilder: _buildRemovedItem,
-    );
-    _nextItemId = 4;
-  }
-
-  Item _createItem(int id) =>
-      Item.withRandomHeight(id, minHeight: 80.0, maxHeight: 200.0);
-
-  // Used to build list items.
-  Widget _buildItem(Item item) => CardItem(
-    item: item,
-    selected: _selectedItem == item,
-    onTap: () {
-      setState(() {
-        _selectedItem = _selectedItem == item ? null : item;
-      });
-    },
-  );
-
-  /// The transition items enter with when they are inserted.
-  ///
-  /// Every item is built through it, with an animation that is complete
-  /// unless the item is entering, so items keep their state.
-  Widget _insertTransition(
-    Widget child,
-    int index,
-    Animation<double> animation,
-  ) => ScaleTransition(
-    scale: animation,
-    child: FadeTransition(opacity: animation, child: child),
-  );
-
-  /// The builder function used to build grid items that have been removed.
-  ///
-  /// Used to build an item after it has been removed from the list. This method
-  /// is needed because a removed item remains visible until its animation has
-  /// completed (even though it's gone as far as this ListModel is concerned).
-  /// The widget will be used by the [AnimatedReorderableState.removeItem] method's
-  /// [AnimatedRemovedItemBuilder] parameter.
-  Widget _buildRemovedItem(
-    Item item,
-    BuildContext context,
-    Animation<double> animation,
-  ) => ScaleTransition(
-    scale: animation,
-    child: FadeTransition(opacity: animation, child: _buildItem(item)),
-  );
-
-  // Insert the "next item" into the list model.
-  void _insert() {
-    final int index = _selectedItem == null
-        ? _list.length
-        : _list.indexOf(_selectedItem!);
-    _list.insert(index, _createItem(_nextItemId++));
-  }
-
-  // Reorder the selected or random item in the list model.
-  void _reorder() {
-    if (_list.length < 2) return;
-
-    final int index, destIndex;
-    final indexes = List.generate(_list.length, (i) => i);
-
-    if (_selectedItem == null) {
-      indexes.shuffle();
-      index = indexes.removeAt(0);
-      destIndex = indexes.removeAt(0);
-    } else {
-      index = _list.indexOf(_selectedItem!);
-      indexes.removeAt(index);
-      indexes.shuffle();
-      destIndex = indexes.removeAt(0);
-    }
-
-    _list.reorder(index, destIndex);
-  }
-
-  // Remove the selected or last item from the list model.
-  void _remove() {
-    final int index = _selectedItem == null
-        ? _list.length - 1
-        : _list.indexOf(_selectedItem!);
-    final item = _list.removeAt(index);
-    if (item == _selectedItem) {
-      setState(() => _selectedItem = null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => MaterialApp(
+void main() => runApp(
+  const MaterialApp(
+    title: 'AnimatedReorderable Example',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(useMaterial3: true),
-    home: Scaffold(
-      appBar: AppBar(
-        title: const Text('AnimatedReorderable'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.add_circle),
-            onPressed: _insert,
-            tooltip: 'insert a new item',
-          ),
-          IconButton(
-            icon: const Icon(Icons.swap_calls),
-            onPressed: _reorder,
-            tooltip: 'reorder randomly',
-          ),
-          IconButton(
-            icon: const Icon(Icons.remove_circle),
-            onPressed: _remove,
-            tooltip: 'remove the selected or last item',
-          ),
-        ],
-      ),
-      body: AnimatedReorderable.list(
-        key: _animatedReorderableKey,
-        keyGetter: (index) => ValueKey(_list[index]),
-        insertTransition: _insertTransition,
-        reorder: ReorderOptions(
-          onReorder: (permutations) => _list.onReorder(permutations),
-        ),
-        swipeToRemove: SwipeToRemoveOptions(
-          onSwipeToRemove: (index) {
-            final item = _list.removeAt(index);
-            if (item == _selectedItem) {
-              setState(() => _selectedItem = null);
-            }
-          },
-        ),
-        listView: ListView.builder(
-          shrinkWrap: true,
-          itemCount: _list.length,
-          itemBuilder: ((context, index) => _buildItem(_list[index])),
-        ),
-      ),
-    ),
-  );
-}
-
-typedef RemovedItemBuilder<T> = Widget Function(
-  T item,
-  BuildContext context,
-  Animation<double> animation,
-);
-
-/// Keeps a Dart [List] in sync with an [AnimatedReorderable].
-///
-/// The [insert], [removeAt] and [reorder] methods apply to both the internal list and
-/// the [AnimatedReorderable] that belongs to [animatedReorderableKey].
-class ListModel<E> {
-  ListModel({
-    required this.animatedReorderableKey,
-    required this.removedItemBuilder,
-    Iterable<E>? initialItems,
-  }) : _items = List<E>.from(initialItems ?? <E>[]);
-
-  final GlobalKey<AnimatedReorderableState> animatedReorderableKey;
-  final RemovedItemBuilder<E> removedItemBuilder;
-  final List<E> _items;
-
-  AnimatedReorderableState? get _animatedReorderableList =>
-      animatedReorderableKey.currentState;
-
-  void insert(int index, E item) {
-    _items.insert(index, item);
-    _animatedReorderableList!.insertItem(index);
-  }
-
-  E removeAt(int index) {
-    final E removedItem = _items.removeAt(index);
-    _animatedReorderableList!.removeItem(
-      index,
-      (BuildContext context, Animation<double> animation) =>
-          removedItemBuilder(removedItem, context, animation),
-    );
-    return removedItem;
-  }
-
-  void reorder(int index, int destIndex) =>
-      _animatedReorderableList!.reorderItem(index, destIndex: destIndex);
-
-  void onReorder(Permutations permutations) => permutations.apply(_items);
-
-  int get length => _items.length;
-
-  E operator [](int index) => _items[index];
-
-  int indexOf(E item) => _items.indexOf(item);
-}
-
-/// Displays its integer item as 'Item N' on a Card whose color is based on
-/// the item's value. Item's heigth is random and varies from 80 to 200.
-///
-/// The text is displayed in bright green if [selected] is true.
-class CardItem extends StatelessWidget {
-  const CardItem({
-    super.key,
-    this.onTap,
-    this.selected = false,
-    required this.item,
-  });
-
-  final VoidCallback? onTap;
-  final Item item;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    TextStyle textStyle = Theme.of(context).textTheme.headlineMedium!;
-    if (selected) {
-      textStyle = textStyle.copyWith(color: Colors.lightGreenAccent[400]);
-    }
-    return Padding(
-      padding: const EdgeInsets.all(2.0),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          height: item.height,
-          // Screen readers find the item's moves on its own node, so the
-          // item is labelled there. A card would give its text a node of
-          // its own, which a touch would pick, without the moves.
-          child: Semantics(
-            label: '$item',
-            selected: selected,
-            child: ExcludeSemantics(
-              child: Card(
-                color: Colors.primaries[item.id % Colors.primaries.length],
-                child: Center(child: Text('$item', style: textStyle)),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class Item {
-  final int id;
-  final double? height;
-
-  Item(this.id, {this.height});
-
-  Item.withRandomHeight(
-    this.id, {
-    required double minHeight,
-    required double maxHeight,
-  }) : height = Random().nextDoubleInRange(minHeight, maxHeight);
-
-  @override
-  String toString() => 'Item $id';
-}
-
-extension _RandomExtension on Random {
-  double nextDoubleInRange(double min, double max) =>
-      min + nextDouble() * (max - min);
-}
-```
-### Grid Example
-```dart
-import 'package:animated_reorderable/animated_reorderable.dart';
-import 'package:flutter/material.dart';
-
-/// Flutter code sample of [AnimatedReorderable] wrapping [GridView].
-
-void main() {
-  runApp(const AnimatedReorderableGridSample());
-}
-
-class AnimatedReorderableGridSample extends StatefulWidget {
-  const AnimatedReorderableGridSample({super.key});
-
-  @override
-  State<AnimatedReorderableGridSample> createState() =>
-      _AnimatedReorderableGridSampleState();
-}
-
-class _AnimatedReorderableGridSampleState
-    extends State<AnimatedReorderableGridSample> {
-  final _animatedReorderableKey = GlobalKey<AnimatedReorderableState>();
-  late final ListModel<Item> _list;
-  Item? _selectedItem;
-  late int _nextItemId; // The next item id inserted when the user presses the '+' button.
-
-  @override
-  void initState() {
-    super.initState();
-    _list = ListModel<Item>(
-      animatedReorderableKey: _animatedReorderableKey,
-      initialItems: List.generate(6, (i) => Item(i)),
-      removedItemBuilder: _buildRemovedItem,
-    );
-    _nextItemId = 6;
-  }
-
-  // Used to build list items.
-  Widget _buildItem(Item item) => CardItem(
-    item: item,
-    selected: _selectedItem == item,
-    onTap: () {
-      setState(() {
-        _selectedItem = _selectedItem == item ? null : item;
-      });
-    },
-  );
-
-  /// The transition items enter with when they are inserted.
-  ///
-  /// Every item is built through it, with an animation that is complete
-  /// unless the item is entering, so items keep their state.
-  Widget _insertTransition(
-    Widget child,
-    int index,
-    Animation<double> animation,
-  ) => ScaleTransition(
-    scale: animation,
-    child: FadeTransition(opacity: animation, child: child),
-  );
-
-  /// The builder function used to build list items that have been removed.
-  ///
-  /// Used to build an item after it has been removed from the list. This method
-  /// is needed because a removed item remains visible until its animation has
-  /// completed (even though it's gone as far as this ListModel is concerned).
-  /// The widget will be used by the [AnimatedReorderableState.removeItem] method's
-  /// [AnimatedRemovedItemBuilder] parameter.
-  Widget _buildRemovedItem(
-    Item item,
-    BuildContext context,
-    Animation<double> animation,
-  ) => ScaleTransition(
-    scale: animation,
-    child: FadeTransition(opacity: animation, child: _buildItem(item)),
-  );
-
-  // Insert the "next item" into the list model.
-  void _insert() {
-    final int index = _selectedItem == null
-        ? _list.length
-        : _list.indexOf(_selectedItem!);
-    _list.insert(index, Item(_nextItemId++));
-  }
-
-  // Reorder the selected or random item in the list model.
-  void _reorder() {
-    if (_list.length < 2) return;
-
-    final int index, destIndex;
-    final indexes = List.generate(_list.length, (i) => i);
-
-    if (_selectedItem == null) {
-      indexes.shuffle();
-      index = indexes.removeAt(0);
-      destIndex = indexes.removeAt(0);
-    } else {
-      index = _list.indexOf(_selectedItem!);
-      indexes.removeAt(index);
-      indexes.shuffle();
-      destIndex = indexes.removeAt(0);
-    }
-
-    _list.reorder(index, destIndex);
-  }
-
-  // Remove the selected or last item from the list model.
-  void _remove() {
-    final int index = _selectedItem == null
-        ? _list.length - 1
-        : _list.indexOf(_selectedItem!);
-    final item = _list.removeAt(index);
-    if (item == _selectedItem) {
-      setState(() => _selectedItem = null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(useMaterial3: true),
-    home: Scaffold(
-      appBar: AppBar(
-        title: const Text('AnimatedReorderable'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.add_circle),
-            onPressed: _insert,
-            tooltip: 'insert a new item',
-          ),
-          IconButton(
-            icon: const Icon(Icons.swap_calls),
-            onPressed: _reorder,
-            tooltip: 'reorder randomly',
-          ),
-          IconButton(
-            icon: const Icon(Icons.remove_circle),
-            onPressed: _remove,
-            tooltip: 'remove the selected or last item',
-          ),
-        ],
-      ),
-      body: AnimatedReorderable.grid(
-        key: _animatedReorderableKey,
-        keyGetter: (index) => ValueKey(_list[index]),
-        insertTransition: _insertTransition,
-        reorder: ReorderOptions(
-          onReorder: (permutations) => _list.onReorder(permutations),
-        ),
-        swipeToRemove: SwipeToRemoveOptions(
-          onSwipeToRemove: (index) {
-            final item = _list.removeAt(index);
-            if (item == _selectedItem) {
-              setState(() => _selectedItem = null);
-            }
-          },
-        ),
-        gridView: GridView.builder(
-          shrinkWrap: true,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 1 / 1.618,
-          ),
-          itemCount: _list.length,
-          itemBuilder: ((context, index) => _buildItem(_list[index])),
-        ),
-      ),
-    ),
-  );
-}
-
-typedef RemovedItemBuilder<T> = Widget Function(
-  T item,
-  BuildContext context,
-  Animation<double> animation,
-);
-
-/// Keeps a Dart [List] in sync with an [AnimatedReorderable].
-///
-/// The [insert], [removeAt] and [reorder] methods apply to both the internal list and
-/// the [AnimatedReorderable] that belongs to [animatedReorderableKey].
-class ListModel<E> {
-  ListModel({
-    required this.animatedReorderableKey,
-    required this.removedItemBuilder,
-    Iterable<E>? initialItems,
-  }) : _items = List<E>.from(initialItems ?? <E>[]);
-
-  final GlobalKey<AnimatedReorderableState> animatedReorderableKey;
-  final RemovedItemBuilder<E> removedItemBuilder;
-  final List<E> _items;
-
-  AnimatedReorderableState? get _animatedReorderableGrid =>
-      animatedReorderableKey.currentState;
-
-  void insert(int index, E item) {
-    _items.insert(index, item);
-    _animatedReorderableGrid!.insertItem(index);
-  }
-
-  E removeAt(int index) {
-    final E removedItem = _items.removeAt(index);
-    _animatedReorderableGrid!.removeItem(
-      index,
-      (BuildContext context, Animation<double> animation) =>
-          removedItemBuilder(removedItem, context, animation),
-    );
-    return removedItem;
-  }
-
-  void reorder(int index, int destIndex) =>
-      _animatedReorderableGrid!.reorderItem(index, destIndex: destIndex);
-
-  void onReorder(Permutations permutations) => permutations.apply(_items);
-
-  int get length => _items.length;
-
-  E operator [](int index) => _items[index];
-
-  int indexOf(E item) => _items.indexOf(item);
-}
-
-/// Displays its integer item as 'Item N' on a Card whose color is based on
-/// the item's value.
-///
-/// The text is displayed in bright green if [selected] is true.
-class CardItem extends StatelessWidget {
-  const CardItem({
-    super.key,
-    this.onTap,
-    this.selected = false,
-    required this.item,
-  });
-
-  final VoidCallback? onTap;
-  final Item item;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    TextStyle textStyle = Theme.of(context).textTheme.headlineMedium!;
-    if (selected) {
-      textStyle = textStyle.copyWith(color: Colors.lightGreenAccent[400]);
-    }
-    return Padding(
-      padding: const EdgeInsets.all(2.0),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        // Screen readers find the item's moves on its own node, so the
-        // item is labelled there. A card would give its text a node of its
-        // own, which a touch would pick, without the moves.
-        child: Semantics(
-          label: '$item',
-          selected: selected,
-          child: ExcludeSemantics(
-            child: Card(
-              color: Colors.primaries[item.id % Colors.primaries.length],
-              child: Center(child: Text('$item', style: textStyle)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class Item {
-  final int id;
-
-  Item(this.id);
-
-  @override
-  String toString() => 'Item $id';
-}
-```
-### Board Example
-```dart
-import 'dart:math' as math;
-
-import 'package:animated_reorderable/animated_reorderable.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
-
-/// Flutter code sample of [AnimatedReorderableGroup]: a kanban board of a
-/// team's tasks, as on GitHub. Cards are dragged within and between the
-/// columns: at once with a mouse, and after a long press with a finger. A
-/// task flies from its card to a done card, its title struck through, as it
-/// goes into Done, and back as it leaves.
-
-void main() {
-  runApp(const AnimatedReorderableBoardSample());
-}
-
-class AnimatedReorderableBoardSample extends StatelessWidget {
-  const AnimatedReorderableBoardSample({super.key});
-
-  @override
-  Widget build(BuildContext context) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF0969DA),
-        dynamicSchemeVariant: DynamicSchemeVariant.neutral,
-      ),
-    ),
-    home: Scaffold(
-      appBar: AppBar(title: const Text('Messenger · Sprint 14')),
-      body: const KanbanBoard(),
-    ),
-  );
-}
-
-/// The board's columns, by the status of their tasks.
-class KanbanBoard extends StatefulWidget {
-  const KanbanBoard({super.key});
-
-  @override
-  State<KanbanBoard> createState() => _KanbanBoardState();
-}
-
-class _KanbanBoardState extends State<KanbanBoard> {
-  final _board = {
-    Status.todo: [
-      Task(142, 'Show typing indicators in group chats', Teammate.anna, [
-        Label.feature,
-      ]),
-      Task(
-        155,
-        'App crashes when opening a deleted voice message',
-        Teammate.omar,
-        [Label.bug],
-      ),
-      Task(151, 'Swipe right on a message to reply', Teammate.lena, [
-        Label.feature,
-        Label.design,
-      ]),
-      Task(147, 'Describe photos in chats for screen readers', Teammate.lena, [
-        Label.accessibility,
-      ]),
-      Task(158, 'Link previews load twice on slow networks', Teammate.omar, [
-        Label.bug,
-        Label.performance,
-      ]),
-      Task(133, 'Mute a chat for 8 hours, a day or a week', Teammate.mike, [
-        Label.feature,
-      ]),
-      Task(160, 'Archive a chat with a long press', Teammate.anna, [
-        Label.feature,
-      ]),
-    ],
-    Status.inProgress: [
-      Task(128, 'Search the messages of a chat', Teammate.mike, [
-        Label.feature,
-      ]),
-      Task(
-        136,
-        'Read receipts stop while the app is in the background',
-        Teammate.omar,
-        [Label.bug],
-      ),
-      Task(144, 'Redesign the attachment picker', Teammate.lena, [
-        Label.design,
-      ]),
-    ],
-    Status.done: [
-      Task(117, 'Send photos in their original quality', Teammate.anna, [
-        Label.feature,
-      ]),
-      Task(121, 'Pin up to three chats to the top', Teammate.mike, [
-        Label.feature,
-      ]),
-      Task(
-        125,
-        'Unread badge stays after reading on another device',
-        Teammate.omar,
-        [Label.bug],
-      ),
-      Task(109, 'Dark theme for the chat list', Teammate.lena, [Label.design]),
-    ],
-  };
-
-  @override
-  Widget build(BuildContext context) => AnimatedReorderableGroup(
-    // Moves a task from one column to another as it is dragged there. The
-    // headers count the tasks again.
-    onMove: (from, to) => setState(() {
-      final task = _board[from.list]!.removeAt(from.index);
-      _board[to.list]!.insert(to.index, task);
-    }),
-    // Screen readers move a task to another column too.
-    moveToListLabel: (status) => 'Move to ${(status as Status).title}',
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        // The columns share a wide window, and the board scrolls sideways
-        // in a narrow one. It also scrolls while a card is held at its
-        // edge.
-        const padding = 12.0;
-        final width = math.max(
-          240.0,
-          (constraints.maxWidth - (Status.values.length + 1) * padding) /
-              Status.values.length,
-        );
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(padding),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: padding,
-            children: [
-              for (final status in Status.values)
-                SizedBox(width: width, child: _column(status)),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-
-  Widget _column(Status status) {
-    final colors = Theme.of(context).colorScheme;
-    final border = Border.all(color: colors.outlineVariant);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: border,
-      ),
-      // Inside the border, so the cards scroll out of sight within it
-      // rather than over it.
-      child: Padding(
-        padding: border.dimensions,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _ColumnHeader(status: status, count: _board[status]!.length),
-            Expanded(child: _tasks(status)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The column's tasks: cards, or done cards in Done.
-  Widget _tasks(Status status) {
-    final tasks = _board[status]!;
-    return AnimatedReorderable.list(
-      keyGetter: (index) => ValueKey(tasks[index].number),
-      reorder: ReorderOptions(
-        // The column's id in the group, which `onMove` gets.
-        groupId: status,
-        onReorder: (permutations) => permutations.apply(tasks),
-        gestureRecognizerFactory: _dragRecognizer,
-        decoration: const ItemDecoration(decorator: _lift),
-      ),
-      listView: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-        itemCount: tasks.length,
-        itemBuilder: (context, index) => status == Status.done
-            ? DoneTaskCard(task: tasks[index])
-            : TaskCard(task: tasks[index]),
-      ),
-    );
-  }
-}
-
-/// A held card rises off the board, as on GitHub's boards: it grows a
-/// little and casts a shadow, and stays opaque, so the cards under it don't
-/// show through it.
-Widget _lift(Widget child, int index, Animation<double> animation) {
-  final rise = animation.drive(CurveTween(curve: Curves.easeOut));
-  return ScaleTransition(
-    scale: rise.drive(Tween(begin: 1.0, end: 1.03)),
-    child: Stack(
-      children: [
-        // The shadow of the card, inside the space around it in its slot.
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: DecoratedBoxTransition(
-              decoration: rise.drive(_shadow),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        ),
-        child,
-      ],
-    ),
-  );
-}
-
-final _shadow = DecorationTween(
-  begin: BoxDecoration(borderRadius: BorderRadius.circular(8)),
-  end: BoxDecoration(
-    borderRadius: BorderRadius.circular(8),
-    boxShadow: const [
-      BoxShadow(color: Color(0x33000000), blurRadius: 18, offset: Offset(0, 8)),
-    ],
+    home: ReorderableListExample(),
   ),
 );
 
-/// A card goes with the mouse at once, as on GitHub's boards. A finger
-/// holds it a moment first, so that a swipe still scrolls its column.
-MultiDragGestureRecognizer _dragRecognizer(BuildContext context) =>
-    switch (Theme.of(context).platform) {
-      TargetPlatform.android ||
-      TargetPlatform.iOS ||
-      TargetPlatform.fuchsia => DelayedMultiDragGestureRecognizer(),
-      TargetPlatform.macOS ||
-      TargetPlatform.windows ||
-      TargetPlatform.linux => ImmediateMultiDragGestureRecognizer(),
-    }..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
-
-enum Status {
-  todo('To do', Color(0xFF1A7F37)),
-  inProgress('In progress', Color(0xFFBF8700)),
-  done('Done', Color(0xFF8250DF));
-
-  const Status(this.title, this.color);
-
-  final String title;
-  final Color color;
-}
-
-enum Label {
-  bug(Color(0xFFD1242F)),
-  feature(Color(0xFF0969DA)),
-  design(Color(0xFFBF3989)),
-  accessibility(Color(0xFF1A7F37)),
-  performance(Color(0xFFBC4C00));
-
-  const Label(this.color);
-
-  final Color color;
-}
-
-enum Teammate {
-  anna('AK', Color(0xFF6E40C9)),
-  mike('MS', Color(0xFF0969DA)),
-  lena('LT', Color(0xFFBF3989)),
-  omar('OH', Color(0xFF1A7F37));
-
-  const Teammate(this.initials, this.color);
-
-  final String initials;
-  final Color color;
-}
-
-class Task {
-  Task(this.number, this.title, this.assignee, this.labels);
-
-  /// The number of the task's issue.
-  final int number;
-  final String title;
-  final Teammate assignee;
-  final List<Label> labels;
-}
-
-class _ColumnHeader extends StatelessWidget {
-  const _ColumnHeader({required this.status, required this.count});
-
-  final Status status;
-  final int count;
+/// Flutter's ReorderableListView sample of cards, animated: a long press
+/// drags a card to a new place, a swipe deletes it, and + inserts one:
+///
+/// 1. [AnimatedReorderable.list] wraps the [ListView], with a key for each
+///    card.
+/// 2. [ReorderOptions.onReorder] puts the cards in their new order as a drag
+///    goes, and [SwipeToRemoveOptions.onSwipeToRemove] deletes a swiped card,
+///    from the items and from the list.
+/// 3. A tap on + inserts a card, which fades in as the others slide down.
+class ReorderableListExample extends StatefulWidget {
+  const ReorderableListExample({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Row(
-        spacing: 8,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: status.color.withValues(alpha: 0.15),
-              border: Border.all(color: status.color, width: 2),
-            ),
-            child: const SizedBox.square(dimension: 12),
-          ),
-          Flexible(
-            child: Text(
-              status.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall,
-            ),
-          ),
-          _Pill(
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Text('$count', style: theme.textTheme.labelMedium),
-          ),
-        ],
-      ),
-    );
-  }
+  State<ReorderableListExample> createState() => _ReorderableListExampleState();
 }
 
-/// A task as a card, in the columns of tasks to do and in progress.
-class TaskCard extends StatelessWidget {
-  const TaskCard({super.key, required this.task});
-
-  final Task task;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colors.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 8,
-            children: [
-              Row(
-                spacing: 6,
-                children: [
-                  // An open issue.
-                  Icon(Icons.adjust, size: 16, color: Status.todo.color),
-                  Expanded(
-                    child: Text(
-                      'messenger #${task.number}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  _Avatar(task.assignee),
-                ],
-              ),
-              Text(
-                task.title,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: [for (final label in task.labels) _LabelChip(label)],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A task as a done card, its title struck through, in the column of tasks
-/// done.
-class DoneTaskCard extends StatelessWidget {
-  const DoneTaskCard({super.key, required this.task});
-
-  final Task task;
+class _ReorderableListExampleState extends State<ReorderableListExample> {
+  final _listKey = GlobalKey<AnimatedReorderableState>();
+  final _items = List<int>.generate(50, (index) => index);
+  var _next = 50;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final muted = colors.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surface.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colors.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            spacing: 8,
-            children: [
-              // A completed issue.
-              Icon(Icons.check_circle, size: 16, color: Status.done.color),
-              Expanded(
-                child: Text(
-                  task.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: muted,
-                    decoration: TextDecoration.lineThrough,
-                    decorationColor: muted,
-                  ),
-                ),
-              ),
-              Text(
-                '#${task.number}',
-                style: theme.textTheme.bodySmall?.copyWith(color: muted),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LabelChip extends StatelessWidget {
-  const _LabelChip(this.label);
-
-  final Label label;
-
-  @override
-  Widget build(BuildContext context) => _Pill(
-    color: label.color.withValues(alpha: 0.1),
-    border: label.color.withValues(alpha: 0.4),
-    child: Text(
-      label.name,
-      style: Theme.of(context).textTheme.labelSmall
-          ?.copyWith(color: label.color, fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Animated reorderable list')),
+    floatingActionButton: FloatingActionButton(
+      // 3. A tap inserts a card at the top.
+      onPressed: () {
+        _items.insert(0, _next++);
+        _listKey.currentState!.insertItem(0);
+      },
+      shape: const CircleBorder(),
+      backgroundColor: const Color(0xFFCC0120),
+      foregroundColor: Colors.white,
+      child: const Icon(Icons.add),
     ),
-  );
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar(this.teammate);
-
-  final Teammate teammate;
-
-  @override
-  Widget build(BuildContext context) => CircleAvatar(
-    radius: 11,
-    backgroundColor: teammate.color,
-    foregroundColor: Colors.white,
-    child: Text(
-      teammate.initials,
-      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
-    ),
-  );
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.color, this.border, required this.child});
-
-  final Color color;
-  final Color? border;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(10),
-      border: border == null ? null : Border.all(color: border!),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-      child: child,
+    // 1. The list, wrapped.
+    body: AnimatedReorderable.list(
+      key: _listKey,
+      keyGetter: (index) => ValueKey(_items[index]),
+      // 2. A long press drags a card, and the cards follow it.
+      reorder: ReorderOptions(
+        onReorder: (permutations) => permutations.apply(_items),
+        decoration: const ItemDecoration(decorator: liftCard),
+      ),
+      // 2. A swipe deletes the card.
+      swipeToRemove: SwipeToRemoveOptions(
+        onSwipeToRemove: (index) {
+          final item = _items.removeAt(index);
+          _listKey.currentState!.removeItem(
+            index,
+            (context, animation) =>
+                FadeTransition(opacity: animation, child: ItemCard(item)),
+          );
+        },
+      ),
+      // It fades in once the cards below have made room.
+      insertTransition: (child, index, animation) => FadeTransition(
+        opacity: animation.drive(CurveTween(curve: const Interval(.5, 1))),
+        child: child,
+      ),
+      listView: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        itemCount: _items.length,
+        itemBuilder: (context, index) => ItemCard(_items[index]),
+      ),
     ),
   );
 }
 ```
+
+## More ways to use animated_reorderable.
+
+Two more Flutter examples, each a pattern apps often need, and each recorded as it runs.<sup>2</sup> They're code to learn from and copy, not widgets to import. Run one from the repository's [example folder](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib), such as with `flutter run -t lib/kanban/main.dart`. In each, `main.dart` builds the package's widgets, and a file beside it draws the rest.
+
+### Reorderable GridView
+
+A reorderable grid of shortcuts: long press a tile, and drag and drop it anywhere in the grid, and the other tiles slide from cell to cell, across the rows, to make room. Add shortcut inserts a tile at the start, and every tile after it slides along a cell; a swipe removes a tile, and they slide back. `AnimatedReorderable.grid` wraps the `GridView.builder`, as the list example wraps its `ListView`. [See the reorderable grid code ›](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/reorderable_grid)
+
+<p align="center">
+  <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_grid.webp?raw=true"
+    alt="Reorderable GridView in Flutter: a tile is added, dragged three rows down across the grid, and swiped away" width="240"/>
+</p>
+
+### Kanban board: drag and drop between lists
+
+A Flutter kanban board, as on GitHub: drag and drop a task between the columns, To do, In progress and Done, and the tasks of each column move out of its way. Each column is an `AnimatedReorderable.list`, and an `AnimatedReorderableGroup` around them moves a task's data from one list to another, with `onMove`. As a task goes into Done, it flies from its card to a done card, its title struck through. A mouse drags a card at once, and a finger after a long press. [See the kanban board code ›](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban)
+
+<p align="center">
+  <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_kanban.webp?raw=true"
+    alt="Flutter kanban board: a task is dragged from To do to In progress, then into Done, where it becomes a done card, and back" width="600"/>
+</p>
+
+## Questions? Answers.
+
+<details>
+<summary><b>How do I reorder a list in Flutter with drag and drop?</b></summary>
+
+Wrap your `ListView.builder` in `AnimatedReorderable.list`, give each item a key with `keyGetter`, and apply the permutations to your items in `ReorderOptions.onReorder`, as the [example above](#take-a-closer-look) does. Each item is then draggable after a long press, as in a `ReorderableListView`, and the list is sortable with no `setState`: it moves the other items aside itself.
+
+</details>
+
+<details>
+<summary><b>How do I reorder a GridView?</b></summary>
+
+Wrap it in `AnimatedReorderable.grid`, with the same options as a list. An item dragged over the others moves them from cell to cell, across the rows, as in the [reorderable grid example](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/reorderable_grid). Flutter's own `ReorderableListView` has no grid version.
+
+</details>
+
+<details>
+<summary><b>How do I drag and drop items between lists?</b></summary>
+
+Put the lists, or grids, under an `AnimatedReorderableGroup`, and give each a `ReorderOptions.groupId`. The group's `onMove` moves an item's data from one list to another as the item is dragged there, as in the [kanban board example](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban). An item goes from a list to a grid too, and flies from one look to the other.
+
+</details>
+
+<details>
+<summary><b>How do I animate inserting and removing items, as in an AnimatedList?</b></summary>
+
+As with an `AnimatedList`: insert an item into your data and call `insertItem` with its index, or remove one from your data and call `removeItem`, on the list's state, which a `GlobalKey<AnimatedReorderableState>` gets. The insert or remove animation slides the other items to their new places, in a list or a grid.
+
+</details>
+
+<details>
+<summary><b>How do I swipe to delete an item?</b></summary>
+
+Give `SwipeToRemoveOptions` an `onSwipeToRemove` callback that removes the item from your data and calls `removeItem`, as the example above does. The item flies off, and the others close the gap, with no `Dismissible`.
+
+</details>
+
+<details>
+<summary><b>Can screen readers reorder the items?</b></summary>
+
+Yes. Each item that can be dragged gets the moves of a `ReorderableListView`'s items: to the start, one place up or down, and to the end, and in a grid a row up or down. Under an `AnimatedReorderableGroup` with a `moveToListLabel`, it also gets a move to each other list.
+
+</details>
+
+<p><small>1. The cards are those of the card sample in the docs of Flutter's ReorderableListView, in the flutter/flutter repository, under its BSD license, here in two grays.<br>
+2. Recorded from the examples frame by frame, at 60 fps: the list and the grid in an iPhone 15 frame, and the kanban board on a wide screen, with a mouse.</small></p>

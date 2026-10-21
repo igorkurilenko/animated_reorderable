@@ -17,10 +17,9 @@ void main() => runApp(
 /// 1. [AnimatedReorderable.list] wraps the [ListView], with a key for each
 ///    card.
 /// 2. [ReorderOptions.onReorder] puts the cards in their new order as a drag
-///    goes.
-/// 3. [SwipeToRemoveOptions.onSwipeToRemove] deletes a swiped card, from the
-///    items and from the list.
-/// 4. A tap on + inserts a card, which fades in as the others slide down.
+///    goes, and [SwipeToRemoveOptions.onSwipeToRemove] deletes a swiped card,
+///    from the items and from the list.
+/// 3. A tap on + inserts a card, which fades in as the others slide down.
 class ReorderableListExample extends StatefulWidget {
   const ReorderableListExample({super.key});
 
@@ -37,11 +36,14 @@ class _ReorderableListExampleState extends State<ReorderableListExample> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Animated reorderable list')),
     floatingActionButton: FloatingActionButton(
-      // 4. A tap inserts a card at the top.
+      // 3. A tap inserts a card at the top.
       onPressed: () {
         _items.insert(0, _next++);
         _listKey.currentState!.insertItem(0);
       },
+      shape: const CircleBorder(),
+      backgroundColor: const Color(0xFFCC0120),
+      foregroundColor: Colors.white,
       child: const Icon(Icons.add),
     ),
     // 1. The list, wrapped.
@@ -53,7 +55,7 @@ class _ReorderableListExampleState extends State<ReorderableListExample> {
         onReorder: (permutations) => permutations.apply(_items),
         decoration: const ItemDecoration(decorator: liftCard),
       ),
-      // 3. A swipe deletes the card.
+      // 2. A swipe deletes the card.
       swipeToRemove: SwipeToRemoveOptions(
         onSwipeToRemove: (index) {
           final item = _items.removeAt(index);

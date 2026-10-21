@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:example/main.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -51,5 +53,17 @@ void main() {
 
     expect(tester.getCenter(find.text('Card 50')).dy, moreOrLessEquals(top));
     expect(tester.getCenter(find.text('Card 0')).dy, greaterThan(top));
+  });
+
+  test('shows the code of lib/main.dart on its pub.dev page', () {
+    // pub.dev shows example.md on the package's Example tab.
+    final page = File('example.md').readAsStringSync();
+    final code = RegExp(
+      r'```dart\n(.*?)```',
+      dotAll: true,
+    ).firstMatch(page)?.group(1);
+    final main = File('lib/main.dart').readAsStringSync();
+
+    expect(code, main.substring(main.indexOf('import ')));
   });
 }
