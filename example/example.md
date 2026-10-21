@@ -125,7 +125,7 @@ A reorderable grid of shortcuts: long press a tile, and drag and drop it anywher
 
 ### Kanban board: drag and drop between lists
 
-A Flutter kanban board, as on GitHub: drag and drop a task between the columns, To do, In progress and Done, and the tasks of each column move out of its way. Each column is an `AnimatedReorderable.list`, and an `AnimatedReorderableGroup` around them moves a task's data from one list to another, with `onMove`. As a task goes into Done, it flies from its card to a done card, its title struck through. A mouse drags a card at once, and a finger after a long press. [See the kanban board code ›](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban)
+A Flutter kanban board: drag and drop a task between the columns, To do, In progress and Done, and the tasks of each column move out of its way. Each column is an `AnimatedReorderable.list`, and an `AnimatedReorderableGroup` around them moves a task's data from one list to another, with `onMove`. As a task goes into Done, it flies from its card to a done card, its title struck through. A mouse drags a card at once, and a finger after a long press. [See the kanban board code ›](https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban)
 
 <p align="center">
   <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_kanban.webp?raw=true"
@@ -172,7 +172,7 @@ Give `SwipeToRemoveOptions` an `onSwipeToRemove` callback that removes the item 
 <details>
 <summary><b>Can screen readers reorder the items?</b></summary>
 
-Yes. Each item that can be dragged gets the moves of a `ReorderableListView`'s items: to the start, one place up or down, and to the end, and in a grid a row up or down. Under an `AnimatedReorderableGroup` with a `moveToListLabel`, it also gets a move to each other list.
+Yes. Each item that can be dragged and reordered gets the moves of a `ReorderableListView`'s items: to the start, one place back or forward, and to the end, and in a grid a row back or forward. Under an `AnimatedReorderableGroup` with a `moveToListLabel`, it also gets a move to each other list.
 
 </details>
 

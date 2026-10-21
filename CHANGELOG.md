@@ -1,3 +1,11 @@
+## Unreleased
+
+### Docs
+
+- Rewrite the API docs in plain words. The library page, `AnimatedReorderable` and its state, `AnimatedReorderableGroup`, `ReorderOptions`, `SwipeToRemoveOptions`, `ItemMoves`, `ItemMove` and the typedefs each say first what they do. The library page also compares the package with Flutter's `ReorderableListView`, `AnimatedList` and `AnimatedGrid`.
+- Say that a screen reader moves an item one place back or forward, and in a grid a row back or forward. The README and the Example tab said up or down, which a horizontal list's moves aren't, nor the moves along a grid's row.
+- Give the README's Performance section the measurements of 2.8.2 on an iPhone 17 Pro: with heavy items, the package's frames build in 49–77% less time than Flutter's.
+
 ## 2.9.0
 
 ### Deprecations
