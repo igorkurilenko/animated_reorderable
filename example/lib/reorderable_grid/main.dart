@@ -52,7 +52,7 @@ class _ReorderableGridExampleState extends State<ReorderableGridExample> {
       keyGetter: (index) => ValueKey(_shortcuts[index].name),
       // 2. A long press drags a shortcut, and the others follow it.
       reorder: ReorderOptions(
-        onReorder: (permutations) => permutations.apply(_shortcuts),
+        onReorder: (moves) => moves.apply(_shortcuts),
         decoration: const ItemDecoration(decorator: liftTile),
       ),
       // 3. A swipe removes the shortcut.

@@ -1,6 +1,6 @@
 name: animated_reorderable
 description: "Reorderable list and grid: drag and drop an item to reorder a ListView or GridView, or to move it between multiple lists, swipe to delete, and animate each insert, remove and move."
-version: 2.8.2
+version: 2.9.0
 homepage: https://github.com/igorkurilenko/animated_reorderable
 topics:
   - animation

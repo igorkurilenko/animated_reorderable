@@ -374,7 +374,7 @@ class AnimatedReorderableController implements ItemHost {
     final itemAtIndex = _items.ensureItemAt(index: index);
     final itemAtDestIndex = _items.ensureItemAt(index: destIndex);
 
-    final permutations = _items.moveItem(
+    final moves = _items.moveItem(
       index: index,
       destIndex: destIndex,
       reorderableGetter: isReorderable,
@@ -386,7 +386,7 @@ class AnimatedReorderableController implements ItemHost {
       ..enterNotRenderedItem(itemAtIndex, index: index)
       ..enterNotRenderedItem(itemAtDestIndex, index: destIndex);
 
-    onReorder(permutations);
+    onReorder(moves);
   }
 
   /// The item count, which a list or grid needs for its items to change.

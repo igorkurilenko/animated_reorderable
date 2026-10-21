@@ -81,7 +81,7 @@ class _ReorderableListExampleState extends State<ReorderableListExample> {
       keyGetter: (index) => ValueKey(_items[index]),
       // 2. A long press drags a card, and the cards follow it.
       reorder: ReorderOptions(
-        onReorder: (permutations) => permutations.apply(_items),
+        onReorder: (moves) => moves.apply(_items),
         decoration: const ItemDecoration(decorator: liftCard),
       ),
       // 2. A swipe deletes the card.
@@ -137,7 +137,7 @@ A Flutter kanban board, as on GitHub: drag and drop a task between the columns, 
 <details>
 <summary><b>How do I reorder a list in Flutter with drag and drop?</b></summary>
 
-Wrap your `ListView.builder` in `AnimatedReorderable.list`, give each item a key with `keyGetter`, and apply the permutations to your items in `ReorderOptions.onReorder`, as the [example above](#take-a-closer-look) does. Each item is then draggable after a long press, as in a `ReorderableListView`, and the list is sortable with no `setState`: it moves the other items aside itself.
+Wrap your `ListView.builder` in `AnimatedReorderable.list`, give each item a key with `keyGetter`, and apply the moves to your items in `ReorderOptions.onReorder`, as the [example above](#take-a-closer-look) does. Each item is then draggable after a long press, as in a `ReorderableListView`, and the list is sortable with no `setState`: it moves the other items aside itself.
 
 </details>
 

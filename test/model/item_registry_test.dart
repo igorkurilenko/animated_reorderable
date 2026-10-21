@@ -1,7 +1,6 @@
 import 'dart:math';
 
-import 'package:animated_reorderable/animated_reorderable.dart'
-    show Permutations;
+import 'package:animated_reorderable/animated_reorderable.dart' show ItemMoves;
 import 'package:animated_reorderable/src/model/model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,7 +55,7 @@ void main() {
       expect(overlayed.index, 0);
     });
 
-    test('moves like a list does, with permutations that agree', () {
+    test('moves like a list does, with moves that agree', () {
       final random = Random(1);
       for (var run = 0; run < 500; run++) {
         final count = 2 + random.nextInt(8);
@@ -162,7 +161,7 @@ ItemRegistry _registryOf(List<int> ids, {Set<int>? only}) {
 }
 
 /// Moves the item at [from] to [to].
-Permutations _move(
+ItemMoves _move(
   ItemRegistry registry,
   int from,
   int to, {

@@ -451,9 +451,7 @@ void main() {
               // Slow, so the item is still on its way once a long press
               // holds it.
               motion: const MotionOptions(duration: Duration(seconds: 3)),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               gridView: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
@@ -730,9 +728,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => SizedBox(
@@ -875,9 +871,7 @@ void main() {
           child: AnimatedReorderable.list(
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             listView: ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index) =>
@@ -906,9 +900,7 @@ void main() {
     ) => AnimatedReorderable.list(
       key: key,
       keyGetter: (index) => ValueKey(items[index]),
-      reorder: ReorderOptions(
-        onReorder: (permutations) => permutations.apply(items),
-      ),
+      reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
       listView: ListView.builder(
         itemCount: items.length,
         itemBuilder: (context, index) {
@@ -998,9 +990,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) {
@@ -1041,9 +1031,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) {
@@ -1084,9 +1072,7 @@ void main() {
           body: AnimatedReorderable.list(
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             listView: ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index) => SizedBox(
@@ -1143,9 +1129,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => SizedBox(
@@ -1452,9 +1436,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => _KeptAlive(id: items[index]),
@@ -1573,7 +1555,7 @@ void main() {
                   key: key,
                   keyGetter: (index) => ValueKey(items[index]),
                   reorder: ReorderOptions(
-                    onReorder: (permutations) => permutations.apply(items),
+                    onReorder: (moves) => moves.apply(items),
                   ),
                   listView: ListView.builder(
                     clipBehavior: clipBehavior,
@@ -1691,9 +1673,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 // Taller when narrow, as wrapping text would be.
@@ -1847,9 +1827,7 @@ void main() {
           body: AnimatedReorderable.list(
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             listView: ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index) => SizedBox(
@@ -2631,9 +2609,9 @@ void main() {
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(items[index]),
               reorder: ReorderOptions(
-                onReorder: (permutations) {
+                onReorder: (moves) {
                   reorders++;
-                  permutations.apply(items);
+                  moves.apply(items);
                 },
               ),
               listView: ListView.builder(
@@ -2864,7 +2842,7 @@ void main() {
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(sections[index]),
               reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(sections),
+                onReorder: (moves) => moves.apply(sections),
               ),
               listView: ListView.builder(
                 itemCount: sections.length,
@@ -4155,7 +4133,7 @@ void main() {
                       key: key,
                       keyGetter: (index) => ValueKey(items[index]),
                       reorder: ReorderOptions(
-                        onReorder: (permutations) => permutations.apply(items),
+                        onReorder: (moves) => moves.apply(items),
                       ),
                       listView: ListView.builder(
                         itemCount: items.length,
@@ -4209,9 +4187,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => SizedBox(
@@ -4253,9 +4229,7 @@ void main() {
             body: AnimatedReorderable.list(
               key: key,
               keyGetter: (index) => ValueKey(items[index]),
-              reorder: ReorderOptions(
-                onReorder: (permutations) => permutations.apply(items),
-              ),
+              reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
               listView: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) => Text('${items[index]}'),
@@ -4500,9 +4474,7 @@ void main() {
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
             motion: MotionOptions(duration: duration),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             listView: ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index) =>
@@ -4601,7 +4573,7 @@ void main() {
 
     testWidgets('checks the destination of a reordered item', (tester) async {
       final key = GlobalKey<AnimatedReorderableState>();
-      final reorders = <Permutations>[];
+      final reorders = <ItemMoves>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -4651,7 +4623,7 @@ void main() {
               keyGetter: (index) => ValueKey(labels[index]),
               reorder: ReorderOptions(
                 reorderableGetter: (index) => index != 1,
-                onReorder: (permutations) => permutations.apply(labels),
+                onReorder: (moves) => moves.apply(labels),
               ),
               listView: ListView.builder(
                 itemCount: labels.length,
@@ -4783,23 +4755,20 @@ void main() {
 
 /// A list of [labels] keyed by label, rebuilt from scratch like immutable
 /// state would be.
-Widget _labels(
-  List<String> labels, {
-  Key? key,
-  PermutationsCallback? onReorder,
-}) => MaterialApp(
-  home: Scaffold(
-    body: AnimatedReorderable.list(
-      key: key,
-      keyGetter: (index) => ValueKey(labels[index]),
-      reorder: ReorderOptions(onReorder: onReorder),
-      listView: ListView.builder(
-        itemCount: labels.length,
-        itemBuilder: (context, index) => Text(labels[index]),
+Widget _labels(List<String> labels, {Key? key, ItemMovesCallback? onReorder}) =>
+    MaterialApp(
+      home: Scaffold(
+        body: AnimatedReorderable.list(
+          key: key,
+          keyGetter: (index) => ValueKey(labels[index]),
+          reorder: ReorderOptions(onReorder: onReorder),
+          listView: ListView.builder(
+            itemCount: labels.length,
+            itemBuilder: (context, index) => Text(labels[index]),
+          ),
+        ),
       ),
-    ),
-  ),
-);
+    );
 
 /// A long list of numbers that scrolls with [controller] or as [primary]
 /// says.
@@ -4969,9 +4938,7 @@ class _ChildrenList {
       body: AnimatedReorderable.list(
         key: key,
         keyGetter: (index) => ValueKey(items[index]),
-        reorder: ReorderOptions(
-          onReorder: (permutations) => permutations.apply(items),
-        ),
+        reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
         listView: builder
             ? ListView.builder(
                 itemCount: items.length,
@@ -5007,7 +4974,7 @@ Widget _withCallbacks(
       body: AnimatedReorderable.list(
         keyGetter: (index) => ValueKey(labels[index]),
         reorder: ReorderOptions(
-          onReorder: (permutations) => permutations.apply(labels),
+          onReorder: (moves) => moves.apply(labels),
           callbacks: ItemDragCallbacks(
             onStart: (details, index) => calls.add('drag start $index'),
             onUpdate: (details, index) =>
@@ -5095,9 +5062,9 @@ class _TestList {
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
           reorder: ReorderOptions(
-            onReorder: (permutations) {
+            onReorder: (moves) {
               reorders++;
-              permutations.apply(items);
+              moves.apply(items);
             },
             draggableGetter: draggableGetter,
             reorderableGetter: reorderableGetter,
@@ -5122,9 +5089,9 @@ class _TestList {
           key: key,
           keyGetter: (index) => ValueKey(items[index]),
           reorder: ReorderOptions(
-            onReorder: (permutations) {
+            onReorder: (moves) {
               reorders++;
-              permutations.apply(items);
+              moves.apply(items);
             },
             draggableGetter: draggableGetter,
             reorderableGetter: reorderableGetter,
@@ -5303,9 +5270,7 @@ class _InkList {
     final list = AnimatedReorderable.list(
       key: key,
       keyGetter: (index) => ValueKey(items[index]),
-      reorder: ReorderOptions(
-        onReorder: (permutations) => permutations.apply(items),
-      ),
+      reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
       listView: ListView.builder(
         itemCount: items.length,
         itemBuilder: (context, index) => tile(items[index]),

@@ -275,13 +275,13 @@ class ItemRegistry {
     overlayChanges.notify();
   }
 
-  Permutations moveItem({
+  ItemMoves moveItem({
     required int index,
     required int destIndex,
     required bool Function(int index) reorderableGetter,
   }) {
-    final permutations = Permutations();
-    if (index == destIndex) return permutations;
+    final moves = ItemMoves();
+    if (index == destIndex) return moves;
 
     increment(int i) => i + 1;
     decrement(int i) => i - 1;
@@ -296,7 +296,7 @@ class ItemRegistry {
       if (reorderableGetter(curIndex)) {
         _itemKeyByIndex[curIndex] = unorderedItemKey;
 
-        permutations.addPermutation(
+        moves.addMove(
           itemKey: unorderedItemKey,
           srcIndex: unorderedItemIndex,
           destIndex: curIndex,
@@ -311,11 +311,11 @@ class ItemRegistry {
 
     for (var overlayedItem in overlayedItems) {
       overlayedItem.index =
-          permutations.indexOf(overlayedItem.key) ?? overlayedItem.index;
+          moves.indexOf(overlayedItem.key) ?? overlayedItem.index;
     }
     itemsChanges.notify();
 
-    return permutations;
+    return moves;
   }
 
   void dispose() {

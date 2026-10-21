@@ -1,3 +1,12 @@
+## 2.9.0
+
+### Deprecations
+
+These still work, and go in 3.0:
+
+- `Permutation`, `Permutations` and `PermutationsCallback`. Use `ItemMove`, `ItemMoves` and `ItemMovesCallback`, the same types under new names: `onReorder` gets the moves of the items a reorder takes to new indexes, as in `onReorder: (moves) => moves.apply(items)`. An `ItemMove` prints itself as one.
+- `Permutations.addPermutation`. Use `ItemMoves.addMove`.
+
 ## 2.8.2
 
 ### Fixes

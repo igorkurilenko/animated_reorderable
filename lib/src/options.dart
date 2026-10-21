@@ -90,7 +90,7 @@ class ReorderOptions {
   /// back or forward, or to the end, and in a grid a row back or forward. A
   /// move goes as [AnimatedReorderableState.reorderItem] does, and calls
   /// this.
-  final PermutationsCallback? onReorder;
+  final ItemMovesCallback? onReorder;
 
   /// Whether the item at an index can be dragged. All can by default.
   final BoolGetter? draggableGetter;

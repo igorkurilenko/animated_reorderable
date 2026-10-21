@@ -52,7 +52,7 @@ class _ReorderableListExampleState extends State<ReorderableListExample> {
       keyGetter: (index) => ValueKey(_items[index]),
       // 2. A long press drags a card, and the cards follow it.
       reorder: ReorderOptions(
-        onReorder: (permutations) => permutations.apply(_items),
+        onReorder: (moves) => moves.apply(_items),
         decoration: const ItemDecoration(decorator: liftCard),
       ),
       // 2. A swipe deletes the card.

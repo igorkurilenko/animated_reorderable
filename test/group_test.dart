@@ -118,7 +118,7 @@ void main() {
                 keyGetter: (index) => ValueKey(items[index]),
                 reorder: ReorderOptions(
                   groupId: id,
-                  onReorder: (permutations) => permutations.apply(items),
+                  onReorder: (moves) => moves.apply(items),
                 ),
                 listView: ListView.builder(
                   itemCount: items.length,
@@ -1568,7 +1568,7 @@ class _Board {
     final items = columns[id]!;
     final reorder = ReorderOptions(
       groupId: withoutGroupId.contains(id) ? null : id,
-      onReorder: (permutations) => permutations.apply(items),
+      onReorder: (moves) => moves.apply(items),
       decoration: decoration,
       callbacks: ItemDragCallbacks(
         onStart: (_, index) => events.add((id, 'start', index)),

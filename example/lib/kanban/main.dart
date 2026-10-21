@@ -75,7 +75,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
       reorder: ReorderOptions(
         // The column's id in the group, which onMove gets.
         groupId: status,
-        onReorder: (permutations) => permutations.apply(tasks),
+        onReorder: (moves) => moves.apply(tasks),
         // A mouse drags a card at once, and a finger after a long press.
         gestureRecognizerFactory: dragRecognizer,
         decoration: const ItemDecoration(decorator: liftTask),
