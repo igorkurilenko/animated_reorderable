@@ -61,7 +61,7 @@ AnimatedReorderable.list(
   key: listKey, // A GlobalKey<AnimatedReorderableState>, for step 3.
   keyGetter: (index) => ValueKey(items[index]),
   reorder: ReorderOptions(
-    onReorder: (permutations) => permutations.apply(items),
+    onReorder: (moves) => moves.apply(items),
   ),
   listView: ListView.builder(
     itemCount: items.length,
@@ -126,7 +126,7 @@ animated_reorderable animates the changes you make, with `insertItem`, `removeIt
 
 ### How do I add drag and drop to reorder a ListView?
 
-Wrap it in `AnimatedReorderable.list`, give each item a key with `keyGetter`, and apply the permutations to your items in `ReorderOptions.onReorder`, as in the [quick start](#quick-start). A long press then drags an item, and the list moves the others aside, with no `setState`.
+Wrap it in `AnimatedReorderable.list`, give each item a key with `keyGetter`, and apply the moves to your items in `ReorderOptions.onReorder`, as in the [quick start](#quick-start). A long press then drags an item, and the list moves the others aside, with no `setState`.
 
 ### Why doesn't ReorderableListView animate inserting and removing items?
 
@@ -153,7 +153,7 @@ Yes. Pass `gestureRecognizerFactory: (context) => ImmediateMultiDragGestureRecog
 Wrap a `ListView` in `AnimatedReorderable.list`, or a `GridView` in `AnimatedReorderable.grid`, and set:
 
 - **keyGetter:** Required parameter to configure keys for uniquely identifying the items.
-- **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the permutations to your items. It also takes the decoration of dragged items and drag callbacks. After a reorder, an insert or a remove, the package builds again only the items it moves; an item that keeps its index keeps what it shows. If something else about your items changes, build the view again as usual, such as with `setState`. To keep heavy items from building again as they move, see [Rebuilds](#rebuilds).
+- **reorder:** To let users reorder the items, give `ReorderOptions` an `onReorder` callback in which you apply the moves to your items. It also takes the decoration of dragged items and drag callbacks. After a reorder, an insert or a remove, the package builds again only the items it moves; an item that keeps its index keeps what it shows. If something else about your items changes, build the view again as usual, such as with `setState`. To keep heavy items from building again as they move, see [Rebuilds](#rebuilds).
 - **swipeToRemove:** To let users swipe items away, give `SwipeToRemoveOptions` an `onSwipeToRemove` callback. It removes the swiped item from your data and calls `removeItem` with its index, as you remove an `AnimatedList`'s items: the list closes the gap as the item flies off, at the speed it's let go at. The item flies off as it is, with its state: the builder you give `removeItem` builds only the items you remove otherwise. Such an item keeps its state if the builder returns widgets of the same types as your item builder, down to the item's own widget. Otherwise it's built anew.
 - **motion:** `MotionOptions` sets how items move to their new places.
 - **insertTransition:** The transition items enter with, like the animation `AnimatedList` passes to its item builder. Insert an item with `insertItem(index)`, and it enters through the transition. Every item is built through it, so an item keeps its state when it has entered.
@@ -246,7 +246,7 @@ AnimatedReorderableGroup(
             keyGetter: (index) => ValueKey(board[id]![index].id),
             reorder: ReorderOptions(
               groupId: id,
-              onReorder: (permutations) => permutations.apply(board[id]!),
+              onReorder: (moves) => moves.apply(board[id]!),
             ),
             listView: ListView.builder(
               itemCount: board[id]!.length,
