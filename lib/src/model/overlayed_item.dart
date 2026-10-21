@@ -44,6 +44,15 @@ class OverlayedItem extends widgets.ChangeNotifier {
   widgets.BoxConstraints _constraints;
 
   widgets.Size _size;
+
+  /// The size the item's position holds the pointer's point of it for,
+  /// which runs ahead of [size] as the item lays out at a new size.
+  widgets.Size? _anchoredSize;
+
+  /// How far the pointer was from the item's position, in the item's
+  /// space, the last time the item was held under it. It holds while the
+  /// two move together.
+  widgets.Offset? _pointerOffset;
   bool _interactive;
 
   int zIndex;
@@ -116,6 +125,36 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// The size of the item itself, without its decoration, as the overlay
   /// lays it out. The list's placeholder takes this size.
   widgets.Size get size => _size;
+
+  /// The size the item's position holds the pointer's point of it for, as
+  /// the item lays out: [size], or its new size in the frame that lays it
+  /// out at one.
+  widgets.Size get anchoredSize => _anchoredSize ?? _size;
+
+  /// Takes [size] as the size the item's position holds the pointer's
+  /// point of it for, with the pointer [pointerOffset] from its position.
+  void anchorTo(widgets.Size size, {widgets.Offset? pointerOffset}) {
+    _anchoredSize = size;
+    if (pointerOffset != null) _pointerOffset = pointerOffset;
+  }
+
+  /// Moves the item so that the pointer holds the same point of it,
+  /// relative to its size, as it lays out at [size], in the frame that lays
+  /// it out. Layout can't map the pointer to the item's space, so the item
+  /// goes by how far the pointer was from it the last time it was held
+  /// under it.
+  void keepPointerAsLaidOut(widgets.Size size) {
+    final anchored = anchoredSize;
+    final offset = _pointerOffset;
+    _anchoredSize = size;
+    if (offset == null || anchored.isEmpty || size == anchored) return;
+    final scaled = widgets.Offset(
+      offset.dx * size.width / anchored.width,
+      offset.dy * size.height / anchored.height,
+    );
+    _pointerOffset = scaled;
+    setPosition(OverlayOffset(position + offset - scaled));
+  }
 
   OverlayOffset get position => _position;
 

@@ -141,7 +141,9 @@ class ItemRegistry {
   }
 
   void setOverlayedItemSize(OverlayedItem x, Size size) {
-    x._size = size;
+    x
+      .._size = size
+      .._anchoredSize = size;
     if (_overlayedItemByKey[x.key] == x) x.item.placeholderSize.value = size;
   }
 

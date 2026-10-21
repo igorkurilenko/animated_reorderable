@@ -1502,6 +1502,42 @@ void _flightTests() => group('flights', () {
     await drag.up();
     await tester.pumpAndSettle();
   });
+
+  testWidgets('keeps the point it holds under the pointer as it flies in', (
+    tester,
+  ) async {
+    await tester.pumpWidget(painted().build());
+    final card = tester.getRect(find.byType(_Item).at(1));
+    final from = tester.getCenter(find.text('1'));
+    final grip = Offset(
+      (from.dx - card.left) / card.width,
+      (from.dy - card.top) / card.height,
+    );
+
+    final drag = await _hold(tester, find.text('1'));
+    final steps = _steps(from, tester.getCenter(find.text('thumb 11')), 10);
+    // How far the point of the shuttle the pointer holds is from the
+    // pointer, as the frame paints it, on each frame the card flies, from
+    // the one it goes into list b on.
+    final off = <Offset>[];
+    for (final step in [...steps, ...List.filled(10, steps.last)]) {
+      await drag.moveTo(step);
+      await tester.pump(const Duration(milliseconds: 16));
+      if (find.byType(RawImage).evaluate().isEmpty) continue;
+      final shuttle = find.byType(LookBoundary);
+      final size = tester.getSize(shuttle);
+      off.add(
+        _paintedTopLeft(tester, shuttle) +
+            Offset(grip.dx * size.width, grip.dy * size.height) -
+            step,
+      );
+    }
+
+    expect(off, hasLength(greaterThan(5)));
+    expect(off, everyElement(_closeTo(Offset.zero, 1)));
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
 });
 
 void _boardTests() => group('board', () {
@@ -1955,4 +1991,32 @@ void _move(WidgetTester tester, Object label, String name) {
     SemanticsAction.customAction,
     CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: name)),
   );
+}
+
+/// Where the layers that [finder]'s widget is painted on put its top left
+/// corner, as the engine composes them.
+Offset _paintedTopLeft(WidgetTester tester, Finder finder) {
+  RenderObject? boundary = tester.renderObject(finder);
+  while (boundary != null && !boundary.isRepaintBoundary) {
+    boundary = boundary.parent;
+  }
+  var transform = Matrix4.identity();
+  // The root layer scales logical pixels to the device's.
+  for (Layer? layer = boundary!.debugLayer; layer?.parent != null;) {
+    if (layer case final OffsetLayer offsetLayer) {
+      final own = layer is TransformLayer
+          ? layer.transform ?? Matrix4.identity()
+          : Matrix4.identity();
+      transform =
+          Matrix4.translationValues(
+            offsetLayer.offset.dx,
+            offsetLayer.offset.dy,
+            0,
+          ) *
+          own *
+          transform;
+    }
+    layer = layer!.parent;
+  }
+  return MatrixUtils.transformPoint(transform, Offset.zero);
 }

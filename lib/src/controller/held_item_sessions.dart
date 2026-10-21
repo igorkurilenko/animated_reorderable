@@ -49,12 +49,15 @@ class DragSession {
     // A group's layer shows it, so it can go over the group's other lists.
     final group = _host.groupForDrags;
     group?.host(item, _host);
-    overlay.lift(
-      item,
-      decorator: options.decoration.decorator,
-      decorationDuration: options.decoration.duration,
-      sharedSpace: group,
-    );
+    overlay
+      ..lift(
+        item,
+        decorator: options.decoration.decorator,
+        decorationDuration: options.decoration.duration,
+        sharedSpace: group,
+      )
+      // Where the pointer holds it, which it keeps as it lays out anew.
+      ..keepUnderPointer(item, size: item.size);
   }
 
   void update(DragUpdateDetails details) {

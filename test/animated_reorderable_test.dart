@@ -1756,7 +1756,10 @@ void main() {
           home: Scaffold(
             body: AnimatedReorderable.list(
               keyGetter: (index) => ValueKey(index),
-              reorder: const ReorderOptions(onReorder: _ignore),
+              reorder: const ReorderOptions(
+                onReorder: _ignore,
+                decoration: ItemDecoration.none,
+              ),
               listView: ListView.builder(
                 itemCount: 5,
                 itemBuilder: (context, index) => ValueListenableBuilder(
@@ -1780,9 +1783,11 @@ void main() {
 
       extent.value = 2 * _extent;
       await tester.pump();
-      await tester.pump();
 
-      // Still a quarter of the way down, under the pointer at 45.
+      // Still a quarter of the way down, under the pointer at 45, in the
+      // frame that lays it out at its new size.
+      expect(_paintedTopLeft(tester, find.text('0')).dy, moreOrLessEquals(-5));
+      await tester.pump();
       expect(tester.getTopLeft(find.text('0')).dy, moreOrLessEquals(-5));
       await drag.up();
       await tester.pumpAndSettle();

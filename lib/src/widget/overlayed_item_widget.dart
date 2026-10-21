@@ -27,6 +27,7 @@ class OverlayedItemWidget extends StatelessWidget {
     required this.item,
     this.onPointerDown,
     this.onSizeChange,
+    this.onLayout,
     this.entranceBuilder,
     this.shuttleBuilder,
     this.listBounds,
@@ -38,6 +39,9 @@ class OverlayedItemWidget extends StatelessWidget {
   /// Lets a pointer down on the item start a drag or a swipe of it.
   final OverlayedItemPointerDownCallback? onPointerDown;
   final OverlayedItemSizeCallback? onSizeChange;
+
+  /// Called as the item lays out at a new size, before the frame paints it.
+  final OverlayedItemSizeCallback? onLayout;
 
   /// Puts the item in the transition it enters with, as the list does.
   final ItemEntranceBuilder? entranceBuilder;
@@ -79,6 +83,7 @@ class OverlayedItemWidget extends StatelessWidget {
                     look,
                 measure: (child) => SizeReporter(
                   onSizeChange: (size) => onSizeChange?.call(size, item),
+                  onLayout: (size) => onLayout?.call(size, item),
                   child: child,
                 ),
                 shuttle: switch (shuttleBuilder) {
