@@ -9,6 +9,18 @@
 - Scroll items with ink, such as `ListTile`s, with less work a frame. The app's `Material` painted every item's ink again on each frame of a scroll, while each item now paints its own once, on its layer. On an iPhone 17 Pro, a frame that scrolls `ListTile`s by 24 px takes 0.46–0.47 ms on the UI thread instead of 0.65–0.69 at the median, and 1.46 ms instead of 1.69–1.75 at the 90th percentile.
 - Each item now builds a `Material` of its own as it comes into sight. On an iPhone 17 Pro, the savings above outweigh it: a frame that builds 15 new `ListTile`s at once takes 6.7–6.8 ms instead of 7.1–7.3 at the median. Reorders in a list, and removals in a list and in a 12-column grid, take as long as before. On macOS, the slowest tenth of the frames that build 15 tiles took about 4 ms longer, as garbage collection ran during them.
 
+### Docs
+
+- Lead the README with the examples, each with its animation, and say in the words people search with what the package does: a reorderable list and grid for Flutter, drag and drop between lists, and swipe to delete. A quick start in three steps follows, then a comparison with Flutter's `ReorderableListView`, `AnimatedList` and `AnimatedGrid`, and with other packages, and answers to common questions. A Performance section gives the package's measurements against Flutter's lists on an iPhone 17 Pro.
+- Rewrite the Example tab around the main example: what it does, and its code in three steps, then the other examples, each with its animation, and answers to common questions.
+- Say what the package does in its pubspec description, and add topics.
+
+### Example
+
+- Make the main example Flutter's `ReorderableListView` sample of cards, animated: a long press drags a card, a swipe deletes it, and + inserts one.
+- Add a grid of shortcuts, whose tiles are dragged across rows, added and swiped away, and move the kanban board to `lib/kanban/`. Both have hero_here's look, kept apart in `lib/style/`.
+- Record each example as an animated WebP at 60 fps, for the README and the Example tab, in place of the README's GIFs.
+
 ## 2.8.1
 
 ### Docs
