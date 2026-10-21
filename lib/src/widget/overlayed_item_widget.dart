@@ -70,25 +70,28 @@ class OverlayedItemWidget extends StatelessWidget {
               constraints: item.constraints,
               child: item.build(
                 context,
-                wrap: (child) => SizeReporter(
+                enter: (look) =>
+                    entranceBuilder?.call(
+                      look,
+                      item.index,
+                      item.item.entrance,
+                    ) ??
+                    look,
+                measure: (child) => SizeReporter(
                   onSizeChange: (size) => onSizeChange?.call(size, item),
-                  child:
-                      entranceBuilder?.call(
-                        child,
-                        item.index,
-                        item.item.entrance,
-                      ) ??
-                      child,
+                  child: child,
                 ),
                 shuttle: switch (shuttleBuilder) {
-                  final builder? => (flight, to) => buildFlightShuttle(
-                    context,
-                    flight: flight,
-                    builder: builder,
-                    lookKey: item.lookKey,
-                    constraints: item.constraints,
-                    to: to,
-                  ),
+                  final builder? =>
+                    (flight, look, decorate) => buildFlightShuttle(
+                      context,
+                      flight: flight,
+                      builder: builder,
+                      lookKey: item.lookKey,
+                      constraints: item.constraints,
+                      look: look,
+                      decorate: decorate,
+                    ),
                   null => null,
                 },
                 boundary: (look) =>

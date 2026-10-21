@@ -193,14 +193,22 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
   double get swipeExtent => _swipe?.swipeExtent ?? 0.0;
 
-  /// Builds the item inside its decoration. [wrap] goes between the two.
-  /// While the item flies, [shuttle] shows it with the look it leaves, and
-  /// while a group's layer shows it, [boundary] paints its look into a
-  /// layer of its own, which a flight can take as an image.
+  /// Builds the item, which [measure] measures, inside its decoration.
+  /// [enter] puts its look in the transition it enters with. While the item
+  /// flies, [shuttle] shows its look with the one it leaves, inside the
+  /// decoration that it's given, as the shuttle grows or shrinks, and while
+  /// a group's layer shows it, [boundary] paints its look into a layer of
+  /// its own, which a flight can take as an image.
   widgets.Widget? build(
     widgets.BuildContext context, {
-    widgets.Widget Function(widgets.Widget item)? wrap,
-    widgets.Widget Function(ItemFlight flight, widgets.Widget item)? shuttle,
+    widgets.Widget Function(widgets.Widget look)? enter,
+    widgets.Widget Function(widgets.Widget item)? measure,
+    widgets.Widget Function(
+      ItemFlight flight,
+      widgets.Widget look,
+      widgets.Widget Function(widgets.Widget shuttle) decorate,
+    )?
+    shuttle,
     widgets.Widget Function(widgets.Widget look)? boundary,
   }) {
     final child = _builtChild = item.builder.build(context, index);
@@ -209,13 +217,20 @@ class OverlayedItem extends widgets.ChangeNotifier {
       key: item.childKey,
       child: InkSurface(child: child),
     );
-    final wrapped = wrap?.call(keyed) ?? keyed;
-    final shown = switch (_flight) {
-      final flight? when shuttle != null => shuttle(flight, wrapped),
-      _ when sharedSpace != null => boundary?.call(wrapped) ?? wrapped,
-      _ => wrapped,
+    final look = enter?.call(keyed) ?? keyed;
+    widgets.Widget decorate(widgets.Widget shown) =>
+        _decorator?.decorate(shown, index) ?? shown;
+    widgets.Widget measured(widgets.Widget shown) =>
+        measure?.call(shown) ?? shown;
+    return switch (_flight) {
+      final flight? when shuttle != null => measured(
+        shuttle(flight, look, decorate),
+      ),
+      _ when sharedSpace != null => decorate(
+        boundary?.call(measured(look)) ?? measured(look),
+      ),
+      _ => decorate(measured(look)),
     };
-    return _decorator?.decorate(shown, index) ?? shown;
   }
 
   void shift(Offset delta) {

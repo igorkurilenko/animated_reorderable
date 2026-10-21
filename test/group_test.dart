@@ -1,7 +1,9 @@
 import 'package:animated_reorderable/animated_reorderable.dart';
+import 'package:animated_reorderable/src/widget/item_flight_shuttle.dart'
+    show LookBoundary;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -415,7 +417,9 @@ void main() {
       await tester.pump();
 
       expect(board.moves.single.$2, (list: 'b', index: 1));
-      // As wide as the other list's slots, and still under the pointer.
+      // As wide as the other list's slots once it has flown to its look
+      // there, and still under the pointer.
+      await tester.pump(const Duration(milliseconds: 250));
       final held = find.ancestor(
         of: find.text('0'),
         matching: find.byType(_Item),
@@ -1094,7 +1098,7 @@ void _flightTests() => group('flights', () {
     expect(find.byType(RawImage), findsOneWidget);
     expect(find.text('thumb 1'), findsOneWidget);
     expect(find.text('1'), findsNothing);
-    final shuttle = tester.getRect(find.byType(RawImage));
+    final shuttle = tester.getRect(find.byType(LookBoundary));
     // On its way from the card's height to the thumbnail's, which the
     // drag's decoration makes 5% bigger.
     expect(shuttle.height, inExclusiveRange(0.55 * _extent, _extent));
@@ -1220,6 +1224,29 @@ void _flightTests() => group('flights', () {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('lets an item be held again mid-flight', (tester) async {
+    final board = designs(flight: const FlightOptions(duration: _second));
+    await tester.pumpWidget(board.build());
+
+    final drag = await dragInto(tester, find.text('1'), find.text('thumb 11'));
+    await drag.up();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(RawImage), findsOneWidget);
+
+    // A press on the shuttle, on its way, holds it again.
+    final again = await _hold(tester, find.byType(LookBoundary));
+    await again.moveBy(const Offset(0, 20));
+    await tester.pump();
+
+    final events = [for (final (_, event, _) in board.events) event];
+    expect(events.where((event) => event == 'start'), hasLength(2));
+    final heldAgain = events.sublist(events.lastIndexOf('end') + 1);
+    expect(heldAgain.first, 'start');
+    expect(heldAgain.skip(1), allOf(isNotEmpty, everyElement('update')));
+    await again.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('keeps flying an item let go as its new list scrolls', (
     tester,
   ) async {
@@ -1296,6 +1323,184 @@ void _flightTests() => group('flights', () {
     await drag.up();
     await tester.pumpAndSettle();
     expect(tester.getSize(thumbOf(1)).height, _extent / 2);
+  });
+
+  /// A board of painted cards and thumbnails, with no decoration, and
+  /// flights long enough to catch on their way.
+  _Board painted() => _Board(
+    {
+      'a': [0, 1, 2],
+      'b': [10, 11],
+    },
+    thumbs: {'b'},
+    flight: const FlightOptions(duration: Duration(milliseconds: 300)),
+    decoration: ItemDecoration.none,
+    painted: true,
+  );
+
+  testWidgets('shows a flying item opaque all the way', (tester) async {
+    await tester.pumpWidget(painted().build());
+
+    // Below list b's thumbnails, over the screen.
+    final drag = await _hold(tester, find.text('1'));
+    await _dragAlong(
+      tester,
+      drag,
+      _steps(tester.getCenter(find.text('1')), const Offset(600, 250), 10),
+    );
+    for (var frame = 0; frame < 4; frame++) {
+      await tester.pump(const Duration(milliseconds: 60));
+      // Away from its text, the shuttle shows the card fading out over the
+      // thumbnail, both opaque: the screen behind doesn't show through.
+      final shuttle = tester.getRect(find.byType(LookBoundary));
+      final colors = await _colorsIn(
+        tester,
+        Rect.fromLTRB(
+          shuttle.center.dx,
+          shuttle.top + 2,
+          shuttle.right - 2,
+          shuttle.bottom - 2,
+        ),
+      );
+      expect(
+        colors.where((color) => color.a < 1 || color.g != 0),
+        isEmpty,
+        reason: '$frame',
+      );
+    }
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('flies both looks at their own sizes', (tester) async {
+    await tester.pumpWidget(painted().build());
+
+    final drag = await dragInto(tester, find.text('1'), find.text('thumb 11'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // The shuttle is on its way from the card's height to the thumbnail's.
+    final shuttle = tester.getRect(find.byType(LookBoundary));
+    expect(shuttle.height, inExclusiveRange(_extent / 2, _extent));
+    // The card shows at its own size, and the thumbnail as it lays out:
+    // neither is stretched to the shuttle. The thumbnail lays out at the
+    // shuttle's size on its way, and covers it.
+    expect(
+      tester.getRect(find.byType(RawImage)).size,
+      const Size(400, _extent),
+    );
+    expect(tester.getRect(thumbOf(1)).size, tester.getSize(thumbOf(1)));
+    expect(tester.getRect(thumbOf(1)), shuttle);
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('grows a flying item around the point it holds', (tester) async {
+    await tester.pumpWidget(painted().build());
+    final thumb = tester.getRect(thumbOf(10));
+    final from = tester.getCenter(find.text('thumb 10'));
+    final grip = Offset(
+      (from.dx - thumb.left) / thumb.width,
+      (from.dy - thumb.top) / thumb.height,
+    );
+
+    // From list b's thumbnail to list a's card, which is twice as high.
+    final pointer = tester.getCenter(find.text('1'));
+    final drag = await dragInto(tester, find.text('thumb 10'), find.text('1'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final shuttle = tester.getRect(find.byType(LookBoundary));
+    expect(shuttle.height, inExclusiveRange(_extent / 2, _extent));
+    // The card shows at its own size, holding the same point as the
+    // thumbnail held, cut at the shuttle's edges as the shuttle grows.
+    final card = find.ancestor(
+      of: find.text('10'),
+      matching: find.byType(_Item),
+    );
+    final rect = tester.getRect(card);
+    expect(rect.size, const Size(400, _extent));
+    expect(
+      rect.topLeft + Offset(grip.dx * rect.width, grip.dy * rect.height),
+      _closeTo(pointer, 1),
+    );
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('cuts a growing look at the shuttle\'s edges', (tester) async {
+    final board = _Board(
+      {
+        'a': [],
+        'b': [10, 11],
+      },
+      thumbs: {'b'},
+      flight: const FlightOptions(duration: Duration(milliseconds: 300)),
+      decoration: ItemDecoration.none,
+      painted: true,
+    );
+    await tester.pumpWidget(board.build());
+
+    // Into the empty list a, as a card twice as high as the thumbnail.
+    final drag = await _hold(tester, find.text('thumb 10'));
+    await _dragAlong(
+      tester,
+      drag,
+      _steps(
+        tester.getCenter(find.text('thumb 10')),
+        const Offset(200, 50),
+        10,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final shuttle = tester.getRect(find.byType(LookBoundary));
+    final card = tester.getRect(
+      find.ancestor(of: find.text('10'), matching: find.byType(_Item)),
+    );
+    expect(shuttle.height, inExclusiveRange(_extent / 2, _extent));
+    expect(card.height, _extent);
+    // Below the shuttle, the card doesn't show yet.
+    final below = await _colorsIn(
+      tester,
+      Rect.fromLTRB(
+        card.left + 2,
+        shuttle.bottom + 1,
+        card.right - 2,
+        card.bottom - 1,
+      ),
+    );
+    expect(below, isNot(contains(_cardColor)));
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('decorates the shuttle as it flies', (tester) async {
+    const decoration = ValueKey('decoration');
+    final board = _Board(
+      {
+        'a': [0, 1, 2],
+        'b': [10, 11],
+      },
+      thumbs: {'b'},
+      flight: const FlightOptions(duration: Duration(milliseconds: 300)),
+      decoration: ItemDecoration(
+        decorator: (child, index, animation) => DecoratedBox(
+          key: decoration,
+          decoration: const BoxDecoration(color: Color(0xFF00FF00)),
+          child: child,
+        ),
+      ),
+    );
+    await tester.pumpWidget(board.build());
+
+    final drag = await dragInto(tester, find.text('1'), find.text('thumb 11'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Around the shuttle on its way, rather than at the new look's size.
+    final shuttle = tester.getRect(find.byType(LookBoundary));
+    expect(shuttle.height, inExclusiveRange(_extent / 2, _extent));
+    expect(tester.getRect(find.byKey(decoration)), shuttle);
+    await drag.up();
+    await tester.pumpAndSettle();
   });
 });
 
@@ -1448,6 +1653,7 @@ class _Board {
     this.decoration = const ItemDecoration(),
     this.clipBehavior = Clip.hardEdge,
     this.moveToListLabel,
+    this.painted = false,
   }) : columns = {
          for (final MapEntry(:key, :value) in columns.entries) key: [...value],
        };
@@ -1492,6 +1698,11 @@ class _Board {
 
   /// The labels of the screen reader's moves to the lists, if any.
   final String Function(Object list)? moveToListLabel;
+
+  /// Whether cards and thumbnails paint opaque colors of their own,
+  /// [_cardColor] and [_thumbColor], which a test can tell apart from the
+  /// screen.
+  final bool painted;
 
   final moves = <(ItemPlace, ItemPlace)>[];
 
@@ -1577,9 +1788,10 @@ class _Board {
       ),
     );
     Widget item(BuildContext context, int index) => thumbs.contains(id)
-        ? _Thumb(id: items[index])
+        ? _Thumb(id: items[index], color: painted ? _thumbColor : null)
         : _Item(
             id: items[index],
+            color: painted ? _cardColor : null,
             onInit: () =>
                 inits.update(items[index], (n) => n + 1, ifAbsent: () => 1),
           );
@@ -1615,10 +1827,11 @@ class _Board {
 }
 
 class _Item extends StatefulWidget {
-  const _Item({required this.id, required this.onInit});
+  const _Item({required this.id, required this.onInit, this.color});
 
   final int id;
   final VoidCallback onInit;
+  final Color? color;
 
   @override
   State<_Item> createState() => _ItemState();
@@ -1632,20 +1845,30 @@ class _ItemState extends State<_Item> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SizedBox(height: _extent, child: Text('${widget.id}'));
+  Widget build(BuildContext context) => _painted(
+    widget.color,
+    SizedBox(height: _extent, child: Text('${widget.id}')),
+  );
 }
 
 /// An item as a thumbnail, half a card's height.
 class _Thumb extends StatelessWidget {
-  const _Thumb({required this.id});
+  const _Thumb({required this.id, this.color});
 
   final int id;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) =>
-      SizedBox(height: _extent / 2, child: Text('thumb $id'));
+      _painted(color, SizedBox(height: _extent / 2, child: Text('thumb $id')));
 }
+
+/// The color of a card, and of a thumbnail, on a board that paints them.
+const _cardColor = Color(0xFFFF0000);
+const _thumbColor = Color(0xFF0000FF);
+
+Widget _painted(Color? color, Widget child) =>
+    color == null ? child : ColoredBox(color: color, child: child);
 
 /// Holds the item at [finder] until a drag of it starts.
 Future<TestGesture> _hold(WidgetTester tester, Finder finder) async {

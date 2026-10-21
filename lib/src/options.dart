@@ -149,9 +149,12 @@ class ReorderOptions {
 /// it leaves to the look of the list it goes to, as a hero_here flight's
 /// shuttle builder does.
 ///
-/// [from] is the old look, as it last showed, and [to] the new one. Each is
-/// laid out as it is, and fitted to the shuttle. [animation] runs from 0 at
-/// [from] to 1 at [to].
+/// [from] is the old look, as it last showed, and [to] the new one. Each
+/// shows at its own size, unstretched, holding the point the pointer holds
+/// at the same part of the shuttle, and is cut at the shuttle's edges. As
+/// the shuttle shrinks to the new look, [to] lays out at each size on the
+/// way, so it covers the shuttle, as a hero_here crossfade lays a hero out.
+/// [animation] runs from 0 at [from] to 1 at [to].
 typedef ItemFlightShuttleBuilder = Widget Function(
   BuildContext context,
   Animation<double> animation,
@@ -181,10 +184,12 @@ class FlightOptions {
   final Curve curve;
 
   /// Builds what a flying item shows. By default it fades the old look out
-  /// and the new one in.
+  /// over the new one.
   final ItemFlightShuttleBuilder shuttleBuilder;
 
-  /// Fades [from] out and [to] in as [animation] runs.
+  /// Fades [from] out over [to] as [animation] runs, as hero_here's
+  /// crossfade does. [to] shows under it from the start, so an opaque item
+  /// stays opaque on its way, and one that keeps its look shows no change.
   static Widget crossFadeShuttleBuilder(
     BuildContext context,
     Animation<double> animation,
@@ -193,8 +198,8 @@ class FlightOptions {
   ) => Stack(
     fit: StackFit.expand,
     children: [
+      to,
       FadeTransition(opacity: ReverseAnimation(animation), child: from),
-      FadeTransition(opacity: animation, child: to),
     ],
   );
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -6,34 +7,67 @@ import 'package:flutter/widgets.dart';
 import '../model/model.dart';
 import '../options.dart';
 
-/// The shuttle of [flight], which shows [to], an item's new look, with the
-/// image of the look it leaves, each fitted to the shuttle, as [builder]
-/// puts them together. Its look paints into the boundary [lookKey] keys.
+/// The shuttle of [flight], inside [decorate], which shows [look], an
+/// item's new look, with the image of the look it leaves, as [builder] puts
+/// them together. Each look shows at its own size, holding the point the
+/// pointer holds, as the shuttle grows or shrinks around that point to the
+/// new look's size. The shuttle paints into the boundary [lookKey] keys.
 Widget buildFlightShuttle(
   BuildContext context, {
   required ItemFlight flight,
   required ItemFlightShuttleBuilder builder,
   required GlobalKey lookKey,
   required BoxConstraints constraints,
-  required Widget to,
+  required Widget look,
+  required Widget Function(Widget shuttle) decorate,
 }) => _FlightBox(
   flight: flight,
-  // Its look as it shows on each frame, which a flight that turns
-  // elsewhere flies from, as a hero_here flight that diverts does.
-  child: LookBoundary(
-    key: lookKey,
-    child: builder(
-      context,
-      flight.animation,
-      RawImage(image: flight.from, fit: BoxFit.fill),
-      _Look(
-        constraints: constraints,
-        onLayout: (size) => flight.toSize = size,
-        child: to,
+  // The decoration goes around the shuttle as it grows or shrinks.
+  child: decorate(
+    // Its look as it shows on each frame, which a flight that turns
+    // elsewhere flies from, as a hero_here flight that diverts does.
+    LookBoundary(
+      key: lookKey,
+      child: builder(
+        context,
+        flight.animation,
+        _AtGrip(
+          grip: flight.grip,
+          size: flight.fromSize,
+          child: RawImage(image: flight.from, fit: BoxFit.fill),
+        ),
+        _NewLook(
+          constraints: constraints,
+          grip: flight.grip,
+          onLayout: (size) => flight.toSize = size,
+          child: look,
+        ),
       ),
     ),
   ),
 );
+
+/// Shows [child] at [size], holding the point [grip] of it, a part of its
+/// size, at the same part of the shuttle, cut at the shuttle's edges.
+class _AtGrip extends StatelessWidget {
+  const _AtGrip({required this.grip, required this.size, required this.child});
+
+  final Offset grip;
+  final Size size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    child: OverflowBox(
+      minWidth: size.width,
+      maxWidth: size.width,
+      minHeight: size.height,
+      maxHeight: size.height,
+      alignment: Alignment(2 * grip.dx - 1, 2 * grip.dy - 1),
+      child: child,
+    ),
+  );
+}
 
 /// Paints an item's look into a layer of its own, which a flight takes as
 /// an image to fly from.
@@ -70,8 +104,6 @@ class RenderLookBoundary extends RenderRepaintBoundary {
 
 /// Takes the size of the look a flight flies to, and shows its shuttle at
 /// the size of this frame, holding the same point of it under the pointer.
-/// A frame of the flight lays out the shuttle at its new size, but neither
-/// of its looks: each is fitted to it.
 class _FlightBox extends SingleChildRenderObjectWidget {
   const _FlightBox({required this.flight, super.child});
 
@@ -151,35 +183,57 @@ class _RenderFlightBox extends RenderProxyBox {
       transform.translateByDouble(_childOffset.dx, _childOffset.dy, 0, 1);
 }
 
-/// Lays out a look of a flying item as it is, by [constraints], and fits it
-/// to the shuttle by scale.
-class _Look extends SingleChildRenderObjectWidget {
-  const _Look({required this.constraints, this.onLayout, super.child});
+/// Lays the new look of a flying item out at its own size, by
+/// [constraints], which the shuttle flies to, and again at least as big as
+/// the shuttle, which it shows at, holding the point [grip] of it at the
+/// same part of the shuttle. As the shuttle shrinks to it, the look lays
+/// out at each size on the way, as a hero_here crossfade lays a hero out,
+/// and covers the shuttle. As the shuttle grows to it, it shows at its own
+/// size, cut at the shuttle's edges.
+class _NewLook extends SingleChildRenderObjectWidget {
+  const _NewLook({
+    required this.constraints,
+    required this.grip,
+    this.onLayout,
+    super.child,
+  });
 
   final BoxConstraints constraints;
+  final Offset grip;
+
+  /// Called with the look's own size as it lays out.
   final ValueChanged<Size>? onLayout;
 
   @override
-  _RenderLook createRenderObject(BuildContext context) =>
-      _RenderLook(constraints, onLayout);
+  _RenderNewLook createRenderObject(BuildContext context) =>
+      _RenderNewLook(constraints, grip, onLayout);
 
   @override
-  void updateRenderObject(BuildContext context, _RenderLook renderObject) =>
+  void updateRenderObject(BuildContext context, _RenderNewLook renderObject) =>
       renderObject
         ..lookConstraints = constraints
+        ..grip = grip
         ..onLayout = onLayout;
 }
 
-class _RenderLook extends RenderProxyBox {
-  _RenderLook(this._lookConstraints, this.onLayout);
+class _RenderNewLook extends RenderProxyBox {
+  _RenderNewLook(this._lookConstraints, this._grip, this.onLayout);
 
   BoxConstraints _lookConstraints;
+  Offset _grip;
   ValueChanged<Size>? onLayout;
-  var _lookSize = Size.zero;
+  var _childOffset = Offset.zero;
+  final _clip = LayerHandle<ClipRectLayer>();
 
   set lookConstraints(BoxConstraints value) {
     if (_lookConstraints == value) return;
     _lookConstraints = value;
+    markNeedsLayout();
+  }
+
+  set grip(Offset value) {
+    if (_grip == value) return;
+    _grip = value;
     markNeedsLayout();
   }
 
@@ -189,34 +243,56 @@ class _RenderLook extends RenderProxyBox {
     final child = this.child;
     if (child == null) return;
     child.layout(_lookConstraints, parentUsesSize: true);
-    _lookSize = child.size;
     // The flight box lays this look out as it lays itself out, so it may
     // take its size: a copy, which the box owns.
-    onLayout?.call(Size.copy(_lookSize));
+    onLayout?.call(Size.copy(child.size));
+    child.layout(
+      BoxConstraints(
+        minWidth: size.width,
+        maxWidth: math.max(size.width, _lookConstraints.maxWidth),
+        minHeight: size.height,
+        maxHeight: math.max(size.height, _lookConstraints.maxHeight),
+      ),
+      parentUsesSize: true,
+    );
+    _childOffset = Offset(
+      (size.width - child.size.width) * _grip.dx,
+      (size.height - child.size.height) * _grip.dy,
+    );
   }
-
-  Matrix4 get _scale => Matrix4.diagonal3Values(
-    _lookSize.width > 0 ? size.width / _lookSize.width : 1,
-    _lookSize.height > 0 ? size.height / _lookSize.height : 1,
-    1,
-  );
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
     if (child == null) return;
-    context.pushTransform(
+    final overflows =
+        child.size.width > size.width || child.size.height > size.height;
+    if (!overflows) {
+      _clip.layer = null;
+      context.paintChild(child, offset + _childOffset);
+      return;
+    }
+    _clip.layer = context.pushClipRect(
       needsCompositing,
       offset,
-      _scale,
-      (context, offset) => context.paintChild(child!, offset),
+      Offset.zero & size,
+      (context, offset) => context.paintChild(child, offset + _childOffset),
+      oldLayer: _clip.layer,
     );
+  }
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
   }
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
       child != null &&
-      result.addWithPaintTransform(
-        transform: _scale,
+      size.contains(position) &&
+      result.addWithPaintOffset(
+        offset: _childOffset,
         position: position,
         hitTest: (result, position) =>
             child!.hitTest(result, position: position),
@@ -224,5 +300,5 @@ class _RenderLook extends RenderProxyBox {
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) =>
-      transform.multiply(_scale);
+      transform.translateByDouble(_childOffset.dx, _childOffset.dy, 0, 1);
 }
