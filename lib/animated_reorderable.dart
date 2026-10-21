@@ -1,27 +1,32 @@
-/// A Flutter library that provides animating, reordering, and swiping capabilities
-/// for both [ListView] and [GridView]. This library enhances the user experience
-/// by allowing seamless and visually appealing interactions with list or grid items.
+/// A reorderable list and grid for Flutter: drag and drop to reorder the
+/// items of a [ListView] or a [GridView], or to move them between lists,
+/// swipe to delete, and animate each insert, remove and move.
 ///
-/// Features:
+/// Flutter's
+/// [ReorderableListView](https://api.flutter.dev/flutter/material/ReorderableListView-class.html)
+/// reorders a list, but animates no insert or remove, and has no grid. Its
+/// [AnimatedList] and [AnimatedGrid] animate inserts and removals, but can't
+/// reorder. [AnimatedReorderable] wraps the [ListView] or [GridView] you have
+/// and does both:
 ///
-/// - Animates item insertions, removals, and reordering with customizable animations.
-/// - Allows users to interactively reorder items with drag-and-drop gestures.
-/// - Swipe-to-remove functionality for removing items with animated effects.
-/// - Configurable decorators for the dragged and swiped items.
-/// - Callbacks for tracking item drag and swipe events.
-/// - Lets screen readers move items, as `ReorderableList` does: to the start,
-///   one place back or forward, or to the end, and in a grid a row up or
-///   down.
-/// - Lets items be dragged between lists and grids under an
-///   [AnimatedReorderableGroup], as between the columns of a board, and flies
-///   an item from one list's look to another's.
+/// - Drag and drop to reorder a list or a grid, with auto-scroll at its
+///   edges, and items that can't be dragged or that stay in place, with
+///   [ReorderOptions].
+/// - Drag and drop items between lists and grids under an
+///   [AnimatedReorderableGroup], as between the columns of a kanban board,
+///   and fly an item from one list's look to another's.
+/// - Animate inserts, removals and moves with
+///   [AnimatedReorderableState.insertItem],
+///   [AnimatedReorderableState.removeItem] and
+///   [AnimatedReorderableState.reorderItem], as [AnimatedList] animates
+///   inserts and removals.
+/// - Swipe to delete, with [SwipeToRemoveOptions].
+/// - Moves for screen readers: to the start, one place back or forward, and
+///   to the end, a row back or forward in a grid, and to another list of a
+///   group.
 ///
-/// Usage:
-///
-/// To use this library, import it into your Flutter project and wrap
-/// your [ListView] or [GridView] with the [AnimatedReorderable] widget.
-///
-/// Example:
+/// Wrap a [ListView] in [AnimatedReorderable.list], give each item a key, and
+/// apply each reorder to your items:
 ///
 /// ```dart
 /// import 'package:animated_reorderable/animated_reorderable.dart';
