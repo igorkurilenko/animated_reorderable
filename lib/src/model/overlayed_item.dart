@@ -44,6 +44,15 @@ class OverlayedItem extends widgets.ChangeNotifier {
   widgets.BoxConstraints _constraints;
 
   widgets.Size _size;
+
+  /// The size the item's position holds the pointer's point of it for,
+  /// which runs ahead of [size] as the item lays out at a new size.
+  widgets.Size? _anchoredSize;
+
+  /// How far the pointer was from the item's position, in the item's
+  /// space, the last time the item was held under it. It holds while the
+  /// two move together.
+  widgets.Offset? _pointerOffset;
   bool _interactive;
 
   int zIndex;
@@ -116,6 +125,36 @@ class OverlayedItem extends widgets.ChangeNotifier {
   /// The size of the item itself, without its decoration, as the overlay
   /// lays it out. The list's placeholder takes this size.
   widgets.Size get size => _size;
+
+  /// The size the item's position holds the pointer's point of it for, as
+  /// the item lays out: [size], or its new size in the frame that lays it
+  /// out at one.
+  widgets.Size get anchoredSize => _anchoredSize ?? _size;
+
+  /// Takes [size] as the size the item's position holds the pointer's
+  /// point of it for, with the pointer [pointerOffset] from its position.
+  void anchorTo(widgets.Size size, {widgets.Offset? pointerOffset}) {
+    _anchoredSize = size;
+    if (pointerOffset != null) _pointerOffset = pointerOffset;
+  }
+
+  /// Moves the item so that the pointer holds the same point of it,
+  /// relative to its size, as it lays out at [size], in the frame that lays
+  /// it out. Layout can't map the pointer to the item's space, so the item
+  /// goes by how far the pointer was from it the last time it was held
+  /// under it.
+  void keepPointerAsLaidOut(widgets.Size size) {
+    final anchored = anchoredSize;
+    final offset = _pointerOffset;
+    _anchoredSize = size;
+    if (offset == null || anchored.isEmpty || size == anchored) return;
+    final scaled = widgets.Offset(
+      offset.dx * size.width / anchored.width,
+      offset.dy * size.height / anchored.height,
+    );
+    _pointerOffset = scaled;
+    setPosition(OverlayOffset(position + offset - scaled));
+  }
 
   OverlayOffset get position => _position;
 
@@ -193,14 +232,22 @@ class OverlayedItem extends widgets.ChangeNotifier {
 
   double get swipeExtent => _swipe?.swipeExtent ?? 0.0;
 
-  /// Builds the item inside its decoration. [wrap] goes between the two.
-  /// While the item flies, [shuttle] shows it with the look it leaves, and
-  /// while a group's layer shows it, [boundary] paints its look into a
-  /// layer of its own, which a flight can take as an image.
+  /// Builds the item, which [measure] measures, inside its decoration.
+  /// [enter] puts its look in the transition it enters with. While the item
+  /// flies, [shuttle] shows its look with the one it leaves, inside the
+  /// decoration that it's given, as the shuttle grows or shrinks, and while
+  /// a group's layer shows it, [boundary] paints its look into a layer of
+  /// its own, which a flight can take as an image.
   widgets.Widget? build(
     widgets.BuildContext context, {
-    widgets.Widget Function(widgets.Widget item)? wrap,
-    widgets.Widget Function(ItemFlight flight, widgets.Widget item)? shuttle,
+    widgets.Widget Function(widgets.Widget look)? enter,
+    widgets.Widget Function(widgets.Widget item)? measure,
+    widgets.Widget Function(
+      ItemFlight flight,
+      widgets.Widget look,
+      widgets.Widget Function(widgets.Widget shuttle) decorate,
+    )?
+    shuttle,
     widgets.Widget Function(widgets.Widget look)? boundary,
   }) {
     final child = _builtChild = item.builder.build(context, index);
@@ -209,13 +256,20 @@ class OverlayedItem extends widgets.ChangeNotifier {
       key: item.childKey,
       child: InkSurface(child: child),
     );
-    final wrapped = wrap?.call(keyed) ?? keyed;
-    final shown = switch (_flight) {
-      final flight? when shuttle != null => shuttle(flight, wrapped),
-      _ when sharedSpace != null => boundary?.call(wrapped) ?? wrapped,
-      _ => wrapped,
+    final look = enter?.call(keyed) ?? keyed;
+    widgets.Widget decorate(widgets.Widget shown) =>
+        _decorator?.decorate(shown, index) ?? shown;
+    widgets.Widget measured(widgets.Widget shown) =>
+        measure?.call(shown) ?? shown;
+    return switch (_flight) {
+      final flight? when shuttle != null => measured(
+        shuttle(flight, look, decorate),
+      ),
+      _ when sharedSpace != null => decorate(
+        boundary?.call(measured(look)) ?? measured(look),
+      ),
+      _ => decorate(measured(look)),
     };
-    return _decorator?.decorate(shown, index) ?? shown;
   }
 
   void shift(Offset delta) {

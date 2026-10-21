@@ -120,8 +120,9 @@ Widget liftTile(Widget child, int index, Animation<double> animation) {
   );
 }
 
+/// The same squircle all the way, so that only the shadow grows.
 final _shadow = DecorationTween(
-  begin: const ShapeDecoration(shape: RoundedSuperellipseBorder()),
+  begin: ShapeDecoration(shape: squircle(R.lg)),
   end: ShapeDecoration(
     shape: squircle(R.lg),
     shadows: const [

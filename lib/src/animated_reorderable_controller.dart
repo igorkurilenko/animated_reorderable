@@ -453,6 +453,10 @@ class AnimatedReorderableController implements ItemHost {
   void handleOverlayedItemSizeChange(Size size, model.OverlayedItem item) =>
       _overlay?.didResizeItem(size, item);
 
+  /// Called as [item] lays out at [size], before the frame paints it.
+  void handleOverlayedItemLayout(Size size, model.OverlayedItem item) =>
+      _overlay?.didLayOutItem(size, item);
+
   model.Item createItem(int index) =>
       model.Item(key: keyGetter(index), builder: _itemBuilder());
 

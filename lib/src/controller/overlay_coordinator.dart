@@ -399,22 +399,33 @@ class OverlayCoordinator {
     items.setOverlayedItemSize(item, size);
   }
 
+  /// The item laid out at [size], which the frame paints it at: a dragged
+  /// item stays under the pointer in that frame, rather than in the next.
+  void didLayOutItem(Size size, OverlayedItem item) {
+    if (item == items.draggedItem) item.keepPointerAsLaidOut(size);
+  }
+
   /// Keeps the pointer over the same point of a dragged item, relative to
   /// its size, when the item is about to change its [size].
   void keepUnderPointer(OverlayedItem item, {required Size size}) {
+    final anchored = item.anchoredSize;
     final globalPointerPosition = item.globalPointerPosition;
-    if (globalPointerPosition == null || item.size.isEmpty) return;
+    if (globalPointerPosition == null || anchored.isEmpty) {
+      item.anchorTo(size);
+      return;
+    }
     final pointer = spaceOf(item).globalToLocal(globalPointerPosition);
     final grip = pointer - item.position;
-    item.setPosition(
-      OverlayOffset(
-        pointer -
-            Offset(
-              grip.dx * size.width / item.size.width,
-              grip.dy * size.height / item.size.height,
-            ),
-      ),
+    final position = OverlayOffset(
+      pointer -
+          Offset(
+            grip.dx * size.width / anchored.width,
+            grip.dy * size.height / anchored.height,
+          ),
     );
+    item
+      ..setPosition(position)
+      ..anchorTo(size, pointerOffset: pointer - position);
   }
 
   /// The overlayed items move with the content as the view scrolls, except

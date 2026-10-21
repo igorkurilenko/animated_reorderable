@@ -193,6 +193,8 @@ class _GroupLayerState extends State<_GroupLayer> {
               group.hostOf(item)?.recognizeOverlayedItem(event, item, context),
           onSizeChange: (size, item) =>
               group.hostOf(item)?.handleOverlayedItemSizeChange(size, item),
+          onLayout: (size, item) =>
+              group.hostOf(item)?.handleOverlayedItemLayout(size, item),
           entranceBuilder: (child, index, entrance) =>
               group.hostOf(item)?.buildEntrance(child, index, entrance) ??
               child,
