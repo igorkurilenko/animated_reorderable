@@ -1,3 +1,14 @@
+## Unreleased
+
+### Fixes
+
+- Paint an item's ink with the item, such as a `ListTile`'s tile color or an `InkWell`'s splash. Ink paints on the closest `Material` above it, which was the app's, under the list, and that `Material` doesn't paint again as items move on layers of their own. So as items moved to their new places after a removal, an insert or a swipe, or out of a dragged item's way, their text slid and their tile colors stayed behind, then jumped to their places as the moves ended. A held item's tint didn't fade or grow with its decoration either. Each item now has a transparent `Material` of its own, which paints its ink on the item's layer and passes on the text style the item inherits. This broke in 2.1.0. As in a `Card`, an item's splash or highlight now paints the item again rather than the app's `Material`, and ends at the item's edges. A transition that the app puts around its item, as the builder given to `removeItem` may, still doesn't fade the item's ink, as in an `AnimatedList`. A `Material` inside the transition, such as a `Card`'s, does.
+
+### Performance
+
+- Scroll items with ink, such as `ListTile`s, with less work a frame. The app's `Material` painted every item's ink again on each frame of a scroll, while each item now paints its own once, on its layer. On an iPhone 17 Pro, a frame that scrolls `ListTile`s by 24 px takes 0.46–0.47 ms on the UI thread instead of 0.65–0.69 at the median, and 1.46 ms instead of 1.69–1.75 at the 90th percentile.
+- Each item now builds a `Material` of its own as it comes into sight. On an iPhone 17 Pro, the savings above outweigh it: a frame that builds 15 new `ListTile`s at once takes 6.7–6.8 ms instead of 7.1–7.3 at the median. Reorders in a list, and removals in a list and in a 12-column grid, take as long as before. On macOS, the slowest tenth of the frames that build 15 tiles took about 4 ms longer, as garbage collection ran during them.
+
 ## 2.8.1
 
 ### Docs
