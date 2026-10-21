@@ -1,3 +1,23 @@
+## 2.10.0
+
+### Fixes
+
+- Keep an item that flies from one list's look to another's opaque all the way. The default shuttle faded the old look out and the new one in together, so an opaque card was three-quarters opaque halfway, and the cards under it showed through. That happened even between lists that build the same look. It now fades the old look out over the new one, as hero_here's crossfade does, so an item that keeps its look shows no change.
+- Fly each look at its own size. The old look's image and the new look were stretched to the shuttle, so a card that flew into a list of shorter cards drew its text twice as high on the way.
+  - Each look now shows unscaled, holding the point the pointer holds, cut at the shuttle's edges.
+  - As the shuttle shrinks to the new look, the new look lays out at each size on the way, as hero_here lays a hero out, so its shape follows the shuttle.
+  - A held item's decoration, such as its shadow, goes around the shuttle as it flies, rather than at the new look's size from the start.
+- Keep a held item under the pointer in the frame that lays it out at a new size, such as the frame it goes into another list in, or one where it grows. It came back under the pointer a frame later: in the package's tests, a card held at its middle jumped 25 px for a frame as it went into a list of items half its height.
+
+### Behavior changes
+
+- A `FlightOptions.shuttleBuilder` gets `from` and `to` at their own sizes, rather than stretched to the shuttle. Each holds the point the pointer holds and is cut at the shuttle's edges, and `to` lays out at the shuttle's size while the shuttle is bigger than it.
+- While an item flies to a list's look, the item's widgets lay out at each size the shuttle takes on its way down to their own, as a hero's do in a hero_here flight, so text in them may wrap differently on the way. The flying item lays out twice a frame for the flight's duration: at its own size, which the shuttle flies to, and at the shuttle's.
+
+### Example
+
+- Grow a lifted card's shadow, on the board and in the grid, without sharp corners: the shadow's shape grew from square corners to the card's.
+
 ## 2.9.1
 
 ### License
