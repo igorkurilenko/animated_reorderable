@@ -30,7 +30,7 @@ animated_reorderable is a Flutter package for a reorderable list or grid: drag a
       <img src="https://github.com/igorkurilenko/animated_reorderable/blob/main/assets/animated_reorderable_kanban.webp?raw=true"
         alt="Flutter kanban board: a task is dragged from To do to In progress, then into Done, where it becomes a done card, and back" width="460"/>
       <p><b>Kanban board</b></p>
-      <p>Drag and drop tasks between the columns of a kanban board, as on GitHub: each column is a list under an AnimatedReorderableGroup, and a task flies to a done card as it goes into Done. A mouse drags a card at once, a finger after a long press. <a href="https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban">See the code ›</a></p>
+      <p>Drag and drop tasks between the columns of a kanban board: each column is a list under an AnimatedReorderableGroup, and a task flies to a done card as it goes into Done. A mouse drags a card at once, a finger after a long press. <a href="https://github.com/igorkurilenko/animated_reorderable/tree/main/example/lib/kanban">See the code ›</a></p>
     </td>
   </tr>
 </table>
@@ -42,7 +42,7 @@ animated_reorderable is a Flutter package for a reorderable list or grid: drag a
 - **Between lists.** Drag and drop items between lists and grids under an `AnimatedReorderableGroup`, as between the columns of a kanban board.
 - **Animated changes.** `insertItem`, `removeItem` and `reorderItem` animate inserts, removals and moves, as `AnimatedList` animates inserts and removals.
 - **Swipe to delete.** Built in, in a direction you set for each item.
-- **Screen readers.** Moves to the start, one place up or down, and to the end, a row up or down in a grid, and to another list.
+- **Screen readers.** Moves to the start, one place back or forward, and to the end, a row back or forward in a grid, and to another list.
 - **Every platform.** Android, iOS, web, macOS, Windows and Linux, with no dependencies beyond Flutter.
 
 ## Quick start
@@ -164,32 +164,32 @@ In 1.x these settings were parameters of their own, such as `onReorder` and `onS
 
 ## Performance
 
-With heavy items, the package's frames build in 51–76% less time than Flutter's, as it removes an item from a list or a grid and as an item is dragged. With light items, removing an item from a list is slower: 1.9 ms against `AnimatedList`'s 1.4 ms, 36% more. From a grid it takes the same 2.3 ms, and a drag still takes 44% less.
+With heavy items, the package's frames build in 49–77% less time than Flutter's, as it removes an item from a list or a grid and as an item is dragged. With light items, removing an item from a list is slower: 1.9 ms against `AnimatedList`'s 1.4 ms, 36% more. From a grid it takes 2.4 ms against 2.3, and a drag still takes 44% less.
 
 A reorder, an insert or a remove builds again only the items whose index changes, and only once: a removal builds nothing on the frames of its animation, and a drag nothing between the frames where it passes an item. Flutter's `AnimatedList` and `AnimatedGrid` build every item in sight twice for each removal, as it starts and as it ends, and `ReorderableListView` builds the other items in sight again on every frame of a drag. In a widget test that drags an item 3 rows down a list of 30, the items built 8 times in all, against 170 in a `ReorderableListView`.
 
-In the package's measurements on an iPhone 17 Pro, in profile mode, with 60 items that each build a page of 24 rows:
+In the package's measurements of 2.8.2 on an iPhone 17 Pro, in profile mode, with 60 items that each build a page of 24 rows:
 
 **Removing the first item:** the build time of the frame that removes it, at the median of 6 removals.
 
 | | animated_reorderable | `AnimatedList` or `AnimatedGrid` |
 |---|---|---|
-| list | 18.2 ms | 36.9 ms |
-| grid | 21.9 ms | 51.3 ms |
-| list, widgets cached by id | 13.2 ms | 35.8 ms |
-| grid, widgets cached by id | 13.2 ms | 51.7 ms |
+| list | 19.3 ms | 37.6 ms |
+| grid | 23.8 ms | 54.0 ms |
+| list, widgets cached by id | 14.2 ms | 37.9 ms |
+| grid, widgets cached by id | 13.5 ms | 55.4 ms |
 | list, light items | 1.9 ms | 1.4 ms |
-| grid, light items | 2.3 ms | 2.3 ms |
+| grid, light items | 2.4 ms | 2.3 ms |
 
 **Dragging an item 3 rows down a list, 6 times:** a drag has many frames, so this is the build time of its slowest, and the number of frames that missed the 8.3 ms budget of the phone's 120 Hz screen.
 
 | | animated_reorderable | `ReorderableListView` |
 |---|---|---|
-| heavy items | 3.1 ms, 1 frame missed | 12.7 ms, 23 frames missed |
-| widgets cached by id | 2.9 ms, none missed | 7.7 ms, none missed |
+| heavy items | 3.1 ms, 1 frame missed | 13.7 ms, 23 frames missed |
+| widgets cached by id | 3.0 ms, none missed | 7.1 ms, none missed |
 | light items | 0.9 ms, none missed | 1.6 ms, none missed |
 
-The same drags in a grid of these items, which Flutter can't reorder, built no frame slower than 4.6 ms and missed none. To keep heavy items from building again as they move, see [Rebuilds](#rebuilds).
+The same drags in a grid of these items, which Flutter can't reorder, built no frame slower than 4.8 ms and missed none. To keep heavy items from building again as they move, see [Rebuilds](#rebuilds).
 
 ## Rebuilds
 
@@ -265,11 +265,11 @@ AnimatedReorderableGroup(
 - **Screen readers:** With `moveToListLabel`, which names each list's move in the app's language, such as "Move to Done", screen readers can move each item to the group's other lists too.
 - The items' keys must be unique across the group's lists.
 
-The example's board, `example/lib/kanban/main.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.
+The example's board, `example/lib/kanban/main.dart`, is a kanban board. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.
 
 ## Screen readers
 
-Each item that can be dragged and reordered gets the moves a screen reader can make, named in the app's language as `ReorderableList` names them: to the start, one place up or down, and to the end. In a grid they go along the item's row, and a row up or down too. With `moveToListLabel`, an item also gets a move to each of the group's other lists, and it keeps the screen reader's focus as it goes there.
+Each item that can be dragged and reordered gets the moves a screen reader can make, named in the app's language as `ReorderableList` names them: to the start, one place back or forward, and to the end. In a grid they go along the item's row, and a row back or forward too. With `moveToListLabel`, an item also gets a move to each of the group's other lists, and it keeps the screen reader's focus as it goes there.
 
 The moves are on the item's own node, which also holds what the item's widgets say, such as its text. A widget in the item that makes a node of its own gets a finger's touch instead, without the moves. A `Card` does: it puts its content on a node of its own. Label the item on its own node, and leave the card's semantics out:
 

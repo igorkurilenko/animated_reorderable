@@ -21,9 +21,8 @@ class KanbanExample extends StatelessWidget {
   );
 }
 
-/// A kanban board of a team's tasks, as on GitHub: cards are dragged within
-/// and between the columns, at once with a mouse and after a long press with
-/// a finger:
+/// A kanban board of a team's tasks: cards are dragged within and between
+/// the columns, at once with a mouse and after a long press with a finger:
 ///
 /// 1. An [AnimatedReorderableGroup] wraps the columns.
 /// 2. Each column is an [AnimatedReorderable.list], with its status as its

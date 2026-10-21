@@ -61,7 +61,9 @@ class ItemDragCallbacks {
   final ItemDragEndCallback? onEnd;
 }
 
-/// How items are dragged and reordered.
+/// How items are dragged and dropped to reorder them: what a reorder does
+/// to your items, which items can be dragged, how a drag starts, and how a
+/// held item looks.
 @immutable
 class ReorderOptions {
   const ReorderOptions({
@@ -197,7 +199,9 @@ class FlightOptions {
   );
 }
 
-/// How items are swiped away to remove them.
+/// How items are swiped away to delete them, as with a [Dismissible] around
+/// each item: in which direction, how far or how fast, and what a swipe does
+/// to your items.
 @immutable
 class SwipeToRemoveOptions {
   const SwipeToRemoveOptions({

@@ -1,5 +1,8 @@
 part of 'model.dart';
 
+/// Wraps an item's [child] in a widget that [animation] drives, such as a
+/// held item's decoration or an inserted item's transition. [index] is the
+/// item's index.
 typedef AnimatedItemDecorator = widgets.Widget Function(
   widgets.Widget child,
   int index,

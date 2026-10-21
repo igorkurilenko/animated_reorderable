@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../util/key_map.dart';
 
-/// The moves of the items a reorder takes to new indexes, each from its
-/// old index to its new one, in the order the reorder makes them.
+/// The moves of a reorder, in the order they're made, each of an item from
+/// its old index to its new one.
 ///
 /// [ReorderOptions.onReorder] gets them, and [apply] makes them on the
 /// app's items, so they keep the order the list shows:
@@ -88,8 +88,9 @@ class ItemMoves extends Iterable<ItemMove> {
   Iterator<ItemMove> get iterator => _moves.iterator;
 }
 
-/// The move of an item from one index to another. Two moves are equal when
-/// they move the same item from and to the same indexes.
+/// One move of a reorder: an item, by its key, from one index to another.
+/// Two moves are equal when they move the same item from and to the same
+/// indexes.
 class ItemMove {
   const ItemMove({required this.itemKey, required this.from, required this.to});
 

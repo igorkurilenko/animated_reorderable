@@ -14,21 +14,25 @@ import 'widget/cross_axis_resize_listener.dart';
 import 'widget/items_layer.dart';
 import 'widget/overlayed_items_layer.dart';
 
-/// A function utilized by [AnimatedReorderable] to obtain the unique key
-/// for the item at the specified [index] within the list or grid.
+/// Returns the key of the item at [index].
+///
+/// Each item's key is unique, and stays with the item as it moves, as a
+/// [ValueKey] of the item's id does. Under an [AnimatedReorderableGroup],
+/// it is unique across the group's lists.
 typedef KeyGetter = Key Function(int index);
 
-/// A function signature to get the bool property
-/// of the item at the specified [index].
+/// Returns whether the item at [index] can do something: be dragged, for
+/// [ReorderOptions.draggableGetter], or take other items' places, for
+/// [ReorderOptions.reorderableGetter].
 typedef BoolGetter = bool Function(int index);
 
-/// A function that determines the axis direction
-/// associated with an item at a given [index].
+/// Returns the direction the item at [index] is swiped in, or null for an
+/// item that can't be swiped, for [SwipeToRemoveOptions.directionGetter].
 typedef AxisDirectionGetter = AxisDirection? Function(int index);
 
-/// A callback function that is called when the items are reordered.
+/// Called when items are reordered, with the moves that reorder them.
 ///
-/// Implementations should apply the [moves] to the collection of items.
+/// Make them on your items with [ItemMoves.apply]:
 ///
 /// ```dart
 /// final List<MyDataObject> items = <MyDataObject>[/* ... */];
@@ -41,8 +45,7 @@ typedef ItemMovesCallback = void Function(ItemMoves moves);
 @Deprecated('Use ItemMovesCallback instead. It goes in 3.0.')
 typedef PermutationsCallback = ItemMovesCallback;
 
-/// A callback function that is called when an item is swiped away, as it
-/// flies off.
+/// Called when an item is swiped away, as it flies off.
 ///
 /// Implementations remove the item at [index] from the collection, and from
 /// the list with [AnimatedReorderableState.removeItem], as an [AnimatedList]'s
@@ -68,49 +71,47 @@ typedef PermutationsCallback = ItemMovesCallback;
 /// ```
 typedef SwipeToRemoveCallback = void Function(int index);
 
-/// A callback function that is called when dragging of an item starts.
-///
-/// The [index] parameter of the callback is the index of the dragged item.
-/// Note: If the item is reordered, the [index] will be updated accordingly.
+/// Called as a drag or a swipe of the item at [index] starts.
 typedef ItemDragStartCallback = void Function(
   DragStartDetails details,
   int index,
 );
 
-/// A callback function that is called when dragging of an item is updated.
-///
-/// The [index] parameter of the callback is the index of the dragged item.
-/// Note: If the item is reordered, the [index] will be updated accordingly.
+/// Called as the pointer moves while the item at [index] is dragged or
+/// swiped. [index] is the item's index at that moment, which changes as the
+/// item takes other items' places.
 typedef ItemDragUpdateCallback = void Function(
   DragUpdateDetails details,
   int index,
 );
 
-/// A callback function that is called when dragging of an item ends.
-///
-/// The [index] parameter of the callback is the index of the item at the time it was dropped.
-/// Note: If the item is reordered, the [index] will reflect the new position where the item was dropped.
+/// Called as a drag or a swipe of the item at [index] ends. [index] is the
+/// item's index as it is let go: for a drag, the place it is dropped at.
 typedef ItemDragEndCallback = void Function(DragEndDetails details, int index);
 
-/// A factory function that creates a [MultiDragGestureRecognizer]
-/// for handling drag gestures
+/// Creates the [MultiDragGestureRecognizer] of the gesture that starts a
+/// drag, such as a [DelayedMultiDragGestureRecognizer] for a long press or
+/// an [ImmediateMultiDragGestureRecognizer] for a drag at once.
 typedef MultiDragGestureRecognizerFactory = MultiDragGestureRecognizer Function(
   BuildContext context,
 );
 
-/// The [AnimatedReorderable] wrapper makes [ListView] or [GridView] animated,
-/// adds reordering and swiping capabilities.
+/// Makes a [ListView] or a [GridView] reorderable and animated: drag and
+/// drop an item to reorder it, swipe it away to delete it, and animate each
+/// insert, remove and move.
 ///
-/// - It animates item insertions, removals, and reordering with customizable animations.
-/// - It allows users to interactively reorder items with drag-and-drop gestures.
-/// - It supports swiping to remove items with customizable swipe actions.
-/// - It lets screen readers move items, as [ReorderableList] does.
-/// - Under an [AnimatedReorderableGroup], its items can be dragged to and from
-///   the group's other lists and grids, as between the columns of a board.
+/// Wrap a view with [AnimatedReorderable.list] or [AnimatedReorderable.grid],
+/// and give each item a key with [keyGetter]. [reorder] sets how items are
+/// dragged and dropped, [swipeToRemove] how they're swiped away, [motion]
+/// how they move, and [insertTransition] how inserted items enter. With
+/// [ReorderOptions.onReorder], screen readers can move each item that can be
+/// dragged and reordered, as in a [ReorderableList]. Under an
+/// [AnimatedReorderableGroup], items are also dragged to and from the
+/// group's other lists and grids, as between the columns of a kanban board.
 ///
-/// This widget's [AnimatedReorderableState] can be used to dynamically insert,
-/// remove or reorder items. To refer to the [AnimatedReorderableState] either provide a
-/// [GlobalKey] or use the static [of] method from an item's input callback.
+/// Its [AnimatedReorderableState] inserts, removes and reorders items with
+/// an animation. Refer to it with a [GlobalKey], or with
+/// [AnimatedReorderable.of] from an item's context.
 ///
 /// As items are reordered, inserted or removed, it builds again only the
 /// items whose index changes, and the item builder runs again for each of
@@ -246,8 +247,9 @@ final class AnimatedReorderable extends StatefulWidget {
   }
 }
 
-/// The [AnimatedReorderableState] for [AnimatedReorderable], a wrapper for list or grid that
-/// animates items when they are inserted, removed or reordered.
+/// The state of an [AnimatedReorderable], which inserts, removes and
+/// reorders its items with an animation, as an [AnimatedListState] inserts
+/// and removes them.
 ///
 /// When an item is inserted with [insertItem] an animation begins running. The
 /// item enters through the [AnimatedReorderable.insertTransition] with it.

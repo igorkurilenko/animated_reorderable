@@ -25,8 +25,8 @@ typedef ItemMoveCallback = void Function(ItemPlace from, ItemPlace to);
 /// Whether a dragged item may go from [from] to [to].
 typedef ItemMovePredicate = bool Function(ItemPlace from, ItemPlace to);
 
-/// Lets items be dragged between the [AnimatedReorderable]s under it, as
-/// between the columns of a board.
+/// Lets items be dragged and dropped between the lists and grids under it,
+/// the [AnimatedReorderable]s, as between the columns of a kanban board.
 ///
 /// Give each list a [ReorderOptions.groupId] and an
 /// [ReorderOptions.onReorder]. An item dragged over another of the lists

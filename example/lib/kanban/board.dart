@@ -308,9 +308,8 @@ class DoneTaskCard extends StatelessWidget {
   }
 }
 
-/// A held card rises off the board, as on GitHub's boards: it grows a
-/// little and casts a shadow, and stays opaque, so the cards under it don't
-/// show through it.
+/// A held card rises off the board: it grows a little and casts a shadow,
+/// and stays opaque, so the cards under it don't show through it.
 Widget liftTask(Widget child, int index, Animation<double> animation) {
   final rise = animation.drive(CurveTween(curve: Curves.easeOut));
   return ScaleTransition(
@@ -345,8 +344,8 @@ final _shadow = DecorationTween(
   ),
 );
 
-/// A card goes with the mouse at once, as on GitHub's boards. A finger
-/// holds it a moment first, so that a swipe still scrolls its column.
+/// A card goes with the mouse at once. A finger holds it a moment first, so
+/// that a swipe still scrolls its column.
 MultiDragGestureRecognizer dragRecognizer(BuildContext context) =>
     switch (Theme.of(context).platform) {
       TargetPlatform.android ||
