@@ -1,5 +1,9 @@
 ## Unreleased
 
+### License
+
+- License the package under the Apache License 2.0. Versions up to 2.9.0 stay under the MIT License.
+
 ### Docs
 
 - Rewrite the API docs in plain words. The library page, `AnimatedReorderable` and its state, `AnimatedReorderableGroup`, `ReorderOptions`, `SwipeToRemoveOptions`, `ItemMoves`, `ItemMove` and the typedefs each say first what they do. The library page also compares the package with Flutter's `ReorderableListView`, `AnimatedList` and `AnimatedGrid`.
