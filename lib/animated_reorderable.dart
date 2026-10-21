@@ -55,7 +55,7 @@
 ///     return AnimatedReorderable.list(
 ///       keyGetter: (index) => ValueKey(items[index]),
 ///       reorder: ReorderOptions(
-///         onReorder: (permutations) => permutations.apply(items),
+///         onReorder: (moves) => moves.apply(items),
 ///       ),
 ///       listView: ListView.builder(
 ///         itemCount: items.length,
@@ -76,5 +76,5 @@ export 'src/animated_reorderable_group.dart'
         ItemMovePredicate,
         ItemPlace;
 export 'src/model/model.dart' show AnimatedItemDecorator;
-export 'src/model/permutations.dart';
+export 'src/model/item_moves.dart';
 export 'src/options.dart';

@@ -203,9 +203,7 @@ class _Bench {
           null => AnimatedReorderable.list(
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             swipeToRemove: SwipeToRemoveOptions(onSwipeToRemove: remove),
             listView: ListView.builder(
               itemCount: items.length,
@@ -215,9 +213,7 @@ class _Bench {
           final int columns => AnimatedReorderable.grid(
             key: key,
             keyGetter: (index) => ValueKey(items[index]),
-            reorder: ReorderOptions(
-              onReorder: (permutations) => permutations.apply(items),
-            ),
+            reorder: ReorderOptions(onReorder: (moves) => moves.apply(items)),
             gridView: GridView.builder(
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: columns,

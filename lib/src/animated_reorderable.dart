@@ -5,7 +5,7 @@ import 'animated_reorderable_controller.dart';
 import 'animated_reorderable_group.dart';
 import 'const.dart';
 import 'model/model.dart' as model;
-import 'model/permutations.dart';
+import 'model/item_moves.dart';
 import 'options.dart';
 import 'util/anchored_scroll_physics.dart';
 import 'util/overridden_sliver_child_builder_delegate.dart';
@@ -28,15 +28,18 @@ typedef AxisDirectionGetter = AxisDirection? Function(int index);
 
 /// A callback function that is called when the items are reordered.
 ///
-/// Implementations should apply the [permutations] to the collection of items.
+/// Implementations should apply the [moves] to the collection of items.
 ///
 /// ```dart
 /// final List<MyDataObject> items = <MyDataObject>[/* ... */];
 ///
-/// void handleReorder(Permutations permutations) =>
-///   permutations.apply(items);
+/// void handleReorder(ItemMoves moves) => moves.apply(items);
 /// ```
-typedef PermutationsCallback = void Function(Permutations permutations);
+typedef ItemMovesCallback = void Function(ItemMoves moves);
+
+/// The name [ItemMovesCallback] had before 2.9.
+@Deprecated('Use ItemMovesCallback instead. It goes in 3.0.')
+typedef PermutationsCallback = ItemMovesCallback;
 
 /// A callback function that is called when an item is swiped away, as it
 /// flies off.
