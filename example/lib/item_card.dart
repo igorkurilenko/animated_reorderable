@@ -3,7 +3,8 @@
 
 import 'package:flutter/material.dart';
 
-/// A card of Flutter's ReorderableListView sample: 80 high, lime or purple.
+/// A card of Flutter's ReorderableListView sample: 80 high, in one of two
+/// grays.
 class ItemCard extends StatelessWidget {
   const ItemCard(this.item, {super.key});
 
@@ -16,7 +17,7 @@ class ItemCard extends StatelessWidget {
     label: 'Card $item',
     child: ExcludeSemantics(
       child: Card(
-        color: item.isOdd ? Colors.lime.shade100 : Colors.deepPurple.shade100,
+        color: item.isOdd ? Colors.grey.shade200 : Colors.grey.shade300,
         child: SizedBox(height: 80, child: Center(child: Text('Card $item'))),
       ),
     ),
