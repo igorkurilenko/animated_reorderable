@@ -3,9 +3,10 @@
 // card as an image as it last showed. On a narrow screen, the board
 // scrolls Done into sight while the card is held at its edge.
 //
-//   flutter test integration_test/board_test.dart -d <device id>
+//   flutter test integration_test/kanban_test.dart -d <device id>
 
-import 'package:example/animated_reorderable_board/animated_reorderable_board.0.dart';
+import 'package:example/kanban/board.dart';
+import 'package:example/kanban/main.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +18,7 @@ void main() {
 
   testWidgets('flies a task from its card to a done card as it goes into '
       'Done', (tester) async {
-    await tester.pumpWidget(const AnimatedReorderableBoardSample());
+    await tester.pumpWidget(const KanbanExample());
     await tester.pumpAndSettle();
 
     const title = 'Show typing indicators in group chats';

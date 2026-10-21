@@ -2,7 +2,7 @@
 // See README.md for how to run it.
 
 import 'package:animated_reorderable/animated_reorderable.dart';
-import 'package:example/animated_reorderable_board/animated_reorderable_board.0.dart';
+import 'package:example/kanban/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -89,7 +89,7 @@ void main() {
       // The example's kanban board. On a phone it's wider than the screen:
       // a card held at its edge scrolls it, and goes from column to column
       // under the finger.
-      await tester.pumpWidget(const AnimatedReorderableBoardSample());
+      await tester.pumpWidget(const KanbanExample());
       await _wait(1000);
       final card = tester.getCenter(
         find.text('Show typing indicators in group chats'),

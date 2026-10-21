@@ -156,7 +156,7 @@ AnimatedReorderableGroup(
 - **Screen readers:** With `moveToListLabel`, which names each list's move in the app's language, such as "Move to Done", screen readers can move each item to the group's other lists too.
 - The items' keys must be unique across the group's lists.
 
-The example's board, `example/lib/animated_reorderable_board/animated_reorderable_board.0.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.
+The example's board, `example/lib/kanban/main.dart`, is a kanban board, as on GitHub. A mouse drags its cards at once, with an `ImmediateMultiDragGestureRecognizer` from `ReorderOptions.gestureRecognizerFactory`, and a finger after a long press. A task flies from its card to a done card, its title struck through, as it goes into Done.
 
 ## Screen readers
 

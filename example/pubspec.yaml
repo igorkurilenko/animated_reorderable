@@ -45,6 +45,19 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Geist, the type of the examples in hero_here's look. Its license is
+  # assets/fonts/OFL.txt.
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

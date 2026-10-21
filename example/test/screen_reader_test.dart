@@ -1,9 +1,8 @@
-import 'package:example/animated_reorderable_board/animated_reorderable_board.0.dart'
-    as board;
-import 'package:example/animated_reorderable_grid/animated_reorderable_grid.0.dart'
-    as grid;
-import 'package:example/animated_reorderable_list/animated_reorderable_list.0.dart'
-    as list;
+import 'package:example/kanban/main.dart';
+import 'package:example/main.dart';
+import 'package:example/reorderable_grid/main.dart';
+import 'package:example/style/style.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,10 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// A screen reader picks what a finger touches by a rule of its own, which
 /// these tests follow, so a touch on an item finds the moves it can make.
 void main() {
-  testWidgets("a touch on a list's item finds its moves", (tester) async {
-    await tester.pumpWidget(const list.AnimatedReorderableListSample());
+  testWidgets("a touch on a list's card finds its moves", (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: ReorderableListExample()));
 
-    final moves = _movesAt(tester, tester.getCenter(find.text('Item 1')));
+    final moves = _movesAt(tester, tester.getCenter(find.text('Card 1')));
 
     expect(moves, [
       'Move to the start',
@@ -24,12 +23,14 @@ void main() {
     ]);
   });
 
-  testWidgets("a touch on a grid's cell finds its moves, a row down too", (
+  testWidgets("a touch on a grid's tile finds its moves, a row down too", (
     tester,
   ) async {
-    await tester.pumpWidget(const grid.AnimatedReorderableGridSample());
+    await tester.pumpWidget(
+      MaterialApp(theme: exampleTheme, home: const ReorderableGridExample()),
+    );
 
-    final moves = _movesAt(tester, tester.getCenter(find.text('Item 1')));
+    final moves = _movesAt(tester, tester.getCenter(find.text('Search')));
 
     expect(moves, [
       'Move to the start',
@@ -42,7 +43,7 @@ void main() {
 
   testWidgets("a touch on a board's card finds its moves to the other "
       'columns', (tester) async {
-    await tester.pumpWidget(const board.AnimatedReorderableBoardSample());
+    await tester.pumpWidget(const KanbanExample());
 
     final moves = _movesAt(
       tester,
@@ -83,7 +84,7 @@ void main() {
         null,
       ),
     );
-    await tester.pumpWidget(const board.AnimatedReorderableBoardSample());
+    await tester.pumpWidget(const KanbanExample());
 
     final node = tester.getSemantics(find.text(title));
     node.owner!.performAction(
