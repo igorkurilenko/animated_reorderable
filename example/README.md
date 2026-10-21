@@ -4,24 +4,24 @@ This is the example project for the [animated_reorderable](https://pub.dev/packa
 
 ## Getting Started
 
-Run the example for a `ListView`:
+Run the main example, Flutter's `ReorderableListView` sample of cards, animated:
 ```
-flutter run lib/animated_reorderable_list/animated_reorderable_list.0.dart
+flutter run
 ```
 
-Run the example for a `GridView`:
+Run the example of a reorderable `GridView`, a grid of shortcuts:
 ```
-flutter run lib/animated_reorderable_grid/animated_reorderable_grid.0.dart
+flutter run -t lib/reorderable_grid/main.dart
 ```
 
 Run the example of a kanban board, whose cards are dragged within and between its columns:
 ```
-flutter run lib/animated_reorderable_board/animated_reorderable_board.0.dart
+flutter run -t lib/kanban/main.dart
 ```
 
-`integration_test/board_test.dart` drags a task into Done on a device:
+`integration_test/kanban_test.dart` drags a task into Done on a device:
 ```
-flutter test integration_test/board_test.dart -d <device id>
+flutter test integration_test/kanban_test.dart -d <device id>
 ```
 
 ## Signing

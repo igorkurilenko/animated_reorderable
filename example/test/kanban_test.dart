@@ -1,4 +1,5 @@
-import 'package:example/animated_reorderable_board/animated_reorderable_board.0.dart';
+import 'package:example/kanban/board.dart';
+import 'package:example/kanban/main.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +12,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const AnimatedReorderableBoardSample());
+    await tester.pumpWidget(const KanbanExample());
     const title = 'Show typing indicators in group chats';
     final from = tester.getCenter(find.text(title));
     final to = tester.getCenter(find.byType(DoneTaskCard).first);
@@ -47,7 +48,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const AnimatedReorderableBoardSample());
+    await tester.pumpWidget(const KanbanExample());
     const title = 'Show typing indicators in group chats';
     var pointer = tester.getCenter(find.text(title));
     final drag = await tester.startGesture(pointer);
