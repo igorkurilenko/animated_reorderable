@@ -205,7 +205,10 @@ class OverlayedItem extends widgets.ChangeNotifier {
   }) {
     final child = _builtChild = item.builder.build(context, index);
     if (child == null) return null;
-    final keyed = widgets.KeyedSubtree(key: item.childKey, child: child);
+    final keyed = widgets.KeyedSubtree(
+      key: item.childKey,
+      child: InkSurface(child: child),
+    );
     final wrapped = wrap?.call(keyed) ?? keyed;
     final shown = switch (_flight) {
       final flight? when shuttle != null => shuttle(flight, wrapped),
