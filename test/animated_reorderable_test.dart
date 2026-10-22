@@ -2602,6 +2602,48 @@ void main() {
       expect(_scrollPosition(tester).pixels, released);
     });
 
+    testWidgets('lands an item whose drag the system cancels', (tester) async {
+      final list = _TestList(5);
+      await tester.pumpWidget(list.build());
+      // Over item 1, which then moves up.
+      final drag = await _holdAndDrag(tester, find.text('0'), 5);
+      expect(list.items, [1, 0, 2, 3, 4]);
+
+      // As when Control Center opens.
+      await drag.cancel();
+      await tester.pumpAndSettle();
+
+      // On the slot it took, as it is let go there, undecorated.
+      expect(list.items, [1, 0, 2, 3, 4]);
+      expect(
+        tester.getRect(_itemWithId(0)),
+        tester.getRect(_itemWithId(1)).translate(0, _extent),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(OverlayedItemsLayer),
+          matching: _itemWithId(0),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('stops scrolling the list as the system cancels a drag at '
+        'its edge', (tester) async {
+      final list = _TestList(50);
+      await tester.pumpWidget(list.build());
+      final drag = await _holdAndDrag(tester, find.text('0'), 26);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      await drag.cancel();
+      final cancelled = _scrollPosition(tester).pixels;
+      await tester.pumpAndSettle();
+
+      expect(_scrollPosition(tester).pixels, cancelled);
+    });
+
     testWidgets('takes the place of an item once while over it', (
       tester,
     ) async {
@@ -3550,6 +3592,28 @@ void main() {
           expect(tester.getTopLeft(_itemWithId(1)), slot);
         });
 
+        testWidgets('springs an item back from a swipe the system cancels, '
+            'however far', (tester) async {
+          final list = createList();
+          await tester.pumpWidget(list.build());
+          final slot = tester.getTopLeft(_itemWithId(1));
+
+          // Far and fast enough to remove it if let go.
+          final swipe = await tester.startGesture(
+            tester.getCenter(_itemWithId(1)),
+          );
+          for (var i = 0; i < 10; i++) {
+            await swipe.moveBy(forward * extent * 0.07);
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          // As when Control Center opens.
+          await swipe.cancel();
+          await tester.pumpAndSettle();
+
+          expect(list.items, items);
+          expect(tester.getTopLeft(_itemWithId(1)), slot);
+        });
+
         testWidgets('scrolls the list from a drag along it', (tester) async {
           final list = createList();
           await tester.pumpWidget(list.build());
@@ -3638,6 +3702,36 @@ void main() {
           );
           await tester.pumpAndSettle();
         });
+      });
+    }
+
+    for (final (name, end) in [
+      ('let go', (TestGesture swipe) => swipe.up()),
+      ('the system cancels', (TestGesture swipe) => swipe.cancel()),
+    ]) {
+      testWidgets('moves an item back from a swipe $name as other items '
+          'move', (tester) async {
+        final list = _TestList(5);
+        await tester.pumpWidget(list.build());
+        final swipe = await tester.startGesture(
+          tester.getCenter(_itemWithId(1)),
+        );
+        await swipe.moveBy(const Offset(-60, 0));
+        await tester.pump();
+        await end(swipe);
+        await tester.pumpAndSettle();
+
+        list.insert(0, 100);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // On its way down to its new slot, as no swipe holds it anymore.
+        expect(
+          tester.getTopLeft(_itemWithId(1)).dy,
+          inExclusiveRange(_extent, 2 * _extent),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(_itemWithId(1)).dy, 2 * _extent);
       });
     }
 
@@ -4755,6 +4849,52 @@ void main() {
       expect(calls, contains('drag update 0 Offset(0.0, 20.0) null'));
       expect(calls, contains('drag update 2 Offset(0.0, 20.0) null'));
     });
+
+    testWidgets('report the end of a drag the system cancels', (tester) async {
+      final calls = <String>[];
+      final velocities = <Velocity>[];
+      await tester.pumpWidget(
+        _withCallbacks(calls, onDragEnd: (d, _) => velocities.add(d.velocity)),
+      );
+
+      final drag = await tester.startGesture(tester.getCenter(find.text('0')));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      await drag.moveBy(const Offset(0, 20));
+      await tester.pump();
+      await drag.cancel();
+      await tester.pumpAndSettle();
+
+      expect(calls.where((call) => !call.startsWith('drag update')), [
+        'drag start 0',
+        'drag end 0',
+      ]);
+      expect(velocities, [Velocity.zero]);
+    });
+
+    testWidgets('report the end of a swipe the system cancels', (tester) async {
+      final calls = <String>[];
+      final velocities = <Velocity>[];
+      await tester.pumpWidget(
+        _withCallbacks(
+          calls,
+          onSwipeToRemove: (index) => calls.add('remove $index'),
+          onSwipeEnd: (d, _) => velocities.add(d.velocity),
+        ),
+      );
+
+      final swipe = await tester.startGesture(tester.getCenter(find.text('1')));
+      await swipe.moveBy(const Offset(-30, 0));
+      await tester.pump();
+      await swipe.cancel();
+      await tester.pumpAndSettle();
+
+      expect(calls, [
+        'swipe start 1',
+        'swipe update 1 Offset(-30.0, 0.0) -30.0',
+        'swipe end 1',
+      ]);
+      expect(velocities, [Velocity.zero]);
+    });
   });
 }
 
@@ -4970,6 +5110,8 @@ class _ChildrenList {
 Widget _withCallbacks(
   List<String> calls, {
   SwipeToRemoveCallback? onSwipeToRemove,
+  ItemDragEndCallback? onDragEnd,
+  ItemDragEndCallback? onSwipeEnd,
 }) {
   final labels = ['0', '1', '2', '3', '4'];
   String update(String name, DragUpdateDetails details, int index) =>
@@ -4984,7 +5126,10 @@ Widget _withCallbacks(
             onStart: (details, index) => calls.add('drag start $index'),
             onUpdate: (details, index) =>
                 calls.add(update('drag', details, index)),
-            onEnd: (details, index) => calls.add('drag end $index'),
+            onEnd: (details, index) {
+              calls.add('drag end $index');
+              onDragEnd?.call(details, index);
+            },
           ),
         ),
         swipeToRemove: SwipeToRemoveOptions(
@@ -4993,7 +5138,10 @@ Widget _withCallbacks(
             onStart: (details, index) => calls.add('swipe start $index'),
             onUpdate: (details, index) =>
                 calls.add(update('swipe', details, index)),
-            onEnd: (details, index) => calls.add('swipe end $index'),
+            onEnd: (details, index) {
+              calls.add('swipe end $index');
+              onSwipeEnd?.call(details, index);
+            },
           ),
         ),
         listView: ListView.builder(

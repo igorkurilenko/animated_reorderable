@@ -90,6 +90,11 @@ class DragSession {
     _host.didEndDrag(this);
   }
 
+  /// Ends a drag the system cancelled, as it does when Control Center
+  /// opens: the item lands as if let go where it is, still. The places it
+  /// took on the way stay taken.
+  void cancel(DragEndDetails details) => end(details);
+
   void reorderAndAutoScroll() {
     _reorderIfOverAnotherItem();
     final rect = overlay.globalRectOf(item);
@@ -207,6 +212,22 @@ class SwipeSession {
         springDescription: options.springDescription,
       );
     }
+  }
+
+  /// Ends a swipe the system cancelled, as it does when Control Center
+  /// opens: the item springs back to its slot however far it is swiped, as
+  /// it isn't let go.
+  void cancel(DragEndDetails details) {
+    final options = this.options();
+    options.callbacks.onEnd?.call(details, item.index);
+
+    items.swipedItem = null;
+
+    overlay.flingBackToSlot(
+      item,
+      velocity: details.velocity,
+      springDescription: options.springDescription,
+    );
   }
 
   /// Throws the item out in [direction] as it is let go, decorated as far

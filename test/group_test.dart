@@ -319,6 +319,32 @@ void main() {
       expect(board.events.last, ('b', 'end', 0));
     });
 
+    testWidgets('lands an item whose drag the system cancels in the list it '
+        'went to', (tester) async {
+      final board = _Board({
+        'a': [0, 1],
+        'b': [10],
+      });
+      await tester.pumpWidget(board.build());
+
+      final drag = await _hold(tester, find.text('1'));
+      await _dragAlong(
+        tester,
+        drag,
+        _steps(tester.getCenter(find.text('1')), const Offset(600, 50), 10),
+      );
+      // As when Control Center opens.
+      await drag.cancel();
+      await tester.pumpAndSettle();
+
+      expect(board.columns, {
+        'a': [0],
+        'b': [1, 10],
+      });
+      expect(tester.getTopLeft(find.text('1')), const Offset(400, 0));
+      expect(board.events.last, ('b', 'end', 0));
+    });
+
     testWidgets('lets go of an item whose list goes away mid-drag', (
       tester,
     ) async {
