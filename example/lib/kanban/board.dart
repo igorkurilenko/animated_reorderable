@@ -212,47 +212,38 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: S.s1),
-      child: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: colors.surfaceContainerLowest,
-          shape: squircle(R.lg, side: BorderSide(color: colors.outlineVariant)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(S.s3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: S.s2,
+    return _CardSurface(
+      color: colors.surfaceContainerLowest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: S.s2,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'messenger #${task.number}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
+              Expanded(
+                child: Text(
+                  'messenger #${task.number}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
                   ),
-                  _Avatar(task.assignee),
-                ],
-              ),
-              Text(
-                task.title,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
                 ),
               ),
-              Wrap(
-                spacing: S.s1,
-                runSpacing: S.s1,
-                children: [for (final label in task.labels) _LabelChip(label)],
-              ),
+              _Avatar(task.assignee),
             ],
           ),
-        ),
+          Text(
+            task.title,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+          Wrap(
+            spacing: S.s1,
+            runSpacing: S.s1,
+            children: [for (final label in task.labels) _LabelChip(label)],
+          ),
+        ],
       ),
     );
   }
@@ -270,79 +261,74 @@ class DoneTaskCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final muted = colors.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: S.s1),
-      child: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: colors.surfaceContainerLow,
-          shape: squircle(R.lg, side: BorderSide(color: colors.outlineVariant)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: S.s3, vertical: S.s3),
-          child: Row(
-            spacing: S.s2,
-            children: [
-              Unicon(UniconData.done, size: S.s4, color: Status.done.color),
-              Expanded(
-                child: Text(
-                  task.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: muted,
-                    height: 1.4,
-                    decoration: TextDecoration.lineThrough,
-                    decorationColor: muted,
-                  ),
-                ),
+    return _CardSurface(
+      color: colors.surfaceContainerLow,
+      child: Row(
+        spacing: S.s2,
+        children: [
+          Unicon(UniconData.done, size: S.s4, color: Status.done.color),
+          Expanded(
+            child: Text(
+              task.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: muted,
+                height: 1.4,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: muted,
               ),
-              Text(
-                '#${task.number}',
-                style: theme.textTheme.bodySmall?.copyWith(color: muted),
-              ),
-            ],
+            ),
           ),
-        ),
+          Text(
+            '#${task.number}',
+            style: theme.textTheme.bodySmall?.copyWith(color: muted),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// A held card rises off the board: it grows a little and casts a shadow,
-/// and stays opaque, so the cards under it don't show through it.
-Widget liftTask(Widget child, int index, Animation<double> animation) {
-  final rise = animation.drive(CurveTween(curve: Curves.easeOut));
-  return ScaleTransition(
-    scale: rise.drive(Tween(begin: 1.0, end: 1.03)),
-    child: Stack(
-      // The card keeps its slot's size, as it has in its column.
-      fit: StackFit.passthrough,
-      children: [
-        // The shadow, behind the card, inside the space around it.
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: S.s1),
-            child: DecoratedBoxTransition(
-              decoration: rise.drive(_shadow),
-              child: const SizedBox.expand(),
-            ),
-          ),
+/// The space between a column's cards, around each card.
+const _cardMargin = EdgeInsets.symmetric(vertical: S.s1);
+
+/// A card's surface, in [color], under its [child]: the cards' squircle,
+/// with a hairline edge, inside [_cardMargin].
+class _CardSurface extends StatelessWidget {
+  const _CardSurface({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: _cardMargin,
+    child: DecoratedBox(
+      decoration: ShapeDecoration(
+        color: color,
+        shape: squircle(
+          R.lg,
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
         ),
-        child,
-      ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(S.s3), child: child),
     ),
   );
 }
 
-/// The same squircle all the way, so that only the shadow grows.
-final _shadow = DecorationTween(
-  begin: ShapeDecoration(shape: squircle(R.lg)),
-  end: ShapeDecoration(
-    shape: squircle(R.lg),
-    shadows: const [
-      BoxShadow(color: Color(0x29000000), blurRadius: 18, offset: Offset(0, 8)),
-    ],
+/// A held card rises off the board: it grows a little and casts a shadow,
+/// and stays opaque, so the cards under it don't show through it.
+Widget liftTask(Widget child, int index, Animation<double> animation) => Lift(
+  animation: animation,
+  scale: 1.03,
+  shadow: const BoxShadow(
+    color: Color(0x29000000),
+    blurRadius: 18,
+    offset: Offset(0, 8),
   ),
+  margin: _cardMargin,
+  child: child,
 );
 
 /// A card goes with the mouse at once. A finger holds it a moment first, so

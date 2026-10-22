@@ -99,36 +99,15 @@ class AddShortcutBar extends StatelessWidget {
 }
 
 /// A held tile rises off the grid: it grows a little and casts a shadow.
-Widget liftTile(Widget child, int index, Animation<double> animation) {
-  final rise = animation.drive(CurveTween(curve: Curves.easeOut));
-  return ScaleTransition(
-    scale: rise.drive(Tween(begin: 1.0, end: 1.06)),
-    child: Stack(
-      // The card keeps its cell's size, as it has in the grid.
-      fit: StackFit.passthrough,
-      children: [
-        // The shadow, behind the card.
-        Positioned.fill(
-          child: DecoratedBoxTransition(
-            decoration: rise.drive(_shadow),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        child,
-      ],
-    ),
-  );
-}
-
-/// The same squircle all the way, so that only the shadow grows.
-final _shadow = DecorationTween(
-  begin: ShapeDecoration(shape: squircle(R.lg)),
-  end: ShapeDecoration(
-    shape: squircle(R.lg),
-    shadows: const [
-      BoxShadow(color: Color(0x29000000), blurRadius: 16, offset: Offset(0, 6)),
-    ],
+Widget liftTile(Widget child, int index, Animation<double> animation) => Lift(
+  animation: animation,
+  scale: 1.06,
+  shadow: const BoxShadow(
+    color: Color(0x29000000),
+    blurRadius: 16,
+    offset: Offset(0, 6),
   ),
+  child: child,
 );
 
 /// A tile added to the grid pops in once the others have made room.
