@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers.dart';
 
 /// The board's first task to do.
-const _title = 'Show typing indicators in group chats';
+const _title = 'Drag and drop between lists and grids';
 
 /// A screen reader picks what a finger touches by a rule of its own, which
 /// these tests follow, so a touch on an item finds the moves it can make.

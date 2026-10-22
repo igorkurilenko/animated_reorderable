@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(const KanbanExample());
     await tester.pumpAndSettle();
 
-    const title = 'Show typing indicators in group chats';
+    const title = 'Drag and drop between lists and grids';
     var pointer = tester.getCenter(find.text(title));
     final drag = await tester.startGesture(pointer);
     // A finger holds the card a moment first.

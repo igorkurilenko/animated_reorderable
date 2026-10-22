@@ -92,7 +92,7 @@ void main() {
       await tester.pumpWidget(const KanbanExample());
       await _wait(1000);
       final card = tester.getCenter(
-        find.text('Show typing indicators in group chats'),
+        find.text('Drag and drop between lists and grids'),
       );
       final board = find
           .descendant(
