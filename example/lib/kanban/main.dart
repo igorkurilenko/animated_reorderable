@@ -15,13 +15,13 @@ class KanbanExample extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     theme: exampleTheme,
     home: Scaffold(
-      appBar: AppBar(title: const Text('Messenger · Sprint 14')),
+      appBar: AppBar(title: const Text('animated_reorderable · Features')),
       body: const KanbanBoard(),
     ),
   );
 }
 
-/// A kanban board of a team's tasks: cards are dragged within and between
+/// A kanban board whose tasks are animated_reorderable's features: cards are dragged within and between
 /// the columns, at once with a mouse and after a long press with a finger:
 ///
 /// 1. An [AnimatedReorderableGroup] wraps the columns.

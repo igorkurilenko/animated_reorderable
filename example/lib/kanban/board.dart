@@ -22,10 +22,11 @@ enum Status {
   final Color color;
 }
 
+/// What a task's feature is about, on a chip of its tint.
 enum Label {
-  bug(Color(0xFFF5DCE4)),
-  feature(Color(0xFFD6E6F5)),
-  design(Color(0xFFFFE6C7)),
+  gestures(Color(0xFFF5DCE4)),
+  animation(Color(0xFFD6E6F5)),
+  grid(Color(0xFFFFE6C7)),
   accessibility(Color(0xFFD9EED9)),
   performance(Color(0xFFE8E0F5));
 
@@ -46,12 +47,16 @@ enum Teammate {
   final Color tint;
 }
 
+/// A task of the board: one of animated_reorderable's features.
 class Task {
-  Task(this.number, this.title, this.assignee, this.labels);
+  Task(this.number, this.title, this.api, this.assignee, this.labels);
 
-  /// The number of the task's issue.
+  /// The task's number, which keys its card.
   final int number;
   final String title;
+
+  /// The part of animated_reorderable's API that the feature is in.
+  final String api;
   final Teammate assignee;
   final List<Label> labels;
 }
@@ -59,57 +64,96 @@ class Task {
 /// The tasks the board starts with, by column.
 Map<Status, List<Task>> initialBoard() => {
   Status.todo: [
-    Task(142, 'Show typing indicators in group chats', Teammate.anna, [
-      Label.feature,
-    ]),
     Task(
-      155,
-      'App crashes when opening a deleted voice message',
-      Teammate.omar,
-      [Label.bug],
+      1,
+      'Drag and drop between lists and grids',
+      'AnimatedReorderableGroup',
+      Teammate.anna,
+      [Label.gestures],
     ),
-    Task(151, 'Swipe right on a message to reply', Teammate.lena, [
-      Label.feature,
-      Label.design,
-    ]),
-    Task(147, 'Describe photos in chats for screen readers', Teammate.lena, [
-      Label.accessibility,
-    ]),
-    Task(158, 'Link previews load twice on slow networks', Teammate.omar, [
-      Label.bug,
-      Label.performance,
-    ]),
-    Task(133, 'Mute a chat for 8 hours, a day or a week', Teammate.mike, [
-      Label.feature,
-    ]),
-    Task(160, 'Archive a chat with a long press', Teammate.anna, [
-      Label.feature,
-    ]),
+    Task(
+      2,
+      'Swipe an item away to delete it',
+      'SwipeToRemoveOptions',
+      Teammate.omar,
+      [Label.gestures],
+    ),
+    Task(
+      3,
+      'Reorder a grid by drag and drop, across its rows',
+      'AnimatedReorderable.grid',
+      Teammate.lena,
+      [Label.grid, Label.gestures],
+    ),
+    Task(
+      4,
+      'Move items with a screen reader',
+      'ReorderOptions.onReorder',
+      Teammate.lena,
+      [Label.accessibility],
+    ),
+    Task(
+      5,
+      'Build only the items a drag passes',
+      'AnimatedReorderable',
+      Teammate.mike,
+      [Label.performance],
+    ),
+    Task(
+      6,
+      'Keep some items from being dragged',
+      'ReorderOptions.draggableGetter',
+      Teammate.omar,
+      [Label.gestures],
+    ),
+    Task(
+      7,
+      'Start a drag at once, or after a long press',
+      'ReorderOptions.gestureRecognizerFactory',
+      Teammate.anna,
+      [Label.gestures],
+    ),
   ],
   Status.inProgress: [
-    Task(128, 'Search the messages of a chat', Teammate.mike, [Label.feature]),
-    Task(
-      136,
-      'Read receipts stop while the app is in the background',
-      Teammate.omar,
-      [Label.bug],
-    ),
-    Task(144, 'Redesign the attachment picker', Teammate.lena, [Label.design]),
+    Task(8, 'Animate an insert', 'insertItem', Teammate.mike, [
+      Label.animation,
+    ]),
+    Task(9, 'Animate a removal', 'removeItem', Teammate.omar, [
+      Label.animation,
+    ]),
+    Task(10, 'Animate a reorder made in code', 'reorderItem', Teammate.lena, [
+      Label.animation,
+    ]),
   ],
   Status.done: [
-    Task(117, 'Send photos in their original quality', Teammate.anna, [
-      Label.feature,
-    ]),
-    Task(121, 'Pin up to three chats to the top', Teammate.mike, [
-      Label.feature,
-    ]),
     Task(
-      125,
-      'Unread badge stays after reading on another device',
-      Teammate.omar,
-      [Label.bug],
+      11,
+      "Change an item's look as it flies to another list",
+      'FlightOptions',
+      Teammate.mike,
+      [Label.animation],
     ),
-    Task(109, 'Dark theme for the chat list', Teammate.lena, [Label.design]),
+    Task(
+      12,
+      'Lift a held item in a look of your own',
+      'ItemDecoration',
+      Teammate.omar,
+      [Label.animation],
+    ),
+    Task(
+      13,
+      'Slide items out of the way, on your own curve',
+      'MotionOptions',
+      Teammate.anna,
+      [Label.animation],
+    ),
+    Task(
+      14,
+      'Spring a dropped item back into its place',
+      'ReorderOptions.springDescription',
+      Teammate.lena,
+      [Label.animation],
+    ),
   ],
 };
 
@@ -242,7 +286,7 @@ class TaskCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'messenger #${task.number}',
+                  task.api,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colors.onSurfaceVariant,
                   ),
@@ -299,10 +343,6 @@ class DoneTaskCard extends StatelessWidget {
                 decorationColor: muted,
               ),
             ),
-          ),
-          Text(
-            '#${task.number}',
-            style: theme.textTheme.bodySmall?.copyWith(color: muted),
           ),
         ],
       ),

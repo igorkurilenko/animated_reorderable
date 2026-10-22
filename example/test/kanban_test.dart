@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'helpers.dart';
 
 /// The board's first task to do, which the tests move to Done.
-const _title = 'Show typing indicators in group chats';
+const _title = 'Drag and drop between lists and grids';
 
 void main() {
   testWidgets('drags a task into Done, which strikes its title through', (
