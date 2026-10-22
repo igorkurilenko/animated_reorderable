@@ -1,15 +1,14 @@
 import 'package:example/reorderable_grid/main.dart';
 import 'package:example/style/style.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers.dart';
 
 void main() {
   // On a phone's screen, an iPhone 15's, as the example is recorded.
   Future<void> pumpExample(WidgetTester tester) {
-    tester.view.physicalSize = const Size(393, 852) * 3;
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
+    setScreen(tester, const Size(393, 852), pixelRatio: 3);
     return tester.pumpWidget(
       MaterialApp(theme: exampleTheme, home: const ReorderableGridExample()),
     );
@@ -23,14 +22,7 @@ void main() {
     final home = at(tester, 'Home');
     final clock = at(tester, 'Clock');
 
-    final gesture = await tester.startGesture(home);
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    for (var i = 1; i <= 20; i++) {
-      await gesture.moveTo(Offset.lerp(home, clock, i / 20)!);
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await gesture.up();
-    await tester.pumpAndSettle();
+    await longPressDrag(tester, home, clock);
 
     // Home took Clock's cell, two rows down, and the shortcuts before it
     // moved back a cell, across the rows.

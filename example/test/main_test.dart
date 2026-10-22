@@ -1,25 +1,21 @@
 import 'dart:io';
 
 import 'package:example/main.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers.dart';
 
 void main() {
   testWidgets('a long press drags a card to a new place', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: ReorderableListExample()));
-    final from = tester.getCenter(find.text('Card 0'));
-    final below = tester.getCenter(find.text('Card 2'));
 
-    final gesture = await tester.startGesture(from);
-    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-    for (var i = 1; i <= 20; i++) {
-      // To where card 2 is: past its middle, but not past card 3's.
-      await gesture.moveTo(Offset.lerp(from, below, i / 20)!);
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await gesture.up();
-    await tester.pumpAndSettle();
+    // To where card 2 is: past its middle, but not past card 3's.
+    await longPressDrag(
+      tester,
+      tester.getCenter(find.text('Card 0')),
+      tester.getCenter(find.text('Card 2')),
+    );
 
     double y(String text) => tester.getCenter(find.text(text)).dy;
     expect(y('Card 1'), lessThan(y('Card 2')));
