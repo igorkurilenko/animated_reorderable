@@ -794,6 +794,7 @@ class AnimatedReorderableController implements ItemHost {
       },
       onDragUpdate: (details, _) => session?.update(details),
       onDragEnd: (details, _) => session?.end(details),
+      onDragCancel: (details, _) => session?.cancel(details),
     );
   }
 
@@ -821,6 +822,7 @@ class AnimatedReorderableController implements ItemHost {
       },
       onSwipeUpdate: (details, _) => session?.update(details),
       onSwipeEnd: (details, _) => session?.end(details),
+      onSwipeCancel: (details, _) => session?.cancel(details),
     );
   }
 }

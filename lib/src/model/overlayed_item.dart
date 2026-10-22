@@ -283,6 +283,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     OverlayedItemDragStartCallback? onDragStart,
     OverlayedItemDragUpdateCallback? onDragUpdate,
     OverlayedItemDragEndCallback? onDragEnd,
+    OverlayedItemDragEndCallback? onDragCancel,
   }) {
     // The item is no longer swiped once a drag may start, while a swipe
     // replaces the previous one only when it starts.
@@ -295,6 +296,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
         item: this,
         onDragUpdate: onDragUpdate,
         onDragEnd: onDragEnd,
+        onDragCancel: onDragCancel,
       ),
     );
   }
@@ -306,6 +308,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
     OverlayedItemDragStartCallback? onSwipeStart,
     OverlayedItemDragUpdateCallback? onSwipeUpdate,
     OverlayedItemDragEndCallback? onSwipeEnd,
+    OverlayedItemDragEndCallback? onSwipeCancel,
   }) => _recognize(
     event,
     context: context,
@@ -315,6 +318,7 @@ class OverlayedItem extends widgets.ChangeNotifier {
       swipeDirection: swipeDirection,
       onSwipeUpdate: onSwipeUpdate,
       onSwipeEnd: onSwipeEnd,
+      onSwipeCancel: onSwipeCancel,
     ),
   );
 
@@ -488,11 +492,17 @@ class OverlayedItem extends widgets.ChangeNotifier {
 }
 
 class _OverlayedItemDrag implements gestures.Drag {
-  _OverlayedItemDrag({required this.item, this.onDragUpdate, this.onDragEnd});
+  _OverlayedItemDrag({
+    required this.item,
+    this.onDragUpdate,
+    this.onDragEnd,
+    this.onDragCancel,
+  });
 
   final OverlayedItem item;
   OverlayedItemDragUpdateCallback? onDragUpdate;
   OverlayedItemDragEndCallback? onDragEnd;
+  OverlayedItemDragEndCallback? onDragCancel;
 
   @override
   void update(widgets.DragUpdateDetails details) {
@@ -506,8 +516,13 @@ class _OverlayedItemDrag implements gestures.Drag {
     onDragEnd?.call(details, item);
   }
 
+  /// The system took the pointer, as it does when Control Center opens: the
+  /// pointer is gone, with no speed.
   @override
-  void cancel() {}
+  void cancel() {
+    item._globalPointerPosition = null;
+    onDragCancel?.call(widgets.DragEndDetails(), item);
+  }
 }
 
 class _OverlayedItemSwipe implements gestures.Drag {
@@ -516,12 +531,14 @@ class _OverlayedItemSwipe implements gestures.Drag {
     required this.swipeDirection,
     this.onSwipeUpdate,
     this.onSwipeEnd,
+    this.onSwipeCancel,
   });
 
   final OverlayedItem item;
   final SwipeDirection swipeDirection;
   OverlayedItemDragUpdateCallback? onSwipeUpdate;
   OverlayedItemDragEndCallback? onSwipeEnd;
+  OverlayedItemDragEndCallback? onSwipeCancel;
   widgets.Offset _swipeOffset = widgets.Offset.zero;
 
   widgets.Offset get swipeOffset => _swipeOffset;
@@ -552,8 +569,11 @@ class _OverlayedItemSwipe implements gestures.Drag {
     onSwipeEnd?.call(details, item);
   }
 
+  /// The system took the pointer, as it does when Control Center opens: the
+  /// pointer is gone, with no speed.
   @override
   void cancel() {
-    // noop
+    item._globalPointerPosition = null;
+    onSwipeCancel?.call(widgets.DragEndDetails(), item);
   }
 }

@@ -1,3 +1,12 @@
+## 2.10.1
+
+### Fixes
+
+- End a drag or a swipe that the system cancels, as it does when Control Center opens or a call comes in. The item stayed where the pointer left it, still lifted, until it was pressed again; `onEnd` wasn't called; and a list the item was held at the edge of went on scrolling to its end.
+  - A cancelled drag lands the item as if it were let go there, still. The places it took on the way stay taken, as a drag takes them as it goes.
+  - A cancelled swipe springs the item back however far it is swiped, as it isn't let go: the system can't remove an item.
+  - `ItemDragCallbacks.onEnd` is called for both, with no velocity.
+
 ## 2.10.0
 
 ### Fixes

@@ -57,7 +57,10 @@ class ItemDragCallbacks {
   /// Called when the pointer moves while an item is dragged or swiped.
   final ItemDragUpdateCallback? onUpdate;
 
-  /// Called when a drag or swipe of an item ends.
+  /// Called when a drag or swipe of an item ends. Also called, with no
+  /// velocity, when the system cancels it, as it does when Control Center
+  /// opens: a drag then lands the item where it is, and a swipe springs it
+  /// back however far it is swiped.
   final ItemDragEndCallback? onEnd;
 }
 
