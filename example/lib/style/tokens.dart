@@ -28,19 +28,13 @@ abstract final class S {
   static const double s10 = 64;
 }
 
-/// Gaps between the children of a [Column] (`h`) or a [Row] (`w`).
+/// Gaps between the children of a [Column].
 abstract final class G {
-  static const Widget h4 = SizedBox(height: S.s1);
   static const Widget h8 = SizedBox(height: S.s2);
-  static const Widget h16 = SizedBox(height: S.s4);
-  static const Widget h24 = SizedBox(height: S.s6);
-  static const Widget h32 = SizedBox(height: S.s7);
-  static const Widget w12 = SizedBox(width: S.s3);
 }
 
 /// Corner radii, as rose_app's.
 abstract final class R {
-  static const double md = 8;
   static const double lg = 12;
   static const double xl = 16;
 }

@@ -7,6 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers.dart';
+
+/// The board's first task to do.
+const _title = 'Show typing indicators in group chats';
+
 /// A screen reader picks what a finger touches by a rule of its own, which
 /// these tests follow, so a touch on an item finds the moves it can make.
 void main() {
@@ -45,10 +50,7 @@ void main() {
       'columns', (tester) async {
     await tester.pumpWidget(const KanbanExample());
 
-    final moves = _movesAt(
-      tester,
-      tester.getCenter(find.text('Show typing indicators in group chats')),
-    );
+    final moves = _movesAt(tester, tester.getCenter(find.text(_title)));
 
     expect(moves, [
       'Move down',
@@ -61,10 +63,7 @@ void main() {
   testWidgets('a card a screen reader moves to a column out of sight takes '
       'the focus there, in sight', (tester) async {
     // An iPhone 17 Pro's screen, on which Done is out of sight.
-    tester.view.physicalSize = const Size(1206, 2622);
-    tester.view.devicePixelRatio = 3;
-    addTearDown(tester.view.reset);
-    const title = 'Show typing indicators in group chats';
+    setScreen(tester, const Size(402, 874), pixelRatio: 3);
     // The node each focus goes to, and whether it was out of sight then.
     final focused = <(int, bool)>[];
     final messenger = tester.binding.defaultBinaryMessenger;
@@ -72,7 +71,7 @@ void main() {
       SystemChannels.accessibility,
       (message) async {
         if (message case {'type': 'focus', 'nodeId': final int id}) {
-          final card = tester.getSemantics(find.text(title));
+          final card = tester.getSemantics(find.text(_title));
           focused.add((id, card.getSemanticsData().flagsCollection.isHidden));
         }
         return null;
@@ -86,7 +85,7 @@ void main() {
     );
     await tester.pumpWidget(const KanbanExample());
 
-    final node = tester.getSemantics(find.text(title));
+    final node = tester.getSemantics(find.text(_title));
     node.owner!.performAction(
       node.id,
       SemanticsAction.customAction,
@@ -96,8 +95,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(focused, [(tester.getSemantics(find.text(title)).id, false)]);
-    final rect = tester.getRect(find.text(title));
+    expect(focused, [(tester.getSemantics(find.text(_title)).id, false)]);
+    final rect = tester.getRect(find.text(_title));
     expect(rect.left, greaterThanOrEqualTo(0));
     expect(rect.right, lessThanOrEqualTo(402));
   });

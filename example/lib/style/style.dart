@@ -14,9 +14,10 @@
 
 /// The examples' look, kept apart from what they show of
 /// animated_reorderable: the theme, its tokens and the icons, as hero_here's
-/// and rose_app's.
+/// and rose_app's, and how a held card rises.
 library;
 
+export 'lift.dart';
 export 'theme.dart';
 export 'tokens.dart';
 export 'unicon.dart';
