@@ -113,6 +113,13 @@ Map<Status, List<Task>> initialBoard() => {
   ],
 };
 
+/// A column's narrowest width: in a window too narrow for every column at
+/// it, the board scrolls.
+const _minColumnWidth = 240.0;
+
+/// The space between the columns, and around them.
+const _columnGap = S.s3;
+
 /// The board's [columns], side by side: they share a wide window, and the
 /// board scrolls sideways in a narrow one, also while a card is held at its
 /// edge.
@@ -124,16 +131,17 @@ class BoardLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
+      final gaps = (columns.length + 1) * _columnGap;
       final width = math.max(
-        240.0,
-        (constraints.maxWidth - (columns.length + 1) * S.s3) / columns.length,
+        _minColumnWidth,
+        (constraints.maxWidth - gaps) / columns.length,
       );
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(S.s3),
+        padding: const EdgeInsets.all(_columnGap),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: S.s3,
+          spacing: _columnGap,
           children: [
             for (final column in columns) SizedBox(width: width, child: column),
           ],
@@ -158,45 +166,57 @@ class BoardColumn extends StatelessWidget {
   final Widget tasks;
 
   @override
+  Widget build(BuildContext context) => ClipRSuperellipse(
+    borderRadius: BorderRadius.circular(R.xl),
+    child: ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ColumnHeader(status: status, count: count),
+          Expanded(child: tasks),
+        ],
+      ),
+    ),
+  );
+}
+
+/// A column's header: its status's dot and title, and how many tasks it
+/// has.
+class _ColumnHeader extends StatelessWidget {
+  const _ColumnHeader({required this.status, required this.count});
+
+  final Status status;
+  final int count;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ClipRSuperellipse(
-      borderRadius: BorderRadius.circular(R.xl),
-      child: ColoredBox(
-        color: theme.colorScheme.surfaceContainer,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(S.s4, S.s4, S.s4, S.s2),
-              child: Row(
-                spacing: S.s2,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: status.color,
-                    ),
-                    child: const SizedBox.square(dimension: 10),
-                  ),
-                  Flexible(
-                    child: Text(
-                      status.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ),
-                  _Pill(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Text('$count', style: theme.textTheme.labelMedium),
-                  ),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(S.s4, S.s4, S.s4, S.s2),
+      child: Row(
+        spacing: S.s2,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: status.color,
             ),
-            Expanded(child: tasks),
-          ],
-        ),
+            child: const SizedBox.square(dimension: 10),
+          ),
+          Flexible(
+            child: Text(
+              status.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+          _Pill(
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Text('$count', style: theme.textTheme.labelMedium),
+          ),
+        ],
       ),
     );
   }
